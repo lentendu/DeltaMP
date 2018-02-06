@@ -1,0 +1,173 @@
+# Define Variables
+while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
+. $BIN/check_previous_step.sh
+
+# load modules
+module load deltamp/${VERSION[DELTAMP]}
+
+# Choose a sample
+LIB=(`sed -n "$ARRAY_TASK"'p' config/lib4.list`)
+SAMP=${LIB[0]}
+LIB_NAME=(`echo ${LIB[@]} | cut -d " " -f 2-`)
+cd processing && mkdir $SAMP
+cd $SAMP
+
+# Trim for each library of the sample and merge
+for i in "${LIB_NAME[@]}"
+do
+	if [ $TECH == "454" ]
+	then
+		if [ $BDIFFS == "a" ]
+		then
+			unset BDIFFS && BDIFFS=$(grep ${i#*.} ../bdiffs.$SUBPROJECT | cut -d " " -f 2)
+		fi
+		# Get quality and length for trimming
+		QUAL=`cut -d "." -f 2 $EXEC/quality_check/trimming.parameters.txt`
+		LENGTH=`cut -d "." -f 1 $EXEC/quality_check/trimming.parameters.txt`
+		if [ $DENOISE == "yes" ]
+		then
+			#trim flows with FlowClus, using all set of primers allowed by PDIFFS mismatches as detected by cutadapt (also work with MOTHUR trim.seqs) because FlowClust does not take into account homopolymers extension in primer mismatches (which append quite often for ITS4)
+			if [ $DEMULTI == "no" ]
+			then
+				process_sff.py -i $EXEC/libraries/sff/$i.sff -f -o ./ 
+			else
+				process_sff.py -i $EXEC/libraries/$i.sff -f -o ./ 
+			fi
+			ln -s $EXEC/libraries/fasta/oligos.$i ./
+			sed 's/forward/primer,'$i'/;s/^#//;s/barcode/midtag/' $EXEC/libraries/fasta/oligos.$i | awk '{if($1=="midtag"){print $1,$3,$2} else print $0}' | sed 's/ /,/g' > master.$i.csv
+			MID=`sed -n '/midtag/{s/^.*,//;p;q;}' master.$i.csv`
+			MID_E=$(awk -v F=${#MID} -v B=$BDIFFS 'BEGIN{printf "%.2f",B/F+0.005}')
+			FWD_E=$(awk -v F=${#FWD} -v P=$PDIFFS 'BEGIN{printf "%.2f",P/F+0.005}')
+			awk '{print $1}' $EXEC/libraries/fasta/$i.fasta | cutadapt -g ${MID} -e ${MID_E} --trimmed-only - | cutadapt -g ${FWD} -e ${FWD_E} --trimmed-only --info-file=cutadapt.$i - > $i.cut.fasta
+			while read count prim; do sed '1 s/,[^,]*$/_'$count','$prim'/' master.$i.csv ; done < <(awk -v F=${#FWD} 'length($5)>=F{print $5}' cutadapt.$i | sort -u | awk '{print NR,$1}') > master.all.$i.csv
+			FlowClus -a -m master.all.$i.csv -i $i.txt -em $BDIFFS -ep 0 -r -er $PDIFFS -l $((LENGTH + ${#MID} + ${#FWD})) -t $((LENGTH + ${#MID} + ${#FWD})) -n $MAXAMBIG -g $MAXHOMOP -s $QUAL -lf $MINFLOW -c FlowClus.$i.stat.txt #-Lf $MAXFLOW 
+			for j in ${i}_[0-9]*.flow; do sed '1d' $j ; done | cat <(head -1 $(ls ${i}_*.flow | head -1)) - > $i.flow
+			rm $i.cut.fasta cutadapt.$i ${i}_*.flow
+			FlowClus -b -m master.$i.csv -j 0.50 -ch -cu .denoised.fasta -cm .denoised.names -o $i.denoised_all.fasta
+			awk '{if($2~","){sub(",*"$1"$","",$2);print $1,$1","$2} else print}' $i.denoised.names > $i.names
+			if [ $FLIP == "yes" ]
+			then
+				obicomplement --uppercase | sed 's/_CMP.*$//' | twofasta > $i.trim.fasta
+			else
+				awk '{print $1}' $i.denoised.fasta > $i.trim.fasta
+			fi
+			rm $i.denoised* $i.flow $i.txt
+		else
+			mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile);
+			set.dir(input=../../libraries/fasta, output=./);
+			trim.seqs(fasta=$i.fasta, oligos=oligos.$i, qfile=$i.qual, flip=$FLIP, qaverage=$QUAL, bdiffs=$BDIFFS, pdiffs=$PDIFFS, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$LENGTH, keepfirst=$LENGTH)"
+		fi
+	elif [ $TECH == "Illumina" ]
+	then
+		QUAL=`cat $EXEC/quality_check/optimized.quality.txt`
+		mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile);
+		set.dir(input=../../libraries/fasta, output=./);
+		trim.seqs(fasta=$i.pairend.fasta, qfile=$i.pairend.qual, qaverage=$QUAL, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$MINLEN, maxlength=$MAXLEN)"
+	fi
+done
+cat *.trim.fasta > $SAMP.trim.fasta
+if [ $TECH == "454" ] && [ "$DENOISE" == "yes" ] ; then cat *.names > $SAMP.names ; fi
+
+# unique and subsample
+if [ $SUBSAMPLE == "yes" ]
+then
+	SIZE=$(grep "Minimum" ../../quality_check/$SUBPROJECT.summary.stat.tsv | cut -f 3 | cut -d "." -f 1)
+	if [ $TECH == "454" ] && [ "$DENOISE" == "yes" ]
+	then
+		mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile, append=T);
+		unique.seqs(fasta=$SAMP.trim.fasta, name=$SAMP.names);
+		sub.sample(fasta=current, name=current, size=$SIZE);
+		get.current()"
+	else
+		mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile, append=T);
+		unique.seqs(fasta=$SAMP.trim.fasta);
+		sub.sample(fasta=current, name=current, size=$SIZE);
+		get.current()"
+	fi
+else
+	if [ $TECH == "454" ] && [ "$DENOISE" == "yes" ]
+	then
+		mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile, append=T);
+		unique.seqs(fasta=$SAMP.trim.fasta, name=$SAMP.names);
+		get.current()"
+	else
+		mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile, append=T);
+		unique.seqs(fasta=$SAMP.trim.fasta);
+		get.current()"
+	fi
+fi
+
+#store current files in variables
+unset LOG FASTA NAMES
+LOG=mothur.${TECH}_trim.$SAMP.logfile
+FASTA=`tac $LOG | sed -n '1,/get.current()/p' | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
+NAMES=`tac $LOG | sed -n '1,/get.current()/p' | grep "^name=" | sed 's/name=//;s/\.names//'`
+
+# align to reference (silva DB only), pre-cluster (silva DB and/or Illumina), and chimera removal
+if [ ! -z $DBCHOP ] && [ $TECH == "454" ]
+then
+	PRECDIFF=$(( ${LENGTH} / 100 ))
+	mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile, append=T);
+	set.dir(tempdefault=/data/ecogen/databases/mothur);
+	align.seqs(candidate=$FASTA.fasta, template=$DBCHOP.fasta, align=needleman);
+	screen.seqs(fasta=current, name=$NAMES.names, optimize=start-end, criteria=95);
+	filter.seqs(fasta=current, vertical=T, trump=.);
+	pre.cluster(fasta=current, name=current, diffs=$PRECDIFF);
+	chimera.uchime(fasta=current, name=current, reference=self);
+	get.current()"
+	unset FASTA NAMES ACCNOS
+	FASTA=`tac $LOG | sed -n '1,/get.current()/p' | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
+	NAMES=`tac $LOG | sed -n '1,/get.current()/p' | grep "^name=" | sed 's/name=//;s/\.names//'`
+	ACCNOS=`tac $LOG | sed -n '1,/get.current()/p' | grep "^accnos=" | sed 's/accnos=//;s/\.accnos//'`
+	if [ -s $ACCNOS.accnos ]
+	then
+		mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile, append=T);
+		remove.seqs(accnos=$ACCNOS.accnos, fasta=$FASTA.fasta, name=$NAMES.names);
+		filter.seqs(fasta=current, vertical=T, trump=.);
+		get.current()"
+	fi
+elif [ $TECH == "Illumina" ]
+then
+	# pre-cluster with cd-hit-454, allowing 1% dissimilarity with indel of size 1 at max 
+	cdhit4542mothur () {
+		bak=$1 ; fasta=$2 ; names=$3
+		nl $bak | sed 's/>//;s/\.\.\.//' | awk '{print $4,$1,$2}' | sort -k 1,1 | join - <(sort -k 1,1 $names) | awk '{size=split($4,a,",");print $0,size}' | sort -k 3,3n -k 5,5nr | awk '{if(NR==1){nb=$3;printf "%s\t%s\t%s", $1,$2,$4} else {if($3==nb){printf ",%s", $4} else {nb=$3;printf "\n%s\t%s\t%s",$1,$2,$4}}}END{printf "\n"}' | sort -k 2,2n | cut -f 1,3 > ${names%.*}.precl.names
+		obigrep --uppercase --id-list=<(cut -f 1 ${names%.*}.precl.names) $fasta| twofasta > ${fasta%.*}.precl.fasta
+		echo "cdhit4542mothur output files:#${fasta%.*}.precl.fasta#${names%.*}.precl.names" | tr "#" "\n"
+	}
+	cd-hit-454 -B 1 -g 1 -M 6000 -c 0.99 -bak 1 -i $FASTA.fasta -o $FASTA.precl.fasta.temp
+	cdhit4542mothur $FASTA.precl.fasta.temp.bak.clstr $FASTA.fasta $NAMES.names
+	rm $FASTA.precl.fasta.temp*
+	mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile, append=T);
+	chimera.uchime(fasta=$FASTA.precl.fasta, name=$NAMES.precl.names, reference=self);
+	get.current()"
+	unset FASTA NAMES ACCNOS
+	FASTA=`tac $LOG | sed -n '1,/get.current()/p' | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
+	NAMES=`tac $LOG | sed -n '1,/get.current()/p' | grep "^name=" | sed 's/name=//;s/\.names//'`
+	ACCNOS=`tac $LOG | sed -n '1,/get.current()/p' | grep "^accnos=" | sed 's/accnos=//;s/\.accnos//'`
+	if [ -s $ACCNOS.accnos ]
+	then
+		mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile, append=T);
+		remove.seqs(accnos=$ACCNOS.accnos, fasta=$FASTA.fasta, name=$NAMES.names);
+		get.current()"
+	fi
+else
+	mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile, append=T);
+	chimera.uchime(fasta=$FASTA.fasta, name=$NAMES.names, reference=self);
+	get.current()"
+	unset FASTA NAMES ACCNOS
+	FASTA=`tac $LOG | sed -n '1,/get.current()/p' | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
+	NAMES=`tac $LOG | sed -n '1,/get.current()/p' | grep "^name=" | sed 's/name=//;s/\.names//'`
+	ACCNOS=`tac $LOG | sed -n '1,/get.current()/p' | grep "^accnos=" | sed 's/accnos=//;s/\.accnos//'`
+	if [ -s $ACCNOS.accnos ]
+	then
+		mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile, append=T);
+		remove.seqs(accnos=$ACCNOS.accnos, fasta=$FASTA.fasta, name=$NAMES.names);
+		get.current()"
+	fi
+fi
+
+# list files and directories
+. $BIN/list_step_files.sh
+
+echo END

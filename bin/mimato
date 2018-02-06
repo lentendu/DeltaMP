@@ -1,0 +1,28 @@
+#!/bin/bash
+
+file=$@
+
+awk '{
+	for(N=2; N<=NF; N++)
+	{
+		if(length(MIN[N])==0 || MIN[N]>$N) MIN[N]=$N
+		if(length(MAX[N])==0 || MAX[N]<$N) MAX[N]=$N
+		if(length(TOT[N])==0) {TOT[N]=$N} else {TOT[N]+=$N}
+		if(length(NB[N])==0) {NB[N]=1} else {NB[N]+=1}
+	}
+}1
+END {
+	printf("Minimum");
+	for(N=2; length(MIN[N]); N++)
+		printf("\t%d", MIN[N]);
+	printf("\nAverage");
+	for(N=2; length(MIN[N]); N++)
+		printf("\t%.1f", TOT[N]/NB[N]);
+	printf("\nMaximum");
+	for(N=2; length(MAX[N]); N++)
+		printf("\t%d", MAX[N]);
+	printf("\nTotal");
+	for(N=2; length(TOT[N]); N++)
+		printf("\t%d", TOT[N]);
+	printf("\n");
+}' $file

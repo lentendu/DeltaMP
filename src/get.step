@@ -1,0 +1,120 @@
+# Define Variables
+while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
+while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/prev.txt
+if [ $REF_SUBPROJECT != "no" ]
+then
+	. $BIN/check_previous_step.sh
+fi
+
+# load modules
+module load deltamp/${VERSION[DELTAMP]}
+
+# Set archives/libraries array
+if [ -z "$ARCHIVES" ] || [[ "${ARCHIVES[@]}" == "no" ]]
+then
+	if [ $TECH == "454" ]
+	then
+		ARCH=(`cat config/lib1.list`)
+	elif [ $TECH == "Illumina" ]
+	then
+		ARCH=(`paste <(awk '{print $1$2}' config/lib1.list) <(awk '{print $1$3}' config/lib1.list)`)
+	fi
+else
+	ARCH=(${ARCHIVES[@]})
+fi
+
+# Copy raw data
+cd libraries
+for i in "${ARCH[@]}"
+do
+	if [[ $LIB_DIR == "/"* ]]
+	then
+		# allow for multiple source directories
+		for j in ${LIB_DIR[@]}
+		do
+			FILE_PATH=$(find $j -name $i)
+			if [ ! -z "$FILE_PATH" ]
+			then
+				dd if=$FILE_PATH of=./$i bs=1M
+			fi
+		done
+	else
+		wget -O $LIB_DIR.txt "http://www.ebi.ac.uk/ena/data/warehouse/filereport?accession=$LIB_DIR&result=read_run&download=text"
+		if [ "$(sed -n '$=' $LIB_DIR.txt)" -gt 1 ]
+		then
+			while read lib 
+			do
+				wget -O - $lib | dd of=${lib##*/} bs=1M
+			done < <(cat ../config/lib1.list)
+		else
+			echo "The accession $LIB_DIR was not found at the European Nucleotide Archive (http://www.ebi.ac.uk/ena/data)"
+			echo "Aborting"
+			exit 100
+		fi
+	fi
+done
+
+# Extract
+for i in "${ARCH[@]}"
+do
+	if [[ -f "$i" ]]
+	then
+		mkdir tmp
+		case $i in
+			*.tar.bz2) tar xjvf $i -C tmp ;;
+			*.tar.gz) tar xzvf $i -C tmp ;;
+			*.bz2) bunzip2 -p1 $i ;;
+			*.gz) dd if=$i ibs=1M | unpigz -p 1 | dd of=${i%.*} obs=1M && rm $i ;;
+			*.tar) tar xf $i -C tmp ;;
+			*.tbz2) tar xjvf $i -C tmp ;;
+			*.tgz) tar xzvf $i -C tmp ;;
+			*.zip) unzip -j $i ;;
+			#*.7z) 7za e -o./tmp $i && rm $i;;
+			*) echo "ERROR: '$i' cannot be extracted, unknown extension" && exit 100 ;;
+		esac
+		find ./tmp -type f -exec mv -i {} . \;
+		rm -r ./tmp
+	else
+		echo "ERROR: '$i' does not exist or is not a file" && exit 100
+	fi
+done
+
+if [[ "${ARCHIVES[@]}" != "no" ]]
+then
+	while read lib fwd rvs
+	do
+		case $lib$fwd in
+			*.bz2) bunzip2 $lib$fwd $lib$rvs ;;
+			*.gz) gunzip $lib$fwd $lib$rvs ;;
+			*.tar) tar xf $lib$fwd $lib$rvs ;;
+			*.zip) unzip $lib$fwd $lib$rvs ;;
+		esac
+	done < ../config/lib1.list
+fi
+
+# Oligo files
+mkdir $RAW_EXT raw_stat fasta
+cat <(echo "forward $FWD") <(echo "reverse $RVS") > fasta/oligos.$FWD_NAME.$RVS_NAME
+
+LIB=(`cut -f 1 ../config/lib1.list`)
+if [ $TECH == "454" ]
+then
+	for i in "${LIB[@]}"
+	do
+		if [[ $LIB_DIR == "/"* ]]
+		then
+			j=${i%.*}
+		else
+			j=`echo ${i##*/} | sed 's/\.[^\.]*$//'`
+		fi
+		awk -v I=$i 'BEGIN{OFS="\t"}$4==I{print $1,$2,$3}' $EXEC/config/barcodes.txt | cat fasta/oligos.$FWD_NAME.$RVS_NAME - | sed 's/reverse/#reverse/;s/-/_/g' > fasta/oligos.${j//-/_}
+	done
+fi
+
+# Replace "-" by "_" in library names
+rename - _ *.$RAW_EXT
+
+# list files and directories
+. $BIN/list_step_files.sh
+
+echo END

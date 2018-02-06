@@ -1,0 +1,111 @@
+#!/bin/bash
+
+# author: Guillaume Lentendu (guillaume.lentendu@ufz.de)
+
+if [ -z "$1" ]; then
+	echo "usage: ${0##*/} SUBPROJECT PROJECT_output_directory_full_path [step_script_name]"
+	echo "Delete every files created by the provided step_script_name and all following steps, and resubmit steps of SUBPROJECT starting from the provided step_script_name."
+	echo "Alternatively, avoiding the step_script_name argument will output all available step script names for the SUBPROJECT."
+	exit
+fi
+
+SUBPROJECT=$1 ; shift
+PROUT=${1%/} ; shift
+STEP=$1 ; shift
+
+# Check SUBPROJECT
+if [ ! -d $PROUT/$SUBPROJECT ]
+then
+	echo "$PROUT/$SUBPROJECT directory does not exist."
+	echo "Aborting"
+	exit 1
+else
+	if [ ! -f $PROUT/$SUBPROJECT/config/env.txt ]
+	then
+		echo "$PROUT/$SUBPROJECT directory was not created by deltamp."
+		echo "Aborting"
+		exit 1
+	fi
+fi
+
+# List available steps for SUBPROJECT or check
+cd $PROUT/$SUBPROJECT
+if [ -z $STEP ]
+then
+	echo "Available step script names for $SUBPROJECT are:"
+	awk '$2=="x"{print $1}' config/steps.summary
+	exit
+else
+	if [ -z "$(grep $STEP config/steps.summary)" ]
+	then
+		echo "script name $STEP do not match with $SUBPROJECT executed steps"
+		echo "The available step script names for $SUBPROJECT are:"
+		awk '$2=="x"{print $1}' config/steps.summary
+		echo ""
+		echo "Aborting"
+		exit
+	fi
+	UNTIL=`awk -v S=$STEP '{if($1==S && $2=="x"){print prev;exit};if($2=="x"){prev=$1}}' config/steps.summary`
+	TO_CLEAN=(`sed "1,/$UNTIL/d" config/steps.summary | awk '$2=="x"{print $1}'`)
+	if [ -z $UNTIL ]
+	then
+		echo "The step $STEP was not executed in this $SUBPROJECT"
+		echo "Check the folowing execution tree and run ${0##*/} for the correct $SUBPROJECT"
+		column -t config/tree.summary
+		echo ""
+		echo "Aborting"
+		exit
+	elif [ -z "$(grep $UNTIL config/steps.summary | grep "x")" ]
+	then
+		echo "The previous step of $STEP is $UNTIL and was not executed in this $SUBPROJECT."
+		echo "Check the folowing execution tree and run ${0##*/} for the correct ${SUBPROJECT%_*}_xxx, or use deltamp.delete_subproject utility to delete $SUBPROJECT, and restart a fresh analysis with deltamp"
+		column -t config/tree.summary
+		echo ""
+		echo "Aborting"
+		exit
+	fi
+fi
+
+# Load environment
+while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
+
+# Delete jobs from the queue
+TO_DEL=`squeue $(eval echo $DELTAMP_VER.{$(echo ${TO_CLEAN/script_/} | sed 's/ /,/g')}.$SUBPROJECT | sed 's/ /,/g') | sed '1d' | awk '{print $1}'`
+if [ ! -z "$TO_DEL" ]
+then
+	scancel $TO_DEL
+fi
+
+# Clean archives from output directory
+for i in "${TO_CLEAN[@]}"
+do
+	if [ $i == "end" ]
+	then
+		if [ -f $SUBPROJECT.outputs.tar.gz ]
+		then
+			rm $SUBPROJECT.outputs.tar.gz*
+		fi
+		if [ -f $SUBPROJECT.processing.files.tar.gz ]
+		then
+			rm $SUBPROJECT.processing.files.tar.gz*
+		fi
+	fi
+	if [ $i == $TECH"_quality" ]
+	then
+		if [ -f $SUBPROJECT.$RAW_EXT.tar.gz ]
+		then
+			rm $SUBPROJECT.$RAW_EXT.tar.gz*
+		fi
+	fi
+done
+
+# Clean files and directories of STEP and following ones
+cd $EXEC
+echo "Cleaned steps: ${TO_CLEAN[@]}"
+TO_DEL_F=`comm -13 <(sort config/$UNTIL.files) <(find $EXEC ! -type d | sort)`
+TO_DEL_D=`comm -13 <(sort config/$UNTIL.dir) <(find $EXEC/* -type d | sort)`
+if [ ! -z "$TO_DEL_F" ] ; then rm $TO_DEL_F ; fi
+if [ ! -z "$TO_DEL_D" ] ; then rmdir $TO_DEL_D ; fi
+
+# Re-execute from STEP
+. <(awk -v S=$STEP 'BEGIN{FS="/";flag=0} $NF==S{flag=1} flag{print}' config/steps.final)

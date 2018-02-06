@@ -1,0 +1,55 @@
+#!/bin/bash
+
+if [ ${MAX_TASK} -gt ${LIB3_SIZE} ] ; then MTASKS="" ; else MTASKS="%${MAX_TASK}" ; fi
+
+## Create directories and symlink to files of REF_SUBPROJECT
+echo "init_jobid=\$(sbatch -J "$DELTAMP_VER.init.$SUBPROJECT" $BIN/init.sh)"
+
+## Copy/download libraries data in project folder [and extract]
+echo "get_jobid=\$(sbatch -J "$DELTAMP_VER.get.$SUBPROJECT" -d afterok:\${init_jobid##* } $BIN/get.sh)"
+
+## Demultiplex
+if [ $TECH == "454" ] && [ $DEMULTI == "no" ]
+then
+	echo "demulti_jobid=\$(sbatch -J "$DELTAMP_VER.${TECH}_demulti.$SUBPROJECT" -a 1-${LIB1_SIZE}${MTASKS} -d afterok:\${get_jobid##* } $BIN/${TECH}_demulti.sh)"
+fi
+
+## Quality check
+echo "raw_jobid=\$(sbatch -J $DELTAMP_VER.${TECH}_${RAW_EXT}.$SUBPROJECT -a 1-${LIB3_SIZE}${MTASKS} -d afterok:\${get_jobid##* }\${demulti_jobid/* /:} $BIN/${TECH}_${RAW_EXT}.sh"
+if [ $TECH == "Illumina" ]
+then
+	echo "pair_end_jobid=\$(sbatch -cwd -J $DELTAMP_VER.${TECH}_pair_end.$SUBPROJECT -a 1-${LIB3_SIZE}${MTASKS} -d afterok:\${raw_jobid##* } $BIN/${TECH}_pair_end.sh)"
+fi
+echo "raw_stat_jobid=\$(sbatch -J $DELTAMP_VER.${TECH}_raw_stat.$SUBPROJECT -a 1-${LIB1_SIZE}${MTASKS} -d afterok:\${raw_jobid##* }\${pair_end_jobid/* /:} $BIN/${TECH}_raw_stat.sh)"
+echo "opt_jobid=\$(sbatch -J $DELTAMP_VER.${TECH}_opt.$SUBPROJECT -a 1-${LIB3_SIZE}${MTASKS} -d afterok:\${raw_stat_jobid##* } $BIN/${TECH}_opt.sh)"
+echo "qual_jobid=\$(sbatch -J "$DELTAMP_VER.qual.$SUBPROJECT" -d afterok:\${opt_jobid##* } $BIN/qual.sh)"
+
+## Trim (,align (,subsample)) , chimera check in array jobs, and merge
+if [ $CUT_DB == "yes" ] && [ ! -f $DBFOLD/$DBCUT.fasta ]
+then
+	echo "cut_db_jobid=\$(sbatch -J "$DELTAMP_VER.cut_db.$SUBPROJECT" $BIN/cut_db.sh)"
+fi
+echo "trim_jobid=\$(sbatch -J $DELTAMP_VER.trim.$SUBPROJECT -a 1-${SAMP_SIZE}${MTASKS} -d afterok:\${qual_jobid##* }\${cut_db_jobid/* /:} $BIN/trim.sh)"
+echo "megre_jobi=\$(sbatch -J $DELTAMP_VER.merge.$SUBPROJECT -d afterok:\${trim_jobid##* } $BIN/merge.sh"
+
+## OTUs and taxonomic assignment
+echo "otu_jobid=\$(sbatch -J "$DELTAMP_VER.otu.$SUBPROJECT" -d afterok:\${merge_jobid##* } $BIN/otu.sh)"
+echo "id_jobid=\$(sbatch -J "$DELTAMP_VER.id.$SUBPROJECT" -d afterok:\${otu_jobid##* } $BIN/id.sh"
+
+## OTU tables, documentation, logs and copy back to output directory
+echo "end_jobid=\$(sbatch -J "$DELTAMP_VER.end.$SUBPROJECT" -d afterok:\${id_jobid##* } $BIN/end.sh)"
+
+## Archive processing files
+
+
+
+## Archive outputs
+
+
+
+## Archive raw reads
+
+
+
+## Document
+echo "doc_jobid=\$(sbatch -J "$DELTAMP_VER.doc.$SUBPROJECT" -d afterok:\${end_jobid##* } $BIN/doc.sh)"

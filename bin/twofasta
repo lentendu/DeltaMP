@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# author: Guillaume Lentendu (guillaume.lentendu@ufz.de)
+
+fasta=$@
+sed '/>/G' $fasta |  sed -e :a -e '$!N;/>/!s/\n//;ta' -e 'P;D'

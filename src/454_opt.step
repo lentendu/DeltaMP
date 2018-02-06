@@ -1,0 +1,51 @@
+# Define Variables
+while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
+. $BIN/check_previous_step.sh
+
+# load modules
+module load deltamp/${VERSION[DELTAMP]}
+
+# Library to analyse
+LIB_CHUNK=(`sed -n $ARRAY_TASK,$(($ARRAY_TASK+9))p config/lib3.list | cut -d " " -f 2`)
+echo "Analysed libraries:"
+echo ${LIB_CHUNK[@]} | tr " " "\n"
+
+cd libraries/fasta
+
+for LIB_NAME in "${LIB_CHUNK[@]}"
+do
+	sleep 1
+	(
+	# get bdiffs
+	if [ $BDIFFS == "a" ]
+	then
+		unset BDIFFS
+		if [ $DEMULTI == "yes" ]
+		then
+			BDIFFS=1
+		else
+			BDIFFS=$(grep ${LIB_NAME#*.} $EXEC/processing/bdiffs.$SUBPROJECT | cut -d " " -f 2)
+		fi
+	fi
+	
+	# For each sample in each library create a trimmed stat file
+	mothur "#trim.seqs(fasta=$LIB_NAME.fasta, qfile=$LIB_NAME.qual, oligos=oligos.$LIB_NAME, bdiffs=$BDIFFS, pdiffs=$PDIFFS)"
+	paste <(twofasta $LIB_NAME.trim.fasta) <(twofasta $LIB_NAME.trim.qual) | grep -v "^>" > $LIB_NAME.trim2.qual
+	
+	# Count reads with increasing length, and then check the required quality, maxhomop and maxambig parameters on this fixed length sub-fragment
+	H=$(($MAXHOMOP+1))
+	for i in $(seq $MINLEN 5 $MAXLEN)
+	do
+		for j in $(seq $MINQUAL 30)
+		do
+			awk -v L=$i -v Q=$j -v A=$MAXAMBIG '{if(length($1)>=L){QS=0;for(i=2;i<=(L+1);i++){QS+=$i};if(QS>=Q){seq=substr($1,1,L);gsub(/[ATCGatcg]*/,"",seq);if(length(seq)<=A){print substr($1,1,L)}}}}' $LIB_NAME.trim2.qual | grep -c -v "A\{$H,\}\|C\{$H,\}\|G\{$H,\}\|T\{$H,\}"
+		done
+	done > $EXEC/quality_check/$LIB_NAME.stat
+	) &
+done
+wait
+
+# list files and directories
+. $BIN/list_step_files.sh
+
+echo END

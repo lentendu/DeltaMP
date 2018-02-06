@@ -1,0 +1,41 @@
+# Define Variables
+while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
+while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/prev.txt
+cd $EXEC_PATH
+
+# Check if previous SUBPROJECT in EXEC_PATH
+if [ -f $REF_SUBPROJECT.tar.gz ]
+then
+	tar -xzvf $REF_SUBPROJECT.tar.gz
+elif [ ! -d $REF_SUBPROJECT ]
+then
+	echo "$REF_SUBPROJECT not found in $EXEC_PATH. It was probably deleted."
+	echo "Remove $REF_SUBPROJECT from $OUT_PATH/$PROJECT or define another output directory in the configuration file"
+	exit 100
+fi
+
+# create directories and symlink (or copy for archive) files produced until $LAST_REF step of $REF_SUBPROJECT which did not already exist in $SUBPROJECT
+while read path
+do
+	if [ ! -d ${path//$REF_SUBPROJECT/$SUBPROJECT} ]
+	then
+		mkdir ${path//$REF_SUBPROJECT/$SUBPROJECT}
+	fi
+done < <(sort $REF_SUBPROJECT/config/$LAST_REF.dir | uniq)
+
+while read path
+do
+	if [ ! -f ${path//$REF_SUBPROJECT/$SUBPROJECT} ]
+	then
+		if [[ $path == *"/archives/"* ]]
+		then
+			dd if=$path of=${path//$REF_SUBPROJECT/$SUBPROJECT} bs=1M
+		else
+			ln -s $path ${path//$REF_SUBPROJECT/$SUBPROJECT}
+		fi
+	fi
+done < <(sort $REF_SUBPROJECT/config/$LAST_REF.files | uniq)
+
+cp $SUBPROJECT/config/metadata.$SUBPROJECT.tsv $SUBPROJECT/archives/$SUBPROJECT.outputs
+
+echo END

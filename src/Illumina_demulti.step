@@ -1,0 +1,48 @@
+# Define Variables
+while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
+. $BIN/check_previous_step.sh
+
+# load modules
+module load deltamp/${VERSION[DELTAMP]}
+
+# Define the library to demultiplex
+LIB_NAME=`head -$ARRAY_TASK config/lib2.list | tail -1 | sed 's/_L[0-9]*_[IR][12]_[0-9]*\.fastq//'`
+cd libraries
+mv $LIB_NAME*fastq demultiplex && mv fastq/oligos.$LIB_NAME demultiplex
+cd demultiplex
+
+# Make contigs and groups with MOTHUR
+FWD_LIB=`ls $LIB_NAME*R1*.fastq | sed 's/\.fastq//'`
+RVS_LIB=`ls $LIB_NAME*R2*.fastq | sed 's/\.fastq//'`
+FWD_IND=`ls $LIB_NAME*I1*.fastq | sed 's/\.fastq//'`
+RVS_IND=`ls $LIB_NAME*I2*.fastq | sed 's/\.fastq//'`
+
+if [ ! -z "$FWD_IND" ] && [ ! -z "$FWD_RVS" ]
+then
+	mothur "#make.contigs(ffastq=$FWD_LIB.fastq, rfastq=$RVS_LIB.fastq, findex=$FWD_IND.fastq, rindex=$RVS_IND.fastq, oligos=oligos.$LIB_NAME, bdiffs=1, pdiffs=6, processors=$NCPUS)"
+elif [ ! -z "$FWD_IND" ]
+then
+	mothur "#make.contigs(ffastq=$FWD_LIB.fastq, rfastq=$RVS_LIB.fastq, findex=$FWD_IND.fastq, oligos=oligos.$LIB_NAME, bdiffs=1, pdiffs=6, processors=$NCPUS)"
+elif [ ! -z "$RVS_IND" ]
+then
+	mothur "#make.contigs(ffastq=$FWD_LIB.fastq, rfastq=$RVS_LIB.fastq, rindex=$RVS_IND.fastq, oligos=oligos.$LIB_NAME, bdiffs=1, pdiffs=6, processors=$NCPUS)"
+fi
+
+
+# Split library over the different samples and copy to fastq and archives folders
+SAMPLE=(`cut -f 2 $FWD_LIB.contigs.groups | sort | uniq | tr "\n" " " | sed 's/$/\n/'`)
+mkdir $LIB_NAME && cd $LIB_NAME
+for i in "${SAMPLE[@]}"
+do
+	awk -v I=$i '$2==I{print $1}' ../$FWD_LIB.contigs.groups > $i.accnos
+	mothur "#set.dir(input=../, output=./);
+	get.seqs(accnos=$i.accnos, fastq=$FWD_LIB.fastq);
+	get.seqs(accnos=$i.accnos, fastq=$RVS_LIB.fastq)"
+	dd if=$FWD_LIB.pick.fastq of=../../$SUBPROJECT.fastq/$SAMPLE.$FWD_LIB.fastq bs=1M && rm $FWD_LIB.pick.fastq
+	dd if=$RVS_LIB.pick.fastq of=../../$SUBPROJECT.fastq/$SAMPLE.$RVS_LIB.fastq bs=1M && rm $RVS_LIB.pick.fastq
+done
+
+# list files and directories
+. $BIN/list_step_files.sh
+
+echo END

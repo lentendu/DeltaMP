@@ -1,0 +1,106 @@
+# Define Variables
+while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
+while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/prev.txt
+. $BIN/check_previous_step.sh
+
+# load modules
+module load deltamp/${VERSION[DELTAMP]}
+
+# record newly set variables and load environment of previous step
+(set -o posix; set > config/id.set)
+while read var val; do unset $var ; if [ $REF_SUBPROJECT == "no" ] ; then declare $var="$val" ; else declare $var="${val//$REF_SUBPROJECT/$SUBPROJECT}" ; fi ; done < config/OTU_env.txt
+
+# Taxonomic identification
+cd processing
+if [ $TARG == "COI" ]
+then
+	NCPUS=`awk -v N=$NCPUS 'BEGIN{printf "%.f",N/2}'`
+fi
+
+if [ $TARG == "ITS" ]
+then
+	if [ $ASSIGN_ALL == "yes" ]
+	then
+		CAND=$FASTA
+	else
+		CAND=$FASTA_OTUS
+	fi
+	TEMPLATE=($DB.dynamic.fasta $DB.full.fasta)
+	TAXONOMY=($DB.dynamic.taxonomy $DB.full.taxonomy)
+	SUFFIX=(dynamic full)
+	
+	# First identification with UNITE dynamic DB
+	mothur "#set.dir(tempdefault=$DBFOLD);
+	classify.seqs(fasta=$CAND.fasta, template=${TEMPLATE[0]}, taxonomy=${TAXONOMY[0]}, cutoff=60, method=wang, processors=$NCPUS)"
+	
+	# Alternative classification of Fungi only or non-fungus identified sequences against the UNITE full DB
+	awk -F";" '$2=="unclassified" || $1!~"Fungi" || $2=="unidentified"{print $1}' $CAND.${SUFFIX[0]}.wang.taxonomy | cut -f 1 > $CAND.${SUFFIX[0]}.nofungi.accnos
+	if [ -s $CAND.${SUFFIX[0]}.nofungi.accnos ]
+	then
+		obigrep --id-list=$CAND.${SUFFIX[0]}.nofungi.accnos $CAND.fasta > $CAND.${SUFFIX[0]}.nofungi.fasta
+		mothur "#set.dir(tempdefault=$DBFOLD);
+		classify.seqs(fasta=$CAND.${SUFFIX[0]}.nofungi.fasta, template=${TEMPLATE[1]}, taxonomy=${TAXONOMY[1]}, cutoff=60, method=wang, processors=$NCPUS)"
+
+	# Merge and consensus
+		TAXO=$CAND.unite_dynamic-full.wang
+		sort $CAND.${SUFFIX[0]}.wang.taxonomy | join -v 1 - <(sort $CAND.${SUFFIX[0]}.nofungi.accnos) | cat - $CAND.${SUFFIX[0]}.nofungi.${SUFFIX[1]}.wang.taxonomy > $TAXO.taxonomy
+	else
+		TAXO=$CAND.unite_dynamic.wang
+		cp $CAND.${SUFFIX[0]}.wang.taxonomy $TAXO.taxonomy
+	fi
+	if [ $ASSIGN_ALL == "yes" ]
+	then
+		mothur "#classify.otu(taxonomy=$TAXO.taxonomy, list=$LIST.list, cutoff=60)"
+		CTAXO=$LIST.$DISIM.cons
+	else
+		CTAXO=$TAXO.cons
+		awk '{split($2,a,";");if(a[1]~"^k__Fungi" || a[1]~"^Fungi"){print $1,"Eukaryota(100);"$2} else print $0}' $TAXO.taxonomy | sed 's/;[a-z]__/;/g' | sort -k 1,1 | join -1 2 <(cut -f 3- $LIST.list | transpose | awk '{n=split($2,a,",");print $1,a[1],n}' | sort -k 2,2) - | sort -k 2,2 | awk 'BEGIN{print "OTU\tSize\tTaxonomy"} {print $2"\t"$3"\t"$4}' > $CTAXO.taxonomy	
+	fi
+else
+	if [ $ASSIGN_ALL == "yes" ]
+	then
+		if [ -z $DBCUT ]
+		then
+			mothur "#set.dir(tempdefault=$DBFOLD);
+			classify.seqs(fasta=$FASTA.fasta, template=$DB.fasta, taxonomy=$DB.taxonomy, cutoff=60, method=wang, processors=$NCPUS);
+			classify.otu(taxonomy=current, list=$LIST.list, name=$NAMES.names, cutoff=60);
+			get.current()"
+		else
+			mothur "#set.dir(tempdefault=$DBFOLD);
+			classify.seqs(fasta=$FASTA.fasta, template=$DBCUT.fasta, taxonomy=$DBCUT.taxonomy, cutoff=60, method=wang, processors=$NCPUS);
+			classify.otu(taxonomy=current, list=$LIST.list, name=$NAMES.names, cutoff=60);
+			get.current()"
+		fi
+		unset LOG TAXO
+		LOG=`ls mothur.*.logfile | tail -1`
+		TAXO=`sed -n '/get.current()/,$p' $LOG | grep "^taxonomy=" | sed 's/taxonomy=//;s/\.taxonomy//'`
+		CTAXO=$LIST.$DISIM.cons
+		
+	else
+		if [ -z $DBCUT ]
+		then
+			mothur "#set.dir(tempdefault=$DBFOLD);
+			classify.seqs(fasta=$FASTA_OTUS.fasta, template=$DB.fasta, taxonomy=$DB.taxonomy, cutoff=60, method=wang, processors=$NCPUS);
+			get.current()"
+		else
+			mothur "#set.dir(tempdefault=$DBFOLD);
+			classify.seqs(fasta=$FASTA_OTUS.fasta, template=$DBCUT.fasta, taxonomy=$DBCUT.taxonomy, cutoff=60, method=wang, processors=$NCPUS);
+			get.current()"
+		fi
+		unset LOG TAXO
+		LOG=`ls mothur.*.logfile | tail -1`
+		TAXO=`sed -n '/get.current()/,$p' $LOG | grep "^taxonomy=" | sed 's/taxonomy=//;s/\.taxonomy//'`
+		cut -f 3- $LIST.list | transpose | awk '{n=split($2,a,",");print $1,a[1],n}' | sort -k 2,2 | join -1 2 - <(sort -k 1,1 $TAXO.taxonomy) | sort -k 2,2 | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy"} {print $2,$3,$4}' > $TAXO.cons.taxonomy
+		CTAXO=$TAXO.cons
+	fi
+fi
+
+# Save newly set and updated variables
+cd ..
+comm -23 <(set -o posix; set | sort) <(sort config/id.set) | tr "=" "\t" | grep -v "^[a-z]" | grep -P -v "^PWD\t" | sed "s/'//g" > config/id_env.txt
+rm config/id.set
+
+# list files and directories
+. $BIN/list_step_files.sh
+
+echo END

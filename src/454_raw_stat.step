@@ -1,0 +1,33 @@
+# Define Variables
+while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
+. $BIN/check_previous_step.sh
+
+# load modules
+module load deltamp/${VERSION[DELTAMP]}
+
+# Library to analyse
+LIB_NAME=`head -$ARRAY_TASK config/lib2.list | tail -1 | sed 's/\.sff//'`
+cd libraries/raw_stat
+
+# Mean length and quality statistics for the library
+for j in length meanqual meanposqual
+do
+	for i in $(ls *$LIB_NAME.$j)
+	do
+		cat <(echo $i | cut -d "." -f 1) $i | tr "\n" "\t" | sed 's/$/\n/'
+	done > $LIB_NAME.$j
+done
+
+# Figures
+module purge
+module load uge
+module load R/3.1.2-3
+Rscript --vanilla $BIN/Rscript_raw_stat_figures.R $SUBPROJECT $LIB_NAME $BIN
+
+# Clean
+rm *.$LIB_NAME.*length *.$LIB_NAME.*meanqual *.$LIB_NAME.*meanposqual
+
+# list files and directories
+. $BIN/list_step_files.sh
+
+echo END

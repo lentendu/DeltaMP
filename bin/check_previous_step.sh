@@ -1,0 +1,58 @@
+#!/bin/bash
+
+RAND=$RANDOM
+WRONG=0
+(set -o posix; set > $RAND.set)
+MY_JOB=`grep "N $JOB_NAME " config/steps.final`
+MY_NAME=`echo ${MY_JOB##*/} | sed 's/script_//'`
+PREV_NAME=(`echo $MY_JOB | sed 's/^.*hold_jid \([^ ]*\) .*$/\1/;s/,/ /g;s/\.'"$SUBPROJECT"'//g;s/'"$DELTAMP_VER"'\.//g'`)
+declare -A PREV_JOB
+for i in "${PREV_NAME[@]}"; do PREV_JOB[$i]="`grep "$i$" config/steps.final`" ; done
+for i in "${PREV_NAME[@]}"
+do
+	if [ ! -z "${PREV_JOB[$i]}" ]
+	then
+		if [[ ${PREV_JOB[$i]} == *"-t 1-"* ]]
+		then
+			TEST1=`for j in log/$i.[0-9]*.out; do if [ ! -z "$(grep "^\[ERROR\]" $j)" ] ; then echo $j | cut -d "." -f 2 ; fi ; done | sort -n | tr "\n" "," | sed 's/,$/\n/'`
+			TEST2=`for j in log/$i.[0-9]*.out; do if [ -z "$(tail -1 $j | grep "END")" ] ; then echo $j | cut -d "." -f 2 ; fi ; done | sort -n | tr "\n" "," | sed 's/,$/\n/'`
+			if [ ! -z $TEST1 ]
+			then
+				echo "MOTHUR issued and ERROR in the previous step $i for the task(s) $TEST1."
+				echo "Check log at $EXEC/log/$i.xx.out and job report with job name $DELTAMP_VER.$i.$SUBPROJECT and TASK_ID $TEST1."
+				echo ""
+				WRONG=1
+			elif [ ! -z $TEST2 ]
+			then
+				echo "The task(s) $TEST2 of the previous step $i does not terminate normaly."
+				echo "Check log at $EXEC/log/$i.xx.out and job report with job name $DELTAMP_VER.$i.$SUBPROJECT and TASK_ID $TEST2."
+				echo ""
+				WRONG=1
+			fi
+		else
+			if [ ! -z "$(grep "\[ERROR\]" log/$i.out)" ]
+			then
+				echo "MOTHUR issued and ERROR in the previous step $i."
+				echo "Check log at $EXEC/log/$i.out and job report with job name $DELTAMP_VER.$i.$SUBPROJECT ."
+				echo ""
+				WRONG=1
+			elif [ -z $(tail -1 log/$i.out | grep "END") ]
+			then
+				echo "The previous step $i does not terminate normaly."
+				echo "Check log at $EXEC/log/$i.out and job report with job name $DELTAMP_VER.$i.$SUBPROJECT ."
+				echo ""
+				WRONG=1
+			fi
+		fi
+	fi
+done
+if [ $WRONG -eq 1 ]
+then
+	echo "additionnal environment"
+	comm -23 <(set -o posix; set | sort) <(sort $RAND.set) | grep -v "^i=\|^j=\|^WRONG="
+	rm $RAND.set
+	exit 100
+else
+	echo "Previous job(s) ${PREV_JOB[@]} terminated correctly."
+	rm $RAND.set
+fi

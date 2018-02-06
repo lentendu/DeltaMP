@@ -1,0 +1,51 @@
+# Define Variables
+while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
+. $BIN/check_previous_step.sh
+
+# load modules
+module load deltamp/${VERSION[DELTAMP]}
+
+# record newly set variables
+(set -o posix; set > config/merge.set)
+
+# Merge all samples names and fasta files (removing gaps if any), create a group file
+SAMP_NAME=(`cut -d " " -f 1 config/lib4.list`)
+cd processing
+for i in "${SAMP_NAME[@]}"
+do
+	(
+	LOG=$i/mothur.${TECH}_trim.$i.logfile
+	FASTA=`tac $LOG | sed -n '1,/get.current()/p' | sed -n '/^fasta=/h;${x;s/^fasta=//;p;}'`
+	NAMES=`tac $LOG | sed -n '1,/get.current()/p' | sed -n '/^name=/h;${x;s/^name=//;p;}'`
+	sed '/>/!s/[-\.]//g' $i/$FASTA >> $SUBPROJECT.fasta
+	cat $i/$NAMES >> $SUBPROJECT.names
+	cut -f 2 $i/$NAMES | tr "," "\n" | sed 's/$/\t'"$i"'/' >> $SUBPROJECT.groups
+	)
+done
+
+# If denoised 454 reads, chop to the same length
+if [ $DENOISE == "yes" ]
+then
+	LENGTH=`cut -d "." -f 1 $EXEC/quality_check/trimming.parameters.txt`
+	MIN_LENGTH=`awk -v L=$LENGTH 'BEGIN{min=L} $1!~"^>" && length($1)<min{min=length($1)}END{print min}' $SUBPROJECT.fasta`
+	obicut --uppercase -e $MIN_LENGTH $SUBPROJECT.fasta | sed 's/_SUB.*$//' | twofasta > $SUBPROJECT.tmp.fasta && mv $SUBPROJECT.tmp.fasta $SUBPROJECT.fasta
+fi
+
+# Dereplicate
+mothur "#unique.seqs(fasta=$SUBPROJECT.fasta, name=$SUBPROJECT.names);
+get.current()"
+unset LOG FASTA NAMES
+LOG=`ls mothur.*.logfile | tail -1`
+FASTA=`sed -n '/get.current()/,$p' $LOG | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
+NAMES=`sed -n '/get.current()/,$p' $LOG | grep "^name=" | sed 's/name=//;s/\.names//'`
+GROUP=$SUBPROJECT
+
+# Save newly set variables
+cd ..
+comm -23 <(set -o posix; set | sort) <(sort config/merge.set) | tr "=" "\t" | grep -v "^[a-z]" | grep -P -v "^PWD\t" | sed "s/'//g" > config/merge_env.txt
+rm config/merge.set
+
+# list files and directories
+. $BIN/list_step_files.sh
+
+echo END
