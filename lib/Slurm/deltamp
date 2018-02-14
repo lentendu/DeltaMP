@@ -351,7 +351,7 @@ EXEC=$EXEC_PATH/$SUBPROJECT
 # Store barcodes, libraries and samples lists into files
 if [ $TECH == "454" ]
 then
-	sed '1,/^Barcode sequence/d;s/^/barcode\t/' config/$METADATA | awk '{print}' > config/barcodes.txt
+	sed '1,/^Barcode sequence/d;/^$/d;s/^/barcode\t/' config/$METADATA | awk '{print}' > config/barcodes.txt
 	cut -f 4 config/barcodes.txt | sort | uniq > config/lib1.list
 	LIB1_SIZE=`sed -n '$=' config/lib1.list`
 	sed 's/-/_/g;s/ftp\.sra.*\///' config/lib1.list > config/lib2.list
@@ -376,7 +376,7 @@ then
 elif [ $TECH == "Illumina" ]
 then
 	LIB1_SIZE=1
-	sed '1,/^Barcode sequence/d;s/^\t//' config/$METADATA | awk '{print}' > config/barcodes.txt
+	sed '1,/^Barcode sequence/d;/^$/d;s/^\t//' config/$METADATA | awk '{print}' > config/barcodes.txt
 	sed 's/\.fastq//g;s/-/_/g' config/barcodes.txt > config/lib3.list
 	LIB3_SIZE=`sed -n '$=' config/lib3.list`
 	while read samp fwd rvs
