@@ -1,0 +1,14 @@
+init
+get
+454_demulti
+454_sff
+454_raw_stat
+454_opt
+454_quality
+cut_db
+trim
+merge
+OTU
+id
+end
+doc
