@@ -1,0 +1,3 @@
+PALG	simple_bayesian	PandaSeq algorithm	simple_bayesian ea_util flash pear rdp_mle stitch uparse
+PTRESH	0.6	PandaSeq threshold	^[0-9]+(.[0-9]+)?$
+MIN_OV	1	Minimum overlap	^[0-9]+$

@@ -1,0 +1,30 @@
+PROJECT	#	Project name	.+
+OWNER	$USER	User name	.+
+EMAIL	$USER@example.com	Email address	.+@.+
+OUT_PATH	/home/$USER	Path to output location	^/.+(/.+)*$
+EXEC_PATH	/work/$USER	Path to execution location	^/.+(/.+)*$
+TECH	Illumina	Sequencing technology	454 Illumina
+LIB_DIR	/home/$USER	Directory path to archives or libraries OR BioProject accession	^/.+(/.+)*$ [A-Za-z0-9]+
+ARCHIVES	no	Tab separated list of archives	no ^.+$
+TARG_ORG	cellular organisms	Target organisms	^.+$
+TARG	ITS	Target region	16S 18S ITS COI
+FWD_NAME	fITS7	Forward primer name	^.+$
+FWD	GTGARTCATCGAATCTTTG	Forward primer sequence (5' to 3')	^[GATCRYSWKMBDHVNgatcryswkmbdhvn]{10,30}$
+RVS_NAME	ITS4	Reverse primer name	^.+$
+RVS	TCCTCCGCTTATTGATATGC	Reverse primer sequence (5' to 3')	^[GATCRYSWKMBDHVNgatcryswkmbdhvn]{10,30}$
+PDIFFS	6	Number of mismatches allowed on the primer sequence	^[0-9]+$
+MAXAMBIG	0	Maximum number of ambiguities allowed in the sequence	^[0-9]+$
+MAXHOMOP	10	Maximum homopolymer length allowed	^[0-9]+$
+MINLEN	50	Minimum sequence length	^[0-9]+$
+MAXLEN	600	Maximum sequence length	^[0-9]+$
+MINQUAL	20	Minimum average quality on the trimmed sequence length	^[0-9]+$
+MIN_DEPTH	2000	Minimum number of trimmed reads per sample	^[0-9]+$
+SUBSAMPLE	no	Subsampling	no yes
+CLUST	mcl	Clustering algorithm	mcl sumaclust cd-hit-est vsearch swarm
+TRESH	97	Clustering similarity threshold	^[0-9]+(.[0-9]+)?$
+PREV_PATH	no	Cluster with previous subproject reference sequences	no ^/.+(/.+)*$
+DEL_SING	no	Remove singletons before chimera re-check	no yes
+REF_DB	UNITE	Reference database	UNITE SILVA PR2 NCBI NCBI_16ranks GBOL GBOL_16ranks
+ASSIGN_ALL	no	Assign all reads	no yes
+MIN_SAMP	1	Minimum number of sample for abundant OTUs	^[0-9]+$
+MIN_DOM	4	Minimum number of reads for abundant OTUs	^[0-9]+$
