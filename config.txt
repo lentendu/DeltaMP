@@ -1,1 +1,2 @@
-Slurm
+BATCH	Slurm
+MODULES_TO_BE_LOADED	mothur/1.39.5-2;swarm/2.1.13

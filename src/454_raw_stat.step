@@ -19,9 +19,6 @@ do
 done
 
 # Figures
-module purge
-module load uge
-module load R/3.1.2-3
 Rscript --vanilla $BIN/Rscript_raw_stat_figures.R $SUBPROJECT $LIB_NAME $BIN
 
 # Clean

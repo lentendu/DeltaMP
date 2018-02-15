@@ -1,7 +1,10 @@
 # object variables
+version := 0.1
 config := config.txt
+batch := $(shell grep BATCH $(config) | cut -f 2)
+module := modulefiles/DeltaMP/$(version)
+module_load := $(shell grep MODULES_TO_BE_LOADED $(config) | cut -f 2)
 deltamp := $(patsubst src/%,bin/%,$(patsubst %.main,%,$(wildcard $(addsuffix *.main,src/))))
-batch := $(shell cat ${config})
 batch_spec := $(addprefix bin/,$(notdir $(shell ls lib/$(batch)/deltamp.*)))
 steps := $(patsubst src/%,bin/%,$(patsubst %.step,%.sh,$(wildcard $(addsuffix *.step,src/))))
 highmems := $(patsubst %.head,%_highmem.head,$(shell ls lib/$(batch)/*.head | grep -v "_"))
@@ -12,12 +15,22 @@ vpath %.step src
 vpath %.head lib/$(batch)
 
 # main rule
-all: $(deltamp) $(steps) $(batch_spec)
+.PHONY: all clean
+all: $(deltamp) $(module) $(steps) $(batch_spec)
 
 # rule to build deltamp and pipeline_master
 $(deltamp): bin/% : %.main | lib/$(batch)/option_variables
 	SED=$$(sed 's/^/s\//;s/\t/\//;s/$$/\//' $| |  tr "\n" ";" | sed 's/^/sed "/;s/;$$/"/'); \
-	eval $$SED $< > $@
+	eval $$SED $< | sed 's/^\(VERSION\[DELTAMP\]=\)$$/\1$(version)/' > $@ && chmod +x $@
+
+# rule to build the module file of the current version
+$(module): src/deltamp.module | modulefiles
+	 awk -v M="$(module_load)" '{if($$1=="LOAD"){split(M,a,";");for(i in a){print "module\t\tload\t"a[i]}} else print $$0}' $< |\
+	  sed 's#VERSION#$(version)#;s#PATH\tbin#PATH\t$(CURDIR)/bin#' > $@
+
+# rule to build the modulefiles directory
+modulefiles:
+	mkdir -p $@ $@/DeltaMP
 
 # rule to build step scripts
 $(steps): bin/%.sh : 
@@ -50,4 +63,4 @@ $(batch_spec): bin/deltamp.% : lib/$(batch)/deltamp.%
 
 # clean rule
 clean :
-	rm $(deltamp) $(steps) $(highmems) $(batch_spec)
+	rm -r $(deltamp) modulefiles $(steps) $(highmems) $(batch_spec)
