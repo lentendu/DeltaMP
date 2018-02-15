@@ -390,78 +390,30 @@ fi
 SAMP_SIZE=`sed -n '$=' config/lib4.list`
 	
 # Databases
-DBFOLD=/data/ecogen/databases/mothur
-if [ $REF_DB == "UNITE" ] && [ $TARG == "ITS" ]
+if [ $TARG == "ITS" ]
 then
-	VERSION[DB]=v7_2
-	DB=unite.${VERSION[DB]}
-	CITATION[DB]="Kõljalg et al., 2013"
-	FULLCITATION[DB]="Kõljalg U, Nilsson RH, Abarenkov K et al. (2013) Towards a unified paradigm for sequence-based identification of fungi. Molecular Ecology, 22, 5271–5277."
+	if [ $CUT_DB == "yes" ]
+	then
+		echo "Database can only be reduced to amplified fragment for SSU fragments."
+		show_doc | fmt -s -w $(tput cols) >&2
+		exit 1
+	fi
 	CITATION[FUN]="Nguyen et al., 2016"
 	FULLCITATION[FUN]="Nguyen, N. H., Song, Z., Bates, S. T., Branco, S., Tedersoo, L., Menke, J., … Kennedy, P. G. (2016). FUNGuild: An open annotation tool for parsing fungal community datasets by ecological guild. Fungal Ecology, 20, 241–248."
 	VERSION[FUN]=1.1
-elif [ $REF_DB == "SILVA" ]
-then
-	VERSION[DB]=128
-	CITATION[DB]="Quast et al., 2013"
-	FULLCITATION[DB]="Quast C, Pruesse E, Yilmaz P et al. (2013) The SILVA ribosomal RNA gene database project: improved data processing and web-based tools. Nucleic Acids Research, 41, D590–D596."
-	if [ $TARG == "16S" ]
-	then
-		DB=silva.${VERSION[DB]}.Nr99.prok
-	elif [ $TARG == "18S" ]
-	then
-		DB=silva.${VERSION[DB]}.Nr99.euk
-	fi
-elif [ $REF_DB == "PR2" ] && [ $TARG == "18S" ]
-then
-	VERSION[DB]=gb203
-	DB=PR2_${VERSION[DB]}
-	CITATION[DB]="Guillou et al., 2012"
-	FULLCITATION[DB]="Guillou L, Bachar D, Audic S et al. (2012) The Protist Ribosomal Reference database (PR2): a catalog of unicellular eukaryote Small Sub-Unit rRNA sequences with curated taxonomy. Nucleic Acids Research, 41, D597–D604."
-elif [ $REF_DB == "NCBI" ] && [ $TARG == "COI" ]
-then
-	VERSION[DB]=gb211
-	DB=ncbi_COI
-	CITATION[DB]="Benson et al., 2013"
-	FULLCITATION[DB]="Benson DA, Cavanaugh M, Clark K et al. (2013) GenBank. Nucleic Acids Research, 41, D36–42."
-elif [ $REF_DB == "NCBI_16ranks" ] && [ $TARG == "COI" ]
-then
-	VERSION[DB]=gb211
-	DB=ncbi_COI_16ranks
-	CITATION[DB]="Benson et al., 2013"
-	FULLCITATION[DB]="Benson DA, Cavanaugh M, Clark K et al. (2013) GenBank. Nucleic Acids Research, 41, D36–42."
-elif [ $REF_DB == "GBOL" ] && [ $TARG == "COI" ]
-then
-	DB=ncbi_GBOL_COI
-	CITATION[DB]="GBOL: http://www.bolgermany.de"
-elif [ $REF_DB == "GBOL_16ranks" ] && [ $TARG == "COI" ]
-then
-	DB=ncbi_GBOL_COI_16ranks
-	CITATION[DB]="GBOL: http://www.bolgermany.de"
-else
-	echo "# The reference database does not match with the target gene."
-	show_doc | fmt -s -w $(tput cols) >&2
-	cd .. && rm -r $SUBPROJECT
-	if [ ! "$(ls -A)" ] ; then cd .. && rmdir $PROJECT ; fi
-	exit 1
 fi
 
-if [[ $DB == "silva"* ]]
+if ( [ $TARG == "18S" ] || [ $TARG == "16S" ] ) && [ $CUT_DB == "yes" ]
 then
-	DBALIGN=$(echo $DB | sed 's/^\(.*\)\.\([^\.]*\)$/\1\.align\.\2/')
-	if [ $TECH == "454" ]
+	if [ $TECH == "454" ] && [ $FLIP == "true" ]
 	then
-		if [ $FLIP == "true" ]
-		then
-			DBCHOP=$RVS_NAME.$FWD_NAME.$DBALIGN
-			DBCUT=$RVS_NAME.$FWD_NAME.$DB
-		else
-			DBCHOP=$FWD_NAME.$RVS_NAME.$DBALIGN
-			DBCUT=$FWD_NAME.$RVS_NAME.$DB
-		fi
-	else	
-		DBCHOP=$FWD_NAME.$RVS_NAME.$DBALIGN
+		DBCUT=$RVS_NAME.$FWD_NAME.$DB
+	else
 		DBCUT=$FWD_NAME.$RVS_NAME.$DB
+	fi
+	if [ ! -z $DBALIGN ] || [ $DBALIGN != "no" ]
+	then
+		DBCHOP=`echo $DBCUT | sed "s/$DB$/$DBALIGN/"`
 	fi
 fi
 

@@ -8,15 +8,17 @@ deltamp := $(patsubst src/%,bin/%,$(patsubst %.main,%,$(wildcard $(addsuffix *.m
 batch_spec := $(addprefix bin/,$(notdir $(shell ls lib/$(batch)/deltamp.*)))
 steps := $(patsubst src/%,bin/%,$(patsubst %.step,%.sh,$(wildcard $(addsuffix *.step,src/))))
 highmems := $(patsubst %.head,%_highmem.head,$(shell ls lib/$(batch)/*.head | grep -v "_"))
+test_config := $(patsubst src/%,test/%,$(patsubst %.config,%.tsv,$(wildcard $(addsuffix *.config,src/))))
 
 # search paths
 vpath %.main src
 vpath %.step src
 vpath %.head lib/$(batch)
+vpath %.config src
 
 # main rule
 .PHONY: all clean
-all: $(deltamp) $(module) $(steps) $(batch_spec)
+all: $(deltamp) $(module) $(steps) $(batch_spec) $(test_config)
 
 # rule to build deltamp and pipeline_master
 $(deltamp): bin/% : %.main | lib/$(batch)/option_variables
@@ -61,6 +63,10 @@ endif
 $(batch_spec): bin/deltamp.% : lib/$(batch)/deltamp.%
 	cp $^ $@ && chmod +x $@
 
+# rule to build test configuration file
+$(test_config): test/%.tsv : %.config
+	sed "s#USER#$$USER#;s#CURDIR#$(CURDIR)#" $< > $@
+
 # clean rule
 clean :
-	rm -r $(deltamp) modulefiles $(steps) $(highmems) $(batch_spec)
+	rm -r $(deltamp) modulefiles $(steps) $(highmems) $(batch_spec) $(test_config)
