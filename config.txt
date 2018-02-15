@@ -1,1 +1,1 @@
-GridEngine
+Slurm

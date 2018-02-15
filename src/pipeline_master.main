@@ -1,0 +1,47 @@
+#!/bin/bash
+
+## Create directories and symlink to files of REF_SUBPROJECT
+echo init_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.init.$SUBPROJECT $BIN/init.sh)
+
+## Copy/download libraries data in project folder [and extract]
+echo get_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.get.$SUBPROJECT QUEUE_HOLD\${init_jobid} $BIN/get.sh)
+
+## Demultiplex
+if [ $TECH == "454" ] && [ $DEMULTI == "no" ]
+then
+	echo demulti_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.${TECH}_demulti.$SUBPROJECT QUEUE_ARRAYS 1-${LIB1_SIZE}QUEUE_THREADMAX$MAX_TASK QUEUE_HOLD\${get_jobid} $BIN/${TECH}_demulti.sh)
+fi
+
+## Quality check
+echo raw_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.${TECH}_${RAW_EXT}.$SUBPROJECT QUEUE_ARRAYS 1-${LIB3_SIZE}QUEUE_THREADMAX$MAX_TASK QUEUE_HOLD\${get_jobid}QUEUE_SEP\${demulti_jobid} $BIN/${TECH}_${RAW_EXT}.sh)
+if [ $TECH == "Illumina" ]
+then
+	echo pair_end_jobid=\$(QUEUE_SUBQUEUE_OPTIONS -cwd QUEUE_JOBNAME $DELTAMP_VER.${TECH}_pair_end.$SUBPROJECT QUEUE_ARRAYS 1-${LIB3_SIZE}QUEUE_THREADMAX$MAX_TASK QUEUE_HOLD\${raw_jobid} $BIN/${TECH}_pair_end.sh)
+fi
+echo raw_stat_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.${TECH}_raw_stat.$SUBPROJECT QUEUE_ARRAYS 1-${LIB1_SIZE}QUEUE_THREADMAX$MAX_TASK QUEUE_HOLD\${raw_jobid}QUEUE_SEP\${pair_end_jobid} $BIN/${TECH}_raw_stat.sh)
+echo opt_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.${TECH}_opt.$SUBPROJECT QUEUE_ARRAYS 1-${LIB3_SIZE}QUEUE_THREADMAX$MAX_TASK QUEUE_HOLD\${raw_stat_jobid} $BIN/${TECH}_opt.sh)
+echo qual_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.qual.$SUBPROJECT QUEUE_HOLD\${opt_jobid} $BIN/qual.sh)
+
+## Trim (,align (,subsample)) , chimera check in array jobs, and merge
+if [ $CUT_DB == "yes" ] && [ ! -f $DBFOLD/$DBCUT.fasta ]
+then
+	echo cut_db_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.cut_db.$SUBPROJECT $BIN/cut_db.sh)
+fi
+echo trim_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.trim.$SUBPROJECT QUEUE_ARRAYS 1-${SAMP_SIZE}QUEUE_THREADMAX$MAX_TASK QUEUE_HOLD\${qual_jobid}QUEUE_SEP\${cut_db_jobid} $BIN/trim.sh)
+echo megre_jobi=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.merge.$SUBPROJECT QUEUE_HOLD\${trim_jobid} $BIN/merge.sh)
+
+## OTUs and taxonomic assignment
+echo otu_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.otu.$SUBPROJECT QUEUE_HOLD\${merge_jobid} $BIN/otu.sh)
+echo id_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.id.$SUBPROJECT QUEUE_HOLD\${otu_jobid} $BIN/id.sh)
+
+## OTU tables, documentation, logs and copy back to output directory
+echo end_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.end.$SUBPROJECT QUEUE_HOLD\${id_jobid} $BIN/end.sh)
+
+## Archive processing files
+
+## Archive outputs
+
+## Archive raw reads
+
+## Document
+echo doc_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.doc.$SUBPROJECT QUEUE_HOLD\${end_jobid} $BIN/doc.sh)

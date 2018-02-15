@@ -1,16 +1,23 @@
 # object variables
 config := config.txt
+deltamp := $(patsubst src/%,bin/%,$(patsubst %.main,%,$(wildcard $(addsuffix *.main,src/))))
 batch := $(shell cat ${config})
-batch_spec := $(addprefix bin/,$(notdir $(shell ls lib/$(batch)/deltamp*)))
+batch_spec := $(addprefix bin/,$(notdir $(shell ls lib/$(batch)/deltamp.*)))
 steps := $(patsubst src/%,bin/%,$(patsubst %.step,%.sh,$(wildcard $(addsuffix *.step,src/))))
 highmems := $(patsubst %.head,%_highmem.head,$(shell ls lib/$(batch)/*.head | grep -v "_"))
 
 # search paths
+vpath %.main src
 vpath %.step src
 vpath %.head lib/$(batch)
 
 # main rule
-all: $(steps) $(batch_spec)
+all: $(deltamp) $(steps) $(batch_spec)
+
+# rule to build deltamp and pipeline_master
+$(deltamp): bin/% : %.main | lib/$(batch)/option_variables
+	SED=$$(sed 's/^/s\//;s/\t/\//;s/$$/\//' $| |  tr "\n" ";" | sed 's/^/sed "/;s/;$$/"/'); \
+	eval $$SED $< > $@
 
 # rule to build step scripts
 $(steps): bin/%.sh : 
@@ -38,9 +45,9 @@ else ifeq ($(batch),Slurm)
 endif
 
 # Copy batch queueing system specific executables to bin
-$(batch_spec): bin/deltamp% : lib/$(batch)/deltamp%
+$(batch_spec): bin/deltamp.% : lib/$(batch)/deltamp.%
 	cp $^ $@ && chmod +x $@
 
 # clean rule
 clean :
-	rm $(steps) $(highmems) $(batch_spec)
+	rm $(deltamp) $(steps) $(highmems) $(batch_spec)
