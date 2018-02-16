@@ -12,6 +12,7 @@ DeltaMP require all of the following softwares to be installed:
 *  R (https://cran.r-project.org/)
 *  Ghostscript (https://www.ghostscript.com/)
 *  WebLogo (https://github.com/WebLogo/weblogo)
+*  archive-sum (https://github.com/idiv-biodiversity/archive-sum)
 
 Depending on the workflows, DeltaMP could need the following softwares:
 1. for using remote libraries on short read archives:

@@ -38,10 +38,13 @@ echo id_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.id.$SUBPROJEC
 echo end_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.end.$SUBPROJECT QUEUE_HOLD\${id_jobid} $BIN/end.sh)
 
 ## Archive processing files
+echo processing_archiver_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.processing_archiver.$SUBPROJECT QUEUE_HOLD\${end_jobid} $BIN/archiver.sh)
 
 ## Archive outputs
+echo output_archiver_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.output_archiver.$SUBPROJECT QUEUE_HOLD\${quality_jobid}QUEUE_SEP\${end_jobid} $BIN/archiver.sh)
 
 ## Archive raw reads
+echo raw_archiver_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.${RAW_EXT}_archiver.$SUBPROJECT QUEUE_HOLD\${demulti_jobid}QUEUE_SEP\${qual_jobid} $BIN/archiver.sh)
 
 ## Document
-echo doc_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.doc.$SUBPROJECT QUEUE_HOLD\${end_jobid} $BIN/doc.sh)
+echo doc_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.doc.$SUBPROJECT QUEUE_HOLD\${output_archiver_jobid}QUEUE_SEP\${processing_archiver_jobid} $BIN/doc.sh)

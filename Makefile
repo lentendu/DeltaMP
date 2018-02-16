@@ -37,13 +37,13 @@ modulefiles:
 # rule to build step scripts
 $(steps): bin/%.sh : 
 ifeq ($(batch),GridEngine)
-	cat $^ | sed 's/log\/NAME/log\/'$*'/;s/NCPUS/NSLOTS/g;s/ARRAY_TASK/SGE_TASK_ID/g' > $@
+	cat $^ | sed 's/log\/NAME/log\/'$*'/;s/NCPUS/NSLOTS/g;s/ARRAY_TASK/SGE_TASK_ID/g;s/JOBNAME/JOB_NAME/' > $@
 else ifeq ($(batch),Slurm)
-	cat $^ | sed 's/log\/NAME/log\/'$*'/;s/NCPUS/SLURM_CPUS_PER_TASK/g;s/ARRAY_TASK/SLURM_ARRAY_TASK_ID/g' > $@
+	cat $^ | sed 's/log\/NAME/log\/'$*'/;s/NCPUS/SLURM_CPUS_PER_TASK/g;s/ARRAY_TASK/SLURM_ARRAY_TASK_ID/g;s/JOBNAME/SLURM_JOB_NAME/' > $@
 endif
 
 # header (type of job) specific dependencies
-bin/init.sh bin/get.sh bin/454_quality.sh bin/Illumina_quality.sh bin/doc.sh bin/454_raw_stat.sh bin/Illumina_fastq.sh bin/Illumina_pair_end.sh bin/Illumina_raw_stat.sh bin/Illumina_opt.sh bin/trim.sh : serial.head
+bin/init.sh bin/get.sh bin/454_quality.sh bin/Illumina_quality.sh bin/doc.sh bin/454_raw_stat.sh bin/Illumina_fastq.sh bin/Illumina_pair_end.sh bin/Illumina_raw_stat.sh bin/Illumina_opt.sh bin/trim.sh bin/archiver.sh : serial.head
 bin/merge.sh bin/end.sh : serial_highmem.head
 bin/OTU.sh bin/Illumina_demulti.sh bin/454_demulti.sh bin/454_sff.sh bin/454_opt.sh : mp.head
 bin/cut_db.sh bin/id.sh : mp_highmem.head
