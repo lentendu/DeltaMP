@@ -37,9 +37,9 @@ modulefiles:
 # rule to build step scripts
 $(steps): bin/%.sh : 
 ifeq ($(batch),GridEngine)
-	cat $^ | sed 's/log\/NAME/log\/'$*'/;s/NCPUS/NSLOTS/g;s/ARRAY_TASK/SGE_TASK_ID/g;s/JOBNAME/JOB_NAME/' > $@
+	cat $^ | sed 's/log\/NAME/log\/'$*'/;s/NCPUS/NSLOTS/g;s/ARRAY_TASK/SGE_TASK_ID/g;s/QUEUE_JOBNAME/-N/;s/JOBNAME/JOB_NAME/;s/QUEUE_HOLD/-hold_jid /;s/QUEUE_SEP/,/' > $@
 else ifeq ($(batch),Slurm)
-	cat $^ | sed 's/log\/NAME/log\/'$*'/;s/NCPUS/SLURM_CPUS_PER_TASK/g;s/ARRAY_TASK/SLURM_ARRAY_TASK_ID/g;s/JOBNAME/SLURM_JOB_NAME/' > $@
+	cat $^ | sed 's/log\/NAME/log\/'$*'/;s/NCPUS/SLURM_CPUS_PER_TASK/g;s/ARRAY_TASK/SLURM_ARRAY_TASK_ID/g;s/QUEUE_JOBNAME/-J/;s/JOBNAME/SLURM_JOB_NAME/;s/QUEUE_HOLD/-d afterok:/;s/QUEUE_SEP/:/' > $@
 endif
 
 # header (type of job) specific dependencies
