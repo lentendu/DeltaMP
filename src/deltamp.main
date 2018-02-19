@@ -537,7 +537,7 @@ comm -23 <(set -o posix; set | sort) <(sort /tmp/amp.$STIME.set) | tr "=" "\t" |
 rm -f /tmp/amp.$STIME.set
 
 # Tree 
-grep -v "^#" $SUBPROJECT/config/steps.final | awk '$0~"QUEUE_SUB"{print $NF"\tx"}' | sed 's/.*\///;s/\.sh)\t/\t/' | sort | join -a 2 -2 2 -o 2.1,0,1.2 -e "." -t $'\t' - <(nl $BIN/ref.steps.$TECH | sort -k 2,2) | sort -k 1,1n | cut -f 2- > $SUBPROJECT/config/steps.summary
+grep -v "^#" $SUBPROJECT/config/steps.final | awk '$0~"QUEUE_SUB"{if($1~"archiver"){print $1} else print $NF"\tx"}' | sed 's/.*\///;s/\.sh)\t/\t/;s/_jobid.*$/\tx/' | sort | join -a 2 -2 2 -o 2.1,0,1.2 -e "." -t $'\t' - <(nl $BIN/ref.steps.$TECH | sort -k 2,2) | sort -k 1,1n | cut -f 2- > $SUBPROJECT/config/steps.summary
 if [ $REF_SUBPROJECT != "no" ]
 then
 	if [ -f $REF_SUBPROJECT/config/tree.summary ]
