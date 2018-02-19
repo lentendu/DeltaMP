@@ -23,7 +23,7 @@ all: $(deltamp) $(module) $(steps) $(batch_spec) $(test_config)
 # rule to build deltamp and pipeline_master
 $(deltamp): bin/% : %.main | lib/$(batch)/option_variables
 	SED=$$(sed 's/^/s\//;s/\t/\//;s/$$/\//' $| |  tr "\n" ";" | sed 's/^/sed "/;s/;$$/"/'); \
-	eval $$SED $< | sed 's#^\(VERSION\[DELTAMP\]=\)$$#\1$(version)#;s#^\(AMP_BUILD=\)$$#\1$(CURDIR)#' > $@ && chmod +x $@
+	eval $$SED $< | sed 's#^\(VERSION\[DELTAMP\]=\)$$#\1$(version)#;s#^\(DELTAMP_BUILD=\)$$#\1$(CURDIR)#' > $@ && chmod +x $@
 
 # rule to build the module file of the current version
 $(module): src/deltamp.module | modulefiles
