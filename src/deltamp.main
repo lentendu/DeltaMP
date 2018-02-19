@@ -491,7 +491,7 @@ then
 			fi
 			# in which step script(s) is found the differing variable(s)
 			unset MATCH_REGEX
-			MATCH_REGEX=$(grep $(echo ${TMP_DIF[$i]} | sed 's/#/[^A-Z_]\\\|$/g;s/^/$/;s/$/[^A-Z_]/') $(awk '$0~"QUEUE_SUB"{print $NF}' $SUBPROJECT/config/steps) | cut -d ":" -f 1 | sed 's/.*\///;s/\.sh)$//' | sort -u | tr "\n" "|" | sed 's/|$//;s/|/\\\|/g')
+			MATCH_REGEX=$(grep $(echo ${TMP_DIF[$i]} | sed 's/#/[^A-Z_]\\\|$/g;s/^/$/;s/$/[^A-Z_]/') $(awk '$0~"QUEUE_SUB"{sub(")$","");print $NF}' $SUBPROJECT/config/steps | sort -u) | cut -d ":" -f 1 | sed 's/.*\///;s/\.sh$//' | sort -u | tr "\n" "|" | sed 's/|$//;s/|/\\\|/g')
 			if [ -z $MATCH_REGEX ]
 			then
 				if [ ${TMP_DIF[$i]} == "QUAL_ONLY" ]
@@ -501,17 +501,17 @@ then
 					TMP_SCRIPT[$i]=$(sed '1d;s/ QUEUE_HOLD[^ ]*//;s/ /_/g' $SUBPROJECT/config/steps | nl | sort -k 2,2 | join -v 1 -1 2 - <(sed 's/ QUEUE_HOLD[^ ]*//;s/'$i'/'$SUBPROJECT'/g;s/ /_/g' $i/config/steps.final | sort) | sort -k 2,2n | head -1 | sed 's/^.*\///;s/ .*$//')
 				fi
 			else
-				TMP_SCRIPT[$i]=$(grep -m 1 -o $MATCH_REGEX $SUBPROJECT/config/steps)
+				TMP_SCRIPT[$i]=$(awk '$0!~"^#"{print $NF}' $SUBPROJECT/config/steps | grep -m 1 -o $MATCH_REGEX)
 			fi
-			# which of these step comes first in the workflow
-			TMP_PREV[$i]=$(tac $i/config/steps.final | grep -v "^#" | grep -o -m 1 $(sed '/'"${TMP_SCRIPT[$i]}"'/,$d' $BIN/ref.steps.$TECH | tr "\n" " " | sed 's/ $/\n/;s/ /\\\|/g'))
+			# which was the las step executed before the differing step
+			TMP_PREV[$i]=$(awk '$0!~"^#"{print $NF}' $i/config/steps.final | tac | grep -o -m 1 $(sed '/'"${TMP_SCRIPT[$i]}"'/,$d' $BIN/ref.steps.$TECH | tr "\n" " " | sed 's/ $/\n/;s/ /\\\|/g'))
 		done
 		# the previous SUBPROJECT which have the most number of steps in common with the current SUBPROJECT is set as seed
 		REF_SUBPROJECT=`for i in "${PREV_LIST[@]}"; do sed -n '/'"${TMP_PREV[$i]}"'/=' $BIN/ref.steps.$TECH | paste <(echo $i) <(stat -c "%Y" $i) - ; done | sort -k 3,3nr -k 2,2nr | cut -f 1 | head -1`
 		FIRST_STEP=${TMP_SCRIPT[$REF_SUBPROJECT]}
 		LAST_REF=${TMP_PREV[$REF_SUBPROJECT]}
 		# the steps to be queued are updated accordingly
-		awk -v F=$FIRST_STEP 'BEGIN{p=0} {if($NF~F"$"){p=1} ; if(p || NR==1){print} else {print "#"$0}}' $SUBPROJECT/config/steps | awk -v V=$DELTAMP_VER -v S=$SUBPROJECT -v R=$REF_SUBPROJECT -v L=${LAST_REF} 'BEGIN{c=0} {if(NR==1){sub(V".init."S" ",V".init."S" QUEUE_HOLD"V"."L"."R" ")} else {if($0!~"^#" && c==0){sub("QUEUE_HOLD[^ ]* ","QUEUE_HOLD"V".init."S" ");c+=1}};print}' > $SUBPROJECT/config/steps.final
+		awk -v F=$FIRST_STEP 'BEGIN{p=0} {if($NF~F".sh)$"){p=1} ; if(p || NR==1){print} else {print "#"$0}}' $SUBPROJECT/config/steps | awk -v V=$DELTAMP_VER -v S=$SUBPROJECT -v R=$REF_SUBPROJECT -v L=${LAST_REF} 'BEGIN{c=0} {if(NR==1){sub(V".init."S" ",V".init."S" QUEUE_HOLD"V"."L"."R" ")} else {if($0!~"^#" && c==0){sub("QUEUE_HOLD[^ ]* ","QUEUE_HOLD"V".init."S" ");c+=1}};print}' > $SUBPROJECT/config/steps.final
 		# Check archiving of raw reads in previous subproject
 		if [ $TECH == "454" ] && [ $DEMULTI == "no" ]
 		then
