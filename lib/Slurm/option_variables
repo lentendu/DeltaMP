@@ -1,5 +1,5 @@
 QUEUE_SUB	sbatch
-QUEUE_OPTIONS	
+QUEUE_OPTIONS	 --parsable
 QUEUE_JOBNAME	-J
 QUEUE_HOLD	-d afterok:
 QUEUE_SEP	:
