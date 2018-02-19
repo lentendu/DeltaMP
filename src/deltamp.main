@@ -78,8 +78,8 @@ INIT_DIR=$PWD
 # Version
 declare -A VERSION
 VERSION[DELTAMP]=
-AMP_BUILD=/global/apps/ecogen/deltamp/${VERSION[DELTAMP]}
-AMP_VER=amp${VERSION[DELTAMP]//./}
+DELTAMP_BUILD=
+DELTAMP_VER=amp${VERSION[DELTAMP]//./}
 BIN=$DELTAMP_BUILD/bin
 
 # Option's default value
