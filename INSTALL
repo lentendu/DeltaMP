@@ -48,6 +48,7 @@ Installation informations:
 4. edit the configuration file config.txt, with respecting the format VARIABLE_NAME[Tab]VARIABLE_VALUE
     a. BATCH: batch queueing system, either 'GridEngine' or 'Slurm'
     b. MODULES_TO_BE_LOADED: semi-column separated list of dependency modules to be loaded by the DeltaMP module
+    c. MAX_CPU_PER_NODES: maximum number of CPUS/cores on on node for MP parallel jobs
 
 5. to build DeltaMP, a simple make is enough:
     make
