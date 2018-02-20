@@ -7,7 +7,7 @@ then
 fi
 
 # load modules
-module load deltamp/${VERSION[DELTAMP]}
+module load DeltaMP/${VERSION[DELTAMP]}
 
 # Set archives/libraries array
 if [ -z "$ARCHIVES" ] || [[ "${ARCHIVES[@]}" == "no" ]]

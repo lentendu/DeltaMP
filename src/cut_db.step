@@ -3,7 +3,7 @@ while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var
 . $BIN/check_previous_step.sh
 
 # load modules
-module load deltamp/${VERSION[DELTAMP]}
+module load DeltaMP/${VERSION[DELTAMP]}
 
 # check database presence
 cd $DBFOLD

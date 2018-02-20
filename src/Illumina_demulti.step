@@ -3,7 +3,7 @@ while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var
 . $BIN/check_previous_step.sh
 
 # load modules
-module load deltamp/${VERSION[DELTAMP]}
+module load DeltaMP/${VERSION[DELTAMP]}
 
 # Define the library to demultiplex
 LIB_NAME=`head -$ARRAY_TASK config/lib2.list | tail -1 | sed 's/_L[0-9]*_[IR][12]_[0-9]*\.fastq//'`
