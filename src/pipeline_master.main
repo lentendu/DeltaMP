@@ -16,11 +16,11 @@ fi
 echo "raw_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.${TECH}_${RAW_EXT}.$SUBPROJECT QUEUE_ARRAYS 1-${LIB3_SIZE}QUEUE_THREADMAX$MAX_TASK QUEUE_HOLD\${get_jobid}QUEUE_SEP\${demulti_jobid} $BIN/${TECH}_${RAW_EXT}.sh)"
 if [ $TECH == "Illumina" ]
 then
-	echo "pair_end_jobid=\$(QUEUE_SUBQUEUE_OPTIONS -cwd QUEUE_JOBNAME $DELTAMP_VER.${TECH}_pair_end.$SUBPROJECT QUEUE_ARRAYS 1-${LIB3_SIZE}QUEUE_THREADMAX$MAX_TASK QUEUE_HOLD\${raw_jobid} $BIN/${TECH}_pair_end.sh)"
+	echo "pair_end_jobid=\$(QUEUE_SUBQUEUE_OPTIONS -cwd QUEUE_JOBNAME $DELTAMP_VER.${TECH}_pair_end.$SUBPROJECT QUEUE_ARRAYS 1-${LIB3_SIZE}QUEUE_THREADMAX$MAX_TASK QUEUE_HOLD\${raw_jobid%.*} $BIN/${TECH}_pair_end.sh)"
 fi
-echo "raw_stat_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.${TECH}_raw_stat.$SUBPROJECT QUEUE_ARRAYS 1-${LIB1_SIZE}QUEUE_THREADMAX$MAX_TASK QUEUE_HOLD\${raw_jobid}QUEUE_SEP\${pair_end_jobid} $BIN/${TECH}_raw_stat.sh)"
-echo "opt_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.${TECH}_opt.$SUBPROJECT QUEUE_ARRAYS 1-${LIB3_SIZE}QUEUE_THREADMAX$MAX_TASK QUEUE_HOLD\${raw_stat_jobid} $BIN/${TECH}_opt.sh)"
-echo "qual_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.${TECH}_quality.$SUBPROJECT QUEUE_HOLD\${opt_jobid} $BIN/${TECH}_quality.sh)"
+echo "raw_stat_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.${TECH}_raw_stat.$SUBPROJECT QUEUE_ARRAYS 1-${LIB1_SIZE}QUEUE_THREADMAX$MAX_TASK QUEUE_HOLD\${raw_jobid%.*}QUEUE_SEP\${pair_end_jobid%.*} $BIN/${TECH}_raw_stat.sh)"
+echo "opt_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.${TECH}_opt.$SUBPROJECT QUEUE_ARRAYS 1-${LIB3_SIZE}QUEUE_THREADMAX$MAX_TASK QUEUE_HOLD\${raw_stat_jobid%.*} $BIN/${TECH}_opt.sh)"
+echo "qual_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.${TECH}_quality.$SUBPROJECT QUEUE_HOLD\${opt_jobid%.*} $BIN/${TECH}_quality.sh)"
 
 ## Trim (,align (,subsample)) , chimera check in array jobs, and merge
 if [ $CUT_DB == "yes" ] && [ ! -f $DBFOLD/$DBCUT.fasta ]
@@ -28,7 +28,7 @@ then
 	echo "cut_db_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.cut_db.$SUBPROJECT $BIN/cut_db.sh)"
 fi
 echo "trim_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.trim.$SUBPROJECT QUEUE_ARRAYS 1-${SAMP_SIZE}QUEUE_THREADMAX$MAX_TASK QUEUE_HOLD\${qual_jobid}QUEUE_SEP\${cut_db_jobid} $BIN/trim.sh)"
-echo "merge_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.merge.$SUBPROJECT QUEUE_HOLD\${trim_jobid} $BIN/merge.sh)"
+echo "merge_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.merge.$SUBPROJECT QUEUE_HOLD\${trim_jobid%.*} $BIN/merge.sh)"
 
 ## OTUs and taxonomic assignment
 echo "otu_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.otu.$SUBPROJECT QUEUE_HOLD\${merge_jobid} $BIN/OTU.sh)"
@@ -44,7 +44,7 @@ echo "processing_archiver_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP
 echo "output_archiver_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.output_archiver.$SUBPROJECT QUEUE_HOLD\${qual_jobid}QUEUE_SEP\${end_jobid} $BIN/archiver.sh)"
 
 ## Archive raw reads
-echo "raw_archiver_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.${RAW_EXT}_archiver.$SUBPROJECT QUEUE_HOLD\${demulti_jobid}QUEUE_SEP\${qual_jobid} $BIN/archiver.sh)"
+echo "raw_archiver_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.${RAW_EXT}_archiver.$SUBPROJECT QUEUE_HOLD\${demulti_jobid%.*}QUEUE_SEP\${qual_jobid} $BIN/archiver.sh)"
 
 ## Document
 echo "doc_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.doc.$SUBPROJECT QUEUE_HOLD\${output_archiver_jobid}QUEUE_SEP\${processing_archiver_jobid} $BIN/doc.sh)"
