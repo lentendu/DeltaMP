@@ -10,10 +10,12 @@ NAME
 	deltamp version ${VERSION[DELTAMP]} - amplicon pipeline for grid engine
 	
 SYNOPSIS
-	Usage: ${0##*/} [-cdhqs] [-m max_running_tasks] [-r SUBRPOJECT] [CONFIGURATION_FILE]
+	Usage: ${0##*/} [-a account_or_project_name] [-cdhqs] [-m max_running_tasks] [-r SUBRPOJECT] [CONFIGURATION_FILE]
 
 DESCRIPTION
 	-h	display this help and exit
+	
+	-a	account or project name for the job queueing system
 	
 	-c	at the end of a dry run (-d option), avoid the deletion of the SUBPROJECT and PROJECT (if empty) directories from output directory
 		
@@ -93,11 +95,12 @@ BENCHM=yes
 REF_SUBPROJECT=no
 
 # get options
-while getopts ":cdfhm:nqsr:" opt
+while getopts ":a:cdfhm:nqsr:" opt
 do
 	case $opt in
 		h)	show_help | fmt -s -w $(tput cols)
 			exit 1;;
+		a)	DELTAMP_ACCOUNT=$OPTARG;;
 		c)	CLEAN=no;;
 		d)	DRY=yes;;
 		f)	show_default | fmt -s -w $(tput cols)
@@ -542,6 +545,12 @@ if [ $TECH != "Illumina" ]
 then
 	sed 's/QUEUE_SEP\${pair_end_jobid}//' $SUBPROJECT/config/steps.final > $SUBPROJECT/config/steps.final.tmp && mv $SUBPROJECT/config/steps.final.tmp $SUBPROJECT/config/steps.final
 fi
+
+# Add account/project name to queueing commands
+if [ ! -z $DELTAMP_ACCOUNT ]
+then
+	sed 's/QUEUE_SUB/QUEUE_SUB QUEUE_ACCOUNT $DELTAMP_ACCOUNT/' $SUBPROJECT/config/steps.final > $SUBPROJECT/config/steps.final.tmp && mv $SUBPROJECT/config/steps.final.tmp $SUBPROJECT/config/steps.final
+else
 
 # Save variables about previous SUBPROJECT
 comm -23 <(set -o posix; set | sort) <(sort /tmp/amp.$STIME.set) | tr "=" "\t" | grep -v "^[a-z]" | grep -P -v "^PWD\t" | sed "s/'//g" > $SUBPROJECT/config/prev.txt
