@@ -535,7 +535,7 @@ fi
 # fix job dependencies
 if [ $DEMULTI != "no" ]
 then
-	sed 's/QUEUE_SEP\${demulti_jobid}//' $SUBPROJECT/config/steps.final > $SUBPROJECT/config/steps.final.tmp && mv $SUBPROJECT/config/steps.final.tmp $SUBPROJECT/config/steps.final
+	sed 's/QUEUE_SEP\${demulti_jobid%\.\*}//' $SUBPROJECT/config/steps.final > $SUBPROJECT/config/steps.final.tmp && mv $SUBPROJECT/config/steps.final.tmp $SUBPROJECT/config/steps.final
 fi
 if [ $CUT_DB == "no" ]
 then
@@ -543,7 +543,7 @@ then
 fi
 if [ $TECH != "Illumina" ]
 then
-	sed 's/QUEUE_SEP\${pair_end_jobid}//' $SUBPROJECT/config/steps.final > $SUBPROJECT/config/steps.final.tmp && mv $SUBPROJECT/config/steps.final.tmp $SUBPROJECT/config/steps.final
+	sed 's/QUEUE_SEP\${pair_end_jobid%\.\*}//' $SUBPROJECT/config/steps.final > $SUBPROJECT/config/steps.final.tmp && mv $SUBPROJECT/config/steps.final.tmp $SUBPROJECT/config/steps.final
 fi
 
 # Add account/project name to queueing commands
