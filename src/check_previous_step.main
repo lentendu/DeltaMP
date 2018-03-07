@@ -3,7 +3,7 @@
 RAND=$RANDOM
 WRONG=0
 (set -o posix; set > $RAND.set)
-MY_JOB=`grep "QUEUE_JOBNAME $JOBNAME " config/steps.final`
+MY_JOB=`grep "\QUEUE_JOBNAME $QUEUE_INTERNAL_JOBNAME " config/steps.final`
 MY_NAME=`echo ${MY_JOB##*/} | sed 's/\.sh)//'`
 PREV_NAME=(`echo $MY_JOB | sed "s/^.*QUEUE_HOLD\([^ ]*\) .*$/\1/;s/QUEUE_SEP/ /g;s/\.$SUBPROJECT//g;s/$DELTAMP_VER\.//g"`)
 declare -A PREV_JOB
