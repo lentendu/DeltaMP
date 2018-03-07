@@ -54,7 +54,7 @@ $(highmems): lib/$(batch)/%_highmem.head : %.head
 ifeq ($(batch),GridEngine)
 	sed 's/mem=6G/mem=20G/;$$s/^$$/#$$ -l highmem\n/' $< > $@
 else ifeq ($(batch),Slurm)
-	sed 's/mem=6G/mem=20G/' $< > $@
+	sed 's/mem=64G/mem=256G/' $< > $@
 endif
 
 # Copy batch queueing system specific executables to bin
