@@ -550,7 +550,7 @@ fi
 if [ ! -z $DELTAMP_ACCOUNT ]
 then
 	sed 's/QUEUE_SUB/QUEUE_SUB QUEUE_ACCOUNT $DELTAMP_ACCOUNT/' $SUBPROJECT/config/steps.final > $SUBPROJECT/config/steps.final.tmp && mv $SUBPROJECT/config/steps.final.tmp $SUBPROJECT/config/steps.final
-else
+fi
 
 # Save variables about previous SUBPROJECT
 comm -23 <(set -o posix; set | sort) <(sort /tmp/amp.$STIME.set) | tr "=" "\t" | grep -v "^[a-z]" | grep -P -v "^PWD\t" | sed "s/'//g" > $SUBPROJECT/config/prev.txt
