@@ -21,7 +21,7 @@ vpath %.config src
 .PHONY: all clean
 all: $(deltamp) $(module) $(steps) $(batch_spec) $(test_config)
 
-# rule to build deltamp and pipeline_master
+# rule to build deltamp, pipeline_master and check_prevuous_step
 $(deltamp): bin/% : %.main | lib/$(batch)/option_variables
 	SED=$$(sed 's/^/s\//;s/\t/\//;s/$$/\//' $| |  tr "\n" ";" | sed 's/^/sed "/;s/;$$/"/'); \
 	eval $$SED $< | sed 's#^\(VERSION\[DELTAMP\]=\)$$#\1$(version)#;s#^\(DELTAMP_BUILD=\)$$#\1$(CURDIR)#' > $@ && chmod +x $@
@@ -36,11 +36,11 @@ modulefiles:
 	mkdir -p $@ $@/DeltaMP
 
 # rule to build step scripts
-$(steps): bin/%.sh : 
+$(steps): bin/%.sh : | %.step
 ifeq ($(batch),GridEngine)
-	cat $^ | sed 's/log\/NAME/log\/'$*'/;s/MAX_CPUS$$/$(max_cpus)/;s/NCPUS/NSLOTS/g;s/ARRAY_TASK/SGE_TASK_ID/g;s/QUEUE_JOBNAME/-N/;s/JOBNAME/JOB_NAME/;s/QUEUE_HOLD/-hold_jid /;s/QUEUE_SEP/,/' > $@
+	cat $< $| | sed 's/log\/NAME/log\/'$*'/;s/MAX_CPUS$$/$(max_cpus)/;s/NCPUS/NSLOTS/g;s/ARRAY_TASK/SGE_TASK_ID/g;s/QUEUE_JOBNAME/-N/;s/JOBNAME/JOB_NAME/;s/QUEUE_HOLD/-hold_jid /;s/QUEUE_SEP/,/' > $@
 else ifeq ($(batch),Slurm)
-	cat $^ | sed 's/log\/NAME/log\/'$*'/;s/MAX_CPUS$$/$(max_cpus)/;s/NCPUS/SLURM_CPUS_PER_TASK/g;s/ARRAY_TASK/SLURM_ARRAY_TASK_ID/g;s/QUEUE_JOBNAME/-J/;s/JOBNAME/SLURM_JOB_NAME/;s/QUEUE_HOLD/-d afterok:/;s/QUEUE_SEP/:/' > $@
+	cat $< $| | sed 's/log\/NAME/log\/'$*'/;s/MAX_CPUS$$/$(max_cpus)/;s/NCPUS/SLURM_CPUS_PER_TASK/g;s/ARRAY_TASK/SLURM_ARRAY_TASK_ID/g;s/QUEUE_JOBNAME/-J/;s/JOBNAME/SLURM_JOB_NAME/;s/QUEUE_HOLD/-d afterok:/;s/QUEUE_SEP/:/' > $@
 endif
 
 # header (type of job) specific dependencies
@@ -48,9 +48,6 @@ bin/init.sh bin/get.sh bin/454_quality.sh bin/Illumina_quality.sh bin/doc.sh bin
 bin/merge.sh bin/end.sh : serial_highmem.head
 bin/OTU.sh bin/Illumina_demulti.sh bin/454_demulti.sh bin/454_sff.sh bin/454_opt.sh : mp.head
 bin/cut_db.sh bin/id.sh : mp_highmem.head
-
-# general dependencies
-$(steps): bin/%.sh : %.step
 
 # rules to build high memory job headers
 $(highmems): lib/$(batch)/%_highmem.head : %.head

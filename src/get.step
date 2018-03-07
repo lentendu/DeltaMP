@@ -3,7 +3,7 @@ while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/prev.txt
 if [ $REF_SUBPROJECT != "no" ]
 then
-	. $BIN/check_previous_step.sh
+	. $BIN/check_previous_step
 fi
 
 # load modules
