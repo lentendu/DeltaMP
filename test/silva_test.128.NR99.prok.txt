@@ -1,0 +1,3 @@
+VERSION	128
+CITATION	Quast et al., 2013
+FULLCITATION	Quast C, Pruesse E, Yilmaz P et al. (2013) The SILVA ribosomal RNA gene database project: improved data processing and web-based tools. Nucleic Acids Research, 41, D590–D596.

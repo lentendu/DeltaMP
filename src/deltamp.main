@@ -380,14 +380,14 @@ elif [ $TECH == "Illumina" ]
 then
 	LIB1_SIZE=1
 	sed '1,/^Barcode sequence/d;/^$/d;s/^\t//' config/$METADATA | awk '{print}' > config/barcodes.txt
-	sed 's/\.fastq//g;s/-/_/g' config/barcodes.txt > config/lib3.list
+	sed 's/\.fastq[^\t$]*//g;s/-/_/g;s/ftp\.sra[^\t]*\///g' config/barcodes.txt > config/lib3.list
 	LIB3_SIZE=`sed -n '$=' config/lib3.list`
 	while read samp fwd rvs
 	do
 		prefix=`printf "%s\n%s\n" $fwd $rvs | sed -e 'N;s/^\(.*\).*\n\1.*$/\1/'`
 		echo $prefix ${fwd/$prefix/} ${rvs/$prefix/}
 	done < config/barcodes.txt > config/lib1.list
-	sed 's/-/_/g' config/lib1.list > config/lib2.list
+	sed 's/-/_/g;s/ftp\.sra.*\///' config/lib1.list > config/lib2.list
 	paste <(cut -f 1 config/lib3.list) <(cut -f 1 config/lib2.list) | sort -k 1,1 | awk '{if(NR==1){S=$1;printf "%s %s",S,$2} else {if($1==S){printf " %s",$2} else {S=$1;printf "\n%s %s",S,$2}}}END{printf "\n"}' > config/lib4.list
 fi
 SAMP_SIZE=`sed -n '$=' config/lib4.list`
