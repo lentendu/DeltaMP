@@ -8,6 +8,7 @@ max_cpus := $(shell grep MAX_CPU_PER_NODES $(config) | cut -f 2)
 deltamp := $(patsubst src/%,bin/%,$(patsubst %.main,%,$(wildcard $(addsuffix *.main,src/))))
 batch_spec := $(addprefix bin/,$(notdir $(shell ls lib/$(batch)/deltamp.*)))
 steps := $(patsubst src/%,bin/%,$(patsubst %.step,%.sh,$(wildcard $(addsuffix *.step,src/))))
+arrays := $(patsubst %.head,%_array.head,$(shell ls lib/$(batch)/*.head | grep -v "_"))
 highmems := $(patsubst %.head,%_highmem.head,$(shell ls lib/$(batch)/*.head | grep -v "_"))
 test_config := $(patsubst src/%,test/%,$(patsubst %.config,%.tsv,$(wildcard $(addsuffix *.config,src/))))
 
@@ -44,10 +45,20 @@ else ifeq ($(batch),Slurm)
 endif
 
 # header (type of job) specific dependencies
-bin/init.sh bin/get.sh bin/454_quality.sh bin/Illumina_quality.sh bin/doc.sh bin/454_raw_stat.sh bin/Illumina_fastq.sh bin/Illumina_pair_end.sh bin/Illumina_raw_stat.sh bin/Illumina_opt.sh bin/trim.sh bin/archiver.sh : serial.head
+bin/init.sh bin/get.sh bin/454_quality.sh bin/Illumina_quality.sh bin/doc.sh bin/archiver.sh : serial.head
+bin/Illumina_demulti.sh bin/Illumina_fastq.sh bin/Illumina_pair_end.sh bin/Illumina_opt.sh bin/454_raw_stat.sh bin/Illumina_raw_stat.sh bin/trim.sh : serial_array.head
 bin/merge.sh bin/end.sh : serial_highmem.head
-bin/OTU.sh bin/Illumina_demulti.sh bin/454_demulti.sh bin/454_sff.sh bin/454_opt.sh : mp.head
+bin/OTU.sh : mp.head
+bin/454_demulti.sh bin/454_sff.sh bin/454_opt.sh : mp_array.head
 bin/cut_db.sh bin/id.sh : mp_highmem.head
+
+# rules to build array job headers
+$(arrays): lib/$(batch)/%_array.head : %.head
+ifeq ($(batch),GridEngine)
+	sed 's/NAME/NAME.$$TASK_ID/' $< > $@
+else ifeq ($(batch),Slurm)
+	sed 's/NAME/NAME.%a/' $< > $@
+endif
 
 # rules to build high memory job headers
 $(highmems): lib/$(batch)/%_highmem.head : %.head
@@ -67,4 +78,4 @@ $(test_config): test/%.tsv : %.config
 
 # clean rule
 clean :
-	rm -r $(deltamp) modulefiles $(steps) $(highmems) $(batch_spec) $(test_config)
+	rm -r $(deltamp) modulefiles $(steps) $(arrays) $(highmems) $(batch_spec) $(test_config)

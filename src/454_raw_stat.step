@@ -21,9 +21,6 @@ done
 # Figures
 Rscript --vanilla $BIN/Rscript_raw_stat_figures.R $SUBPROJECT $LIB_NAME $BIN
 
-# Clean
-rm *.$LIB_NAME.*length *.$LIB_NAME.*meanqual *.$LIB_NAME.*meanposqual
-
 # list files and directories
 . $BIN/list_step_files.sh
 
