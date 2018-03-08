@@ -26,7 +26,7 @@ then
 	echo "[ERROR] The source directory $DIRECTORY is not valid or readable."
 	exit 1
 else
-	cd "$DIRECTORY"
+	cd $(dirname "$DIRECTORY")
 	DATA="$(basename "$DIRECTORY")"
 fi
 
