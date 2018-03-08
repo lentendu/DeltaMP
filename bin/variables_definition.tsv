@@ -24,7 +24,7 @@ TRESH	97	Clustering similarity threshold	^[0-9]+(.[0-9]+)?$
 PREV_PATH	no	Cluster with previous subproject reference sequences	no ^/.+(/.+)*$
 DEL_SING	no	Remove singletons before chimera re-check	no yes
 DBFOLD	/home/$USER	Directory path to database	^/.+(/.+)*$
-REF_DB	no	Database prefix name	^[^ \t]+$
+DB	pr2_test.gb203	Database prefix name	^.+$
 CUT_DB	no	Reduce database to amplified fragment	no yes
 ASSIGN_ALL	no	Assign all reads	no yes
 MIN_SAMP	1	Minimum number of sample for abundant OTUs	^[0-9]+$
