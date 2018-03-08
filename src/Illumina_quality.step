@@ -47,8 +47,6 @@ cut -f 1-4,$(($QUAL - $MINQUAL + 5)) $SUBPROJECT.sample_counts.tsv > $SUBPROJECT
 dd if=$SUBPROJECT.summary.stat.tsv of=../archives/$SUBPROJECT.outputs/$SUBPROJECT.read_counts.tsv bs=1M
 
 # Merge raw stat statistics and weblogos
-module unload freetype
-module load ghostscript/8.70-1
 cd ..
 gs -q -sDEVICE=pdfwrite -o archives/$SUBPROJECT.outputs/$SUBPROJECT.raw_and_pair-end_reads_statistics.pdf libraries/raw_stat/$SUBPROJECT.raw_reads_with_primer_quality.pdf libraries/raw_stat/$SUBPROJECT.pair-end_reads_quality.pdf libraries/raw_stat/$SUBPROJECT.legend.pdf
 gs -q -sDEVICE=pdfwrite -dEPSCrop -o archives/$SUBPROJECT.outputs/$SUBPROJECT.forward.weblogo.pdf libraries/raw_stat/weblogo.*.forward.eps

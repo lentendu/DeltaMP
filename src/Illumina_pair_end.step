@@ -9,16 +9,8 @@ module load DeltaMP/${VERSION[DELTAMP]}
 read LIB_NAME FWD_SUF RVS_SUF <<<`sed -n ${ARRAY_TASK}'p' config/lib2.list`
 cd libraries
 
-# cutadapt
-DISS=`awk -v F=${#FWD} -v R=${#RVS} -v D=$PDIFFS 'BEGIN{DISS=D/F;if(D/R>DISS){DISS=D/R};printf "%.2g\n", DISS}'`
-FWD_RC=`echo ">a $FWD" | tr " " "\n" | obicomplement --uppercase | grep -v ">"`
-RVS_RC=`echo ">a $RVS" | tr " " "\n" | obicomplement --uppercase | grep -v ">"`
-cutadapt -g $FWD -G $RVS -e $DISS --trimmed-only -o fasta/$LIB_NAME.$FWD_NAME.tmp.fastq -p fasta/$LIB_NAME.$RVS_NAME.tmp.fastq fastq/$LIB_NAME.$FWD_NAME.fastq fastq/$LIB_NAME.$RVS_NAME.fastq > fasta/log.cutadapt.$LIB_NAME.txt
-cutadapt -a $RVS_RC -A $FWD_RC -e $DISS -q 10 -o fasta/$LIB_NAME.$FWD_NAME.cut.fastq -p fasta/$LIB_NAME.$RVS_NAME.cut.fastq fasta/$LIB_NAME.$FWD_NAME.tmp.fastq fasta/$LIB_NAME.$RVS_NAME.tmp.fastq >> fasta/log.cutadapt.$LIB_NAME.txt
-rm fasta/$LIB_NAME.*.tmp.fastq
-
 # Pair end
-pandaseq -f fasta/$LIB_NAME.$FWD_NAME.cut.fastq -r fasta/$LIB_NAME.$RVS_NAME.cut.fastq -g fasta/log.pandaseq.$LIB_NAME.txt -F -A $PALG -o $MIN_OV -t $PTRESH -T 1 > fasta/$LIB_NAME.pairend.fastq
+pandaseq -f fasta/$LIB_NAME.fwd.fastq -r fasta/$LIB_NAME.rvs.fastq -g fasta/log.pandaseq.$LIB_NAME.txt -F -A $PALG -o $MIN_OV -t $PTRESH -T 1 > fasta/$LIB_NAME.pairend.fastq
 
 # Convert to fasta + qual
 cd fasta
