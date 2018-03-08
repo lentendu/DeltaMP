@@ -29,14 +29,14 @@ fi
 
 # Convert to fasta + qual for raw reads stat
 mothur "#set.dir(input=fastq, output=fasta);
-	fastq.info(fastq=$FWD_LIB.fastq);
-	fastq.info(fastq=$RVS_LIB.fastq)"
-awk '$0!~"^>"{sum=0;for(i=1;i<=NF;i++){sum+=$i};print int(sum/NF)}' fasta/$FWD_LIB.qual > raw_stat/$LIB_NAME.fwd.meanqual
-awk '$0!~"^>"{for(i=1;i<=NF;i++){sum[i]+=$i;nb[i]+=1}}END{for(i=1;sum[i];i++){print int(sum[i]/nb[i])}}' fasta/$FWD_LIB.qual > raw_stat/$LIB_NAME.fwd.meanposqual
-awk '$0!~"^>"{sum=0;for(i=1;i<=NF;i++){sum+=$i};print int(sum/NF)}' fasta/$RVS_LIB.qual > raw_stat/$LIB_NAME.rvs.meanqual
-awk '$0!~"^>"{for(i=1;i<=NF;i++){sum[i]+=$i;nb[i]+=1}}END{for(i=1;sum[i];i++){print int(sum[i]/nb[i])}}' fasta/$RVS_LIB.qual > raw_stat/$LIB_NAME.rvs.meanposqual
+	fastq.info(fastq=$LIB_NAME.fwd.fastq);
+	fastq.info(fastq=$LIB_NAME.rvs.fastq)"
+awk '$0!~"^>"{sum=0;for(i=1;i<=NF;i++){sum+=$i};print int(sum/NF)}' fasta/$LIB_NAME.fwd.qual > raw_stat/$LIB_NAME.fwd.meanqual
+awk '$0!~"^>"{for(i=1;i<=NF;i++){sum[i]+=$i;nb[i]+=1}}END{for(i=1;sum[i];i++){print int(sum[i]/nb[i])}}' fasta/$LIB_NAME.fwd.qual > raw_stat/$LIB_NAME.fwd.meanposqual
+awk '$0!~"^>"{sum=0;for(i=1;i<=NF;i++){sum+=$i};print int(sum/NF)}' fasta/$LIB_NAME.rvs.qual > raw_stat/$LIB_NAME.rvs.meanqual
+awk '$0!~"^>"{for(i=1;i<=NF;i++){sum[i]+=$i;nb[i]+=1}}END{for(i=1;sum[i];i++){print int(sum[i]/nb[i])}}' fasta/$LIB_NAME.rvs.qual > raw_stat/$LIB_NAME.rvs.meanposqual
 
-rm fasta/$FWD_LIB.fasta fasta/$FWD_LIB.qual fasta/$RVS_LIB.fasta fasta/$RVS_LIB.qual
+rm fasta/$LIB_NAME.fwd.fasta fasta/$LIB_NAME.fwd.qual fasta/$LIB_NAME.rvs.fasta fasta/$LIB_NAME.rvs.qual
 
 # list files and directories
 . $BIN/list_step_files.sh
