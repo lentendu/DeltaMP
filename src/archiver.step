@@ -18,6 +18,9 @@ elif  [[ $JOBNAME == *"$RAW_EXT"* ]]
 then
 	DIRECTORY=$EXEC/libraries/$RAW_EXT
 	ARCHIVE=$OUT/$SUBPROJECT.$RAW_EXT.tar.gz
+else
+	echo "[ERROR] The jobname does not contain output, processing or ${RAW_EXT}."
+	exit 1
 fi
 
 # checking directory
@@ -34,7 +37,7 @@ fi
 tar cz $DATA -b 2048 | dd of="$ARCHIVE" obs=1M 2> /dev/null
 
 # check internal checksum
-dd if="$ARCHIVE" ibs=1M 2> /dev/null | archive-sum -d md5 - | tee "$ARCHIVE"-internal.md5 | parallel -j ${NCPUS:-1} md5sum -c
+dd if="$ARCHIVE" ibs=1M 2> /dev/null | archive-sum -d md5 - | tee "$ARCHIVE"-internal.md5 | parallel -j ${NCPUS:-1} --pipe -N 1 md5sum -c
 err=$?
 if [[ "x$err" != "x0" ]]
 then
