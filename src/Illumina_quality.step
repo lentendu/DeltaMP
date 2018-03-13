@@ -9,7 +9,7 @@ module load DeltaMP/${VERSION[DELTAMP]}
 while read lib fwd rvs
 do
 	samp=`awk -v L=$lib '{for(i=2;i<=NF;i++){if($i==L){print $1}}}' config/lib4.list`
-	paste <(echo -e "$samp\t$lib") <(awk '$0=="+"{a+=1}END{print a}' libraries/$lib$fwd) <(tac libraries/fastq/log.pandaseq.$lib.txt | grep -m 1 -P "STAT\tREADS" | cut -f 4) <(tac libraries/fastq/log.pandaseq.$lib.txt | grep -m 1 -P "STAT\tOK\t" | cut -f 4) quality_check/$lib.stat
+	paste <(echo -e "$samp\t$lib") <(awk '$0=="+"{a+=1}END{print a}' libraries/$lib${fwd%.gz}) <(tac libraries/fastq/log.pandaseq.$lib.txt | grep -m 1 -P "STAT\tREADS" | cut -f 4) <(tac libraries/fastq/log.pandaseq.$lib.txt | grep -m 1 -P "STAT\tOK\t" | cut -f 4) quality_check/$lib.stat
 done < config/lib2.list | cat <(paste <(echo -e "Sample\tLibrary\tRaw\tPrimer detected\tPair-end") <(seq $MINQUAL 30 | sed 's/\(.*\)/Trimmed at \1 Phred score/' | tr "\n" "\t" | sed 's/$/\n/')) -> quality_check/$SUBPROJECT.lib_counts.tsv
 cd quality_check
 
@@ -49,9 +49,11 @@ dd if=$SUBPROJECT.summary.stat.tsv of=../archives/$SUBPROJECT.outputs/$SUBPROJEC
 # Merge raw stat statistics and weblogos
 cd ..
 gs -q -sDEVICE=pdfwrite -o archives/$SUBPROJECT.outputs/$SUBPROJECT.raw_and_pair-end_reads_statistics.pdf libraries/raw_stat/$SUBPROJECT.raw_reads_with_primer_quality.pdf libraries/raw_stat/$SUBPROJECT.pair-end_reads_quality.pdf libraries/raw_stat/$SUBPROJECT.legend.pdf
+if [ $CLIPPING == "yes" ]
+then
 gs -q -sDEVICE=pdfwrite -dEPSCrop -o archives/$SUBPROJECT.outputs/$SUBPROJECT.forward.weblogo.pdf libraries/raw_stat/weblogo.*.forward.eps
 gs -q -sDEVICE=pdfwrite -dEPSCrop -o archives/$SUBPROJECT.outputs/$SUBPROJECT.reverse.weblogo.pdf libraries/raw_stat/weblogo.*.reverse.eps
-
+fi
 
 # list files and directories
 . $BIN/list_step_files.sh
