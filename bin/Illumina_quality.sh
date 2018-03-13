@@ -1,3 +1,12 @@
+#!/bin/bash
+
+#$ -S /bin/bash
+#$ -o log/Illumina_quality.out
+#$ -e log/Illumina_quality.err
+#$ -l h_rt=24:00:00
+#$ -l h_vmem=6G
+#$ -binding linear:1
+
 # Define Variables
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
 . $BIN/check_previous_step
