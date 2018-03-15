@@ -14,14 +14,16 @@ cd libraries
 # Primer clipping
 if [ $CLIPPING == "yes" ]
 then
-	FWDDIS=`awk -v F=${#FWD} -v D=$PDIFFS 'BEGIN{printf "%.2g\n", D/F}'`
-	RVSDIS=`awk -v R=${#RVS} -v D=$PDIFFS 'BEGIN{printf "%.2g\n", D/R}'`
+	#FWDDIS=`awk -v F=${#FWD} -v D=$PDIFFS 'BEGIN{printf "%.2g\n", D/F}'`
+	#RVSDIS=`awk -v R=${#RVS} -v D=$PDIFFS 'BEGIN{printf "%.2g\n", D/R}'`
+	DISS=`awk -v F=${#FWD} -v R=${#RVS} -v D=$PDIFFS 'BEGIN{DISS=D/F;if(D/R>DISS){DISS=D/R};printf "%.2g\n", DISS}'`
 	# cutadapt
-	cutadapt -g $FWD -O ${#FWD} -e $FWDDIS --no-indels --trimmed-only -o fastq/$LIB_NAME.fwd.fastq --info-file=raw_stat/$FWD_LIB.cutadapt $FWD_LIB.fastq > fastq/log.cutadapt.$LIB_NAME.txt
-	cutadapt -g $RVS -O ${#RVS} -e $RVSDIS --no-indels --trimmed-only -o fastq/$LIB_NAME.rvs.fastq --info-file=raw_stat/$RVS_LIB.cutadapt $RVS_LIB.fastq >> fastq/log.cutadapt.$LIB_NAME.txt
+	cutadapt -g $FWD -G $RVS -e $DISS --trimmed-only --no-indels -o fastq/$LIB_NAME.fwd.fastq -p fastq/$LIB_NAME.rvs.fastq $FWD_LIB.fastq $RVS_LIB.fastq --info-file=raw_stat/$FWD_LIB.cutadapt > fastq/log.cutadapt.$LIB_NAME.txt
+	cutadapt -g $RVS -O ${#RVS} -e $RVSDIS --no-indels --trimmed-only -o fastq/$LIB_NAME.rvs.tmp.fastq --info-file=raw_stat/$RVS_LIB.cutadapt $RVS_LIB.fastq > fastq/log.cutadapt.aux.$LIB_NAME.txt
 	# primer logo
-	weblogo -c classic -s large -t "$LIB_NAME: primer $FWD_NAME" < <(awk 'BEGIN{FS="\t"} NF==11{print ">"$1"\n"$6}' raw_stat/$FWD_LIB.cutadapt) > raw_stat/weblogo.$LIB_NAME.forward.eps
-	weblogo -c classic -s large -t "$LIB_NAME: primer $RVS_NAME" < <(awk 'BEGIN{FS="\t"} NF==11{print ">"$1"\n"$6}' raw_stat/$RVS_LIB.cutadapt) > raw_stat/weblogo.$LIB_NAME.reverse.eps
+	weblogo -c classic -s large -t "$LIB_NAME: $FWD_NAME" < <(awk -v a=${#FWD} 'BEGIN{FS="\t"} NF==11{printf ">%s\n%*s\n",$1,a,$6}' raw_stat/$FWD_LIB.cutadapt | sed 's/ /N/g' )> raw_stat/weblogo.$LIB_NAME.forward.eps
+	weblogo -c classic -s large -t "$LIB_NAME: primer $RVS_NAME" < <(awk -v a=${#RVS} 'BEGIN{FS="\t"} NF==11{printf ">%s\n%*s\n",$1,a,$6}' raw_stat/$RVS_LIB.cutadapt | sed 's/ /N/g') > raw_stat/weblogo.$LIB_NAME.reverse.eps
+	rm fastq/$LIB_NAME.rvs.tmp.fastq
 else
 	ln -s $PWD/$FWD_LIB.fastq $PWD/fastq/$LIB_NAME.fwd.fastq
 	ln -s $PWD/$RVS_LIB.fastq $PWD/fastq/$LIB_NAME.rvs.fastq
