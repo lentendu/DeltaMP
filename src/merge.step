@@ -24,7 +24,7 @@ do
 done
 
 # If denoised 454 reads, chop to the same length
-if [ $DENOISE == "yes" ]
+if [ "$DENOISE" == "yes" ]
 then
 	LENGTH=`cut -d "." -f 1 $EXEC/quality_check/trimming.parameters.txt`
 	MIN_LENGTH=`awk -v L=$LENGTH 'BEGIN{min=L} $1!~"^>" && length($1)<min{min=length($1)}END{print min}' $SUBPROJECT.fasta`
