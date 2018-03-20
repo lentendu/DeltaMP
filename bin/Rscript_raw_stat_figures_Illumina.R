@@ -59,7 +59,7 @@ for (i in c("fwd","rvs")) {
 # Mean base quality per position
 for (i in c("fwd","rvs")) {
   tmp_qual<-get(paste0(i,".meanposqual"))
-  plot(NULL,bty="n",xlim=c(0,nrow(tmp_qual)),ylim=c(floor(min(tmp_qual[,-1])/10)*10,40),xlab=paste(labfr[i],"nucleotide position"),ylab="Phred score")
+  plot(NULL,bty="n",xlim=c(0,nrow(tmp_qual)),ylim=c(floor(min(tmp_qual[,-1],na.rm=T)/10)*10,40),xlab=paste(labfr[i],"nucleotide position"),ylab="Phred score")
   for (i in 2:ncol(tmp_qual)) {
     points(tmp_qual[,1],tmp_qual[,i],type="l",col=palette()[i]) 
   }
