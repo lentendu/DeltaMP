@@ -15,7 +15,7 @@ cd libraries
 if [ $CLIPPING == "yes" ]
 then
 	#FWDDIS=`awk -v F=${#FWD} -v D=$PDIFFS 'BEGIN{printf "%.2g\n", D/F}'`
-	#RVSDIS=`awk -v R=${#RVS} -v D=$PDIFFS 'BEGIN{printf "%.2g\n", D/R}'`
+	RVSDIS=`awk -v R=${#RVS} -v D=$PDIFFS 'BEGIN{printf "%.2g\n", D/R}'`
 	DISS=`awk -v F=${#FWD} -v R=${#RVS} -v D=$PDIFFS 'BEGIN{DISS=D/F;if(D/R>DISS){DISS=D/R};printf "%.2g\n", DISS}'`
 	# cutadapt
 	cutadapt -g $FWD -G $RVS -e $DISS --trimmed-only --no-indels -o fastq/$LIB_NAME.fwd.fastq -p fastq/$LIB_NAME.rvs.fastq $FWD_LIB.fastq $RVS_LIB.fastq --info-file=raw_stat/$FWD_LIB.cutadapt > fastq/log.cutadapt.$LIB_NAME.txt
