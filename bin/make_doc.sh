@@ -20,7 +20,7 @@ then
 	fi
 else
 	NBLIB=$LIB3_SIZE
-	RAWAVG=`grep -m 1 "^[0-9]* sequences$" log/Illumina_fastq.*.err | cut -d ":" -f 2 | awk '{sum+=$1}END{printf "%.0f\n", sum/NR}'`
+	RAWAVG=`awk '$1=="Average"{printf "%.0f\n", $2}' quality_check/$SUBPROJECT.summary.stat.tsv`
 fi
 echo "The analysed $RAW_EXT raw reads originated from $NBLIB library(ies) representing $SAMP_SIZE samples and containing an average of $RAWAVG reads per library."
 echo "" 
