@@ -270,6 +270,15 @@ CITATION[BIOM]="McDonald et al., 2012"
 FULLCITATION[BIOM]="McDonald, D., Clemente, J. C., Kuczynski, J., Rideout, J. R., Stombaugh, J., Wendel, D., … others. (2012). The Biological Observation Matrix (BIOM) format or: how I learned to stop worrying and love the ome-ome. GigaScience, 1(1), 7."
 VERSION[BIOM]=`biom --version | awk '{print $3}'`
 
+	#ITSx
+if [ $TARG == "ITS" ] && [ $ITSX != "no" ]
+then
+	CITATION[ITSX]="Bengtsson‐Palme Johan et al. 2013"
+	FULLCITATION[ITSX]="Bengtsson‐Palme Johan, Ryberg Martin, Hartmann Martin, Branco Sara, Wang Zheng, Godhe Anna, … Bunce Michael. (2013). Improved software detection and extraction of ITS1 and ITS2 from ribosomal ITS sequences of fungi and other eukaryotes for analysis of environmental sequencing data. Methods in Ecology and Evolution, 4(10), 914–919. doi:10.1111/2041-210X.12073"
+	VERSION[ITSX]=`ITSx --license 2>&1 | sed -n 's/^Version: //p'`
+fi
+
+
 if [ $TECH == "454" ]
 then
 	# 454 SOP

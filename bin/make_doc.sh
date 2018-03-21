@@ -141,8 +141,11 @@ then
 		echo "As FlowClus do not allow for homopolymer extension or reduction during the mismatch detection in the primer sequence, cutadapt (version ${VERSION[CUT]}, ${CITATION[CUT]}) was first use to detect all primer variants in the error range allowed."
 		CIT+=(DEN CUT)
 	fi
-	echo ""
-	echo "The first $LENGTH nucleotides of the reads were kept for further analysis"
+	if [ $ITSX == "no" ]
+	then
+		echo ""
+		echo "The first $LENGTH nucleotides of the reads were kept for further analysis"
+	fi
 fi
 echo ""
 
@@ -172,6 +175,13 @@ CHIMMEAN=$(grep "Removed [0-9]* sequences from your name file" log/trim.[0-9]*.o
 echo "An average of $CHIMMEAN chimeric reads were detected and removed from each sample using the UCHIME algorithm as implemented in MOTHUR (${CITATION[UCHIME]})."
 CIT+=(UCHIME)
 echo ""
+if [ $TARG == "ITS" ] && [ $ITSX != "no" ]
+then
+	ITSXMEAN=$(while read samp; do NAMES=$(tac log/trim.$samp.out | sed -n "1,/unique\.seqs/{s/^.*name=\([^)]*\))$/processing\/$samp\/\1/p}") ; echo $(sed -n '$=' $NAMES) $(sed -n '$=' ${NAMES/itsx\.$ITSX\./}) ; done < <(awk '{print $1}' config/lib4.list) | awk '{sum+=$1/$2*100}END{print sum/NR}')
+	echo "The $ITSX fragment was detected and extracted from $ITSXMEAN % of chimera free reads using ITSx (version ${VERSION[ITSX]}, ${CITATION[ITSX]}). "
+	CIT+=(ITSX)
+	echo ""
+fi
 
 while read var val; do unset $var ; if [ $REF_SUBPROJECT == "no" ] ; then declare $var="$val" ; else declare $var="${val//$REF_SUBPROJECT/$SUBPROJECT}" ; fi ; done < config/merge_env.txt
 NBREADS=(`cut -f 2 processing/$NAMES.names | tr "," "\n" | wc -l`)

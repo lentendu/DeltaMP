@@ -40,7 +40,12 @@ do
 			FWD_E=$(awk -v F=${#FWD} -v P=$PDIFFS 'BEGIN{printf "%.2f",P/F+0.005}')
 			awk '{print $1}' $EXEC/libraries/fasta/$i.fasta | cutadapt -g ${MID} -e ${MID_E} --trimmed-only - | cutadapt -g ${FWD} -e ${FWD_E} --trimmed-only --info-file=cutadapt.$i - > $i.cut.fasta
 			while read count prim; do sed '1 s/,[^,]*$/_'$count','$prim'/' master.$i.csv ; done < <(awk -v F=${#FWD} 'length($5)>=F{print $5}' cutadapt.$i | sort -u | awk '{print NR,$1}') > master.all.$i.csv
-			FlowClus -a -m master.all.$i.csv -i $i.txt -em $BDIFFS -ep 0 -r -er $PDIFFS -l $((LENGTH + ${#MID} + ${#FWD})) -t $((LENGTH + ${#MID} + ${#FWD})) -n $MAXAMBIG -g $MAXHOMOP -s $QUAL -lf $MINFLOW -c FlowClus.$i.stat.txt #-Lf $MAXFLOW 
+			if [ $TARG == "ITS" ] && [ $ITSX != "no" ]
+			then
+				FlowClus -a -m master.all.$i.csv -i $i.txt -em $BDIFFS -ep 0 -r -er $PDIFFS -l $((LENGTH + ${#MID} + ${#FWD})) -n $MAXAMBIG -g $MAXHOMOP -s $QUAL -lf $MINFLOW -c FlowClus.$i.stat.txt #-Lf $MAXFLOW
+			else
+				FlowClus -a -m master.all.$i.csv -i $i.txt -em $BDIFFS -ep 0 -r -er $PDIFFS -l $((LENGTH + ${#MID} + ${#FWD})) -t $((LENGTH + ${#MID} + ${#FWD})) -n $MAXAMBIG -g $MAXHOMOP -s $QUAL -lf $MINFLOW -c FlowClus.$i.stat.txt #-Lf $MAXFLOW 
+			fi
 			for j in ${i}_[0-9]*.flow; do sed '1d' $j ; done | cat <(head -1 $(ls ${i}_*.flow | head -1)) - > $i.flow
 			rm $i.cut.fasta cutadapt.$i ${i}_*.flow
 			FlowClus -b -m master.$i.csv -j 0.50 -ch -cu .denoised.fasta -cm .denoised.names -o $i.denoised_all.fasta
@@ -53,9 +58,16 @@ do
 			fi
 			rm $i.denoised* $i.flow $i.txt
 		else
-			mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile);
-			set.dir(input=../../libraries/fasta, output=./);
-			trim.seqs(fasta=$i.fasta, oligos=oligos.$i, qfile=$i.qual, flip=$FLIP, qaverage=$QUAL, bdiffs=$BDIFFS, pdiffs=$PDIFFS, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$LENGTH, keepfirst=$LENGTH)"
+			if [ $TARG == "ITS" ] && [ $ITSX != "no" ]
+			then
+				mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile);
+				set.dir(input=../../libraries/fasta, output=./);
+				trim.seqs(fasta=$i.fasta, oligos=oligos.$i, qfile=$i.qual, flip=$FLIP, qaverage=$QUAL, bdiffs=$BDIFFS, pdiffs=$PDIFFS, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$LENGTH)"
+			else
+				mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile);
+				set.dir(input=../../libraries/fasta, output=./);
+				trim.seqs(fasta=$i.fasta, oligos=oligos.$i, qfile=$i.qual, flip=$FLIP, qaverage=$QUAL, bdiffs=$BDIFFS, pdiffs=$PDIFFS, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$LENGTH, keepfirst=$LENGTH)"
+			fi
 		fi
 	elif [ $TECH == "Illumina" ]
 	then
@@ -165,6 +177,19 @@ else
 		remove.seqs(accnos=$ACCNOS.accnos, fasta=$FASTA.fasta, name=$NAMES.names);
 		get.current()"
 	fi
+fi
+
+# ITSx
+if [ $TARG == "ITS" ] && [ $ITSX != "no" ]
+then
+	unset FASTA NAMES
+	FASTA=`tac $LOG | sed -n '1,/get.current()/p' | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
+	NAMES=`tac $LOG | sed -n '1,/get.current()/p' | grep "^name=" | sed 's/name=//;s/\.names//'`
+	ITSx -i $FASTA.fasta --save_regions $ITSX --preserve T --graphical F -o $FASTA.itsx
+	awk '$0~"^>"{sub(">","");print $1}' $FASTA.itsx.$ITSX.fasta | sort | join - <(sort -k 1,1 $NAMES.names) > $NAMES.itsx.$ITSX.names
+	mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile, append=T);
+	unique.seqs(fasta=$FASTA.itsx.$ITSX.fasta, name=$NAMES.itsx.$ITSX.names);
+	get.current()"
 fi
 
 # list files and directories
