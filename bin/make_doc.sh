@@ -177,7 +177,7 @@ CIT+=(UCHIME)
 echo ""
 if [ $TARG == "ITS" ] && [ $ITSX != "no" ]
 then
-	ITSXMEAN=$(while read samp; do NAMES=$(tac log/trim.$samp.out | sed -n "1,/unique\.seqs/{s/^.*name=\([^)]*\))$/processing\/$samp\/\1/p}") ; echo $(sed -n '$=' $NAMES) $(sed -n '$=' ${NAMES/itsx\.$ITSX\./}) ; done < <(awk '{print $1}' config/lib4.list) | awk '{sum+=$1/$2*100}END{print sum/NR}')
+	ITSXMEAN=$(while read num samp; do NAMES=$(tac log/trim.$num.out | sed -n "1,/unique\.seqs/{s/^.*name=\([^)]*\))$/processing\/$samp\/\1/p}") ; echo $(sed -n '$=' $NAMES) $(sed -n '$=' ${NAMES/itsx\.$ITSX\./}) ; done < <(awk '{print NR,$1}' config/lib4.list) | awk '{sum+=$1/$2*100}END{print sum/NR}')
 	echo "The $ITSX fragment was detected and extracted from $ITSXMEAN % of chimera free reads using ITSx (version ${VERSION[ITSX]}, ${CITATION[ITSX]}). "
 	CIT+=(ITSX)
 	echo ""

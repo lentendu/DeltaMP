@@ -3,9 +3,9 @@
 # author: Guillaume Lentendu (guillaume.lentendu@ufz.de)
 
 if [ -z "$1" ]; then
-	echo "usage: ${0##*/} SUBPROJECT PROJECT_output_directory_full_path [step_script_name]"
-	echo "Delete every files created by the provided step_script_name and all following steps, and resubmit steps of SUBPROJECT starting from the provided step_script_name."
-	echo "Alternatively, avoiding the step_script_name argument will output all available step script names for the SUBPROJECT."
+	echo "usage: ${0##*/} SUBPROJECT PROJECT_output_directory_full_path [step_name]"
+	echo "Delete every files created by the provided step_name and all following steps, and resubmit steps of SUBPROJECT starting from the provided step_name."
+	echo "Alternatively, avoiding the step_name argument will output all available step names for the SUBPROJECT."
 	exit
 fi
 
@@ -70,7 +70,7 @@ fi
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
 
 # Delete Eqw and hqw jobs
-TO_DEL=`eval echo $DELTAMP_VER.{$(echo ${TO_CLEAN/script_/} | sed 's/ /,/g')}.$SUBPROJECT`
+TO_DEL=`eval echo $DELTAMP_VER.{$(echo ${TO_CLEAN} | sed 's/ /,/g')}.$SUBPROJECT`
 if [ ! -z "$TO_DEL" ]
 then
 	qdel $TO_DEL

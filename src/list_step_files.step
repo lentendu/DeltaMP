@@ -1,0 +1,5 @@
+#!/bin/bash
+
+MY_TMP_NAME=`echo $JOBNAME | sed "s/$DELTAMP_VER\.//;s/\.$SUBPROJECT//"`
+find $EXEC/* -type d | sort > $EXEC/config/${MY_TMP_NAME}.dir
+find $EXEC ! -type d | cat - <(echo $EXEC/config/${MY_TMP_NAME}.files) | sort > $EXEC/config/${MY_TMP_NAME}.files
