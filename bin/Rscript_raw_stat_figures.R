@@ -1,5 +1,4 @@
 library(plyr)
-source("~/amp_pipe_1.2/bin/palette.R")
 subp<-commandArgs()[7]
 lib<-commandArgs()[8]
 bin<-commandArgs()[9]
