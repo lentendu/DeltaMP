@@ -40,7 +40,7 @@ do
 			while read name samp mid
 			do
 				MID_E=$(awk -v F=${#mid} -v B=$BDIFFS 'BEGIN{printf "%.2f",B/F+0.005}')
-				awk '{print $1}' $EXEC/libraries/fasta/$i.fasta | cutadapt -g ${MID} -e ${MID_E} --trimmed-only - | cutadapt -g ${FWD} -e ${FWD_E} --trimmed-only --info-file=cutadapt.${i}_$mid - > ${i}_$mid.cut.fasta
+				awk '{print $1}' $EXEC/libraries/fasta/$i.fasta | cutadapt -g ${mid} -e ${MID_E} --trimmed-only - | cutadapt -g ${FWD} -e ${FWD_E} --trimmed-only --info-file=cutadapt.${i}_$mid - > ${i}_$mid.cut.fasta
 				while read count prim
 				do
 					sed '1 s/,[^,]*$/_'$count','$prim'/' master.$i.csv
