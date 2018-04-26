@@ -46,20 +46,23 @@ do
 					sed '1 s/,[^,]*$/_'$count','$prim'/' master.$i.csv
 				done < <(awk -v F=${#FWD} 'length($5)>=F{print $5}' cutadapt.${i}_$mid | sort -u | awk '{print NR,$1}') > master.all.$i.csv
 			done < <(grep "^midtag" master.$i.csv | tr "," "\t") > master.all.$i.csv
+			# Filter reads for each combination of barcode and primer variant into flows
 			if [ $TARG == "ITS" ] && [ $ITSX != "no" ]
 			then
 				FlowClus -a -m master.all.$i.csv -i $i.txt -em $BDIFFS -ep 0 -r -er $PDIFFS -l $((LENGTH + ${#MID} + ${#FWD})) -n $MAXAMBIG -g $MAXHOMOP -s $QUAL -lf $MINFLOW -c FlowClus.$i.stat.txt #-Lf $MAXFLOW
 			else
 				FlowClus -a -m master.all.$i.csv -i $i.txt -em $BDIFFS -ep 0 -r -er $PDIFFS -l $((LENGTH + ${#MID} + ${#FWD})) -t $((LENGTH + ${#MID} + ${#FWD})) -n $MAXAMBIG -g $MAXHOMOP -s $QUAL -lf $MINFLOW -c FlowClus.$i.stat.txt #-Lf $MAXFLOW 
 			fi
+			# Merge flows for each barcode
 			awk -v I=$i '{if($0~"^primer"){F=$0} else if($0~"^reverse"){R=$0} else if($0~"^midtag"){M[NR]=$0}}END{for(x in M){split(M[x],mid,",");sub(I".*,",I"_"mid[3]",",F);printf "%s\n%s\n%s\n",F,R,M[x]}}' master.$i.csv > master.$i.ok.csv
 			for k in $(grep primer master.$i.ok.csv | cut -d "," -f 2)
 			do
-				for j in ${k}_[0-9]*.flow; do sed '1d' $j ; done | cat <(head -1 $(ls ${k}_*.flow | head -1)) - > ${k}.flow
-				rm ${k}_[0-9]*.flow ${k}.cut.fasta cutadapt.${k}
+				for j in ${k%_*}_[0-9]*.flow; do sed '1d' $j ; done | cat <(head -1 $(ls ${k%_*}_*.flow | head -1)) - > ${k}.flow
+				rm ${k%_*}_[0-9]*.flow ${k}.cut.fasta cutadapt.${k}
 			done
+			# Denoise for each barcode separetedly
 			FlowClus -b -m master.$i.ok.csv -j 0.50 -ch -cu .denoised.fasta -cm .denoised.names -o $i.denoised_all.fasta
-			awk '{if($2~","){sub(",*"$1"$","",$2);print $1,$1","$2} else print}' $i.denoised.names > $i.names
+			# Merge all denoised reads and mapping files from the same library
 			for k in $(grep primer master.$i.ok.csv | cut -d "," -f 2)
 			do
 				awk '{if($2~","){sub(",*"$1"$","",$2);print $1"\t"$1","$2} else print}' ${k}.denoised.names >> $i.names
@@ -93,6 +96,7 @@ do
 		trim.seqs(fasta=$i.pairend.fasta, qfile=$i.pairend.qual, qaverage=$QUAL, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$MINLEN, maxlength=$MAXLEN)"
 	fi
 done
+# Merge trimmed reads of all libraries of the sample
 cat *.trim.fasta > $SAMP.trim.fasta
 if [ $TECH == "454" ] && [ "$DENOISE" == "yes" ] ; then cat *.names > $SAMP.names ; fi
 
