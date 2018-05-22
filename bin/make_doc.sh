@@ -20,7 +20,7 @@ then
 	fi
 else
 	NBLIB=$LIB3_SIZE
-	RAWAVG=`grep -m 1 "^[0-9]* sequences$" log/Illumina_fastq.*.err | cut -d ":" -f 2 | awk '{sum+=$1}END{printf "%.0f\n", sum/NR}'`
+	RAWAVG=`awk '$1=="Average"{printf "%.0f\n", $2}' quality_check/$SUBPROJECT.summary.stat.tsv`
 fi
 echo "The analysed $RAW_EXT raw reads originated from $NBLIB library(ies) representing $SAMP_SIZE samples and containing an average of $RAWAVG reads per library."
 echo "" 
@@ -35,7 +35,7 @@ echo "The pipeline was executed from the directory $INIT_DIR with the following 
 echo "deltamp $ARGUMENTS"
 echo ""
 END_TIME=`date +%s`
-TIME_ELAPSED=`convertsecs $(($END_TIME-$START_TIME))`
+TIME_ELAPSED=$(($END_TIME-$START_TIME)) #it should be in seconds anyway
 CPU_HOURS=`qacct -j *.$SUBPROJECT | grep "^ru_wallclock\|^slots" | paste - - | awk '{sum+=$2*$4}END{print sum/3600}'`
 echo "The pipeline took $TIME_ELAPSED seconds to complete and used a total of $CPU_HOURS cpu-hours (contractual only if no benchmarking)."
 echo ""
@@ -79,15 +79,15 @@ then
 		echo "The raw libraries are available in the archive $SUBPROJECT.demultiplex_sff.tar.gz located at $OUT ."
 		echo ""
 	fi
-elif [ $TECH == "Illumina" ]
+elif [ $CLIPPING == "yes" ]
 then
 	printf '%'$((${#TITLE[8]}+8))'s\n' |tr " " "#"
 	echo "### ${TITLE[8]} ###"
 	printf '%'$((${#TITLE[8]}+8))'s\n' |tr " " "#"
 	FWDSIM=`awk -v F=${#FWD} -v D=$PDIFFS 'BEGIN{printf "%.2g\n", 1-D/F}'`
 	RVSSIM=`awk -v R=${#RVS} -v D=$PDIFFS 'BEGIN{printf "%.2g\n", 1-D/R}'`
-	echo "Read pairs were extracted from raw libraries if at least one of the two reads hold the expected primer (forward primer for forward library, reverse primer for reverse library) at its 5´ end, with a similarity threshold of $FWDSIM and $RVSSIM for the forward and reverse primer, respectively."
-	CUTAVG=`grep -m 1 "Total read pairs processed:" libraries/fasta/log.cutadapt.* | awk '{sub(",","",$NF);sum+=$NF}END{printf "%.0f\n", sum/NR}'`
+	echo "Read pairs were extracted from raw libraries if at least one of the two reads hold the expected primer (forward primer for forward library, reverse primer for reverse library) at its 5' end, with a similarity threshold of $FWDSIM and $RVSSIM for the forward and reverse primer, respectively."
+	CUTAVG=`grep -m 1 "Total read pairs processed:" libraries/fastq/log.cutadapt.* | awk '{sub(",","",$NF);sum+=$NF}END{printf "%.0f\n", sum/NR}'`
 	echo "An average of $CUTAVG reads was extracted per pair of libraries."
 	echo ""
 fi
@@ -141,8 +141,11 @@ then
 		echo "As FlowClus do not allow for homopolymer extension or reduction during the mismatch detection in the primer sequence, cutadapt (version ${VERSION[CUT]}, ${CITATION[CUT]}) was first use to detect all primer variants in the error range allowed."
 		CIT+=(DEN CUT)
 	fi
-	echo ""
-	echo "The first $LENGTH nucleotides of the reads were kept for further analysis"
+	if [ $ITSX == "no" ]
+	then
+		echo ""
+		echo "The first $LENGTH nucleotides of the reads were kept for further analysis"
+	fi
 fi
 echo ""
 
@@ -172,6 +175,13 @@ CHIMMEAN=$(grep "Removed [0-9]* sequences from your name file" log/trim.[0-9]*.o
 echo "An average of $CHIMMEAN chimeric reads were detected and removed from each sample using the UCHIME algorithm as implemented in MOTHUR (${CITATION[UCHIME]})."
 CIT+=(UCHIME)
 echo ""
+if [ $TARG == "ITS" ] && [ $ITSX != "no" ]
+then
+	ITSXMEAN=$(while read num samp; do NAMES=$(tac log/trim.$num.out | sed -n "1,/unique\.seqs/{s/^.*name=\([^)]*\))$/processing\/$samp\/\1/p}") ; echo $(sed -n '$=' $NAMES) $(sed -n '$=' ${NAMES/itsx\.$ITSX\./}) ; done < <(awk '{print NR,$1}' config/lib4.list) | awk '{sum+=$1/$2*100}END{print sum/NR}')
+	echo "The $ITSX fragment was detected and extracted from $ITSXMEAN % of chimera free reads using ITSx (version ${VERSION[ITSX]}, ${CITATION[ITSX]}). "
+	CIT+=(ITSX)
+	echo ""
+fi
 
 while read var val; do unset $var ; if [ $REF_SUBPROJECT == "no" ] ; then declare $var="$val" ; else declare $var="${val//$REF_SUBPROJECT/$SUBPROJECT}" ; fi ; done < config/merge_env.txt
 NBREADS=(`cut -f 2 processing/$NAMES.names | tr "," "\n" | wc -l`)

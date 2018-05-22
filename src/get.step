@@ -3,11 +3,11 @@ while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/prev.txt
 if [ $REF_SUBPROJECT != "no" ]
 then
-	. $BIN/check_previous_step.sh
+	. $BIN/check_previous_step
 fi
 
 # load modules
-module load deltamp/${VERSION[DELTAMP]}
+module load DeltaMP/${VERSION[DELTAMP]}
 
 # Set archives/libraries array
 if [ -z "$ARCHIVES" ] || [[ "${ARCHIVES[@]}" == "no" ]]
@@ -25,10 +25,11 @@ fi
 
 # Copy raw data
 cd libraries
-for i in "${ARCH[@]}"
-do
-	if [[ $LIB_DIR == "/"* ]]
-	then
+
+if [[ $LIB_DIR == "/"* ]]
+then
+	for i in "${ARCH[@]}"
+	do
 		# allow for multiple source directories
 		for j in ${LIB_DIR[@]}
 		do
@@ -38,42 +39,46 @@ do
 				dd if=$FILE_PATH of=./$i bs=1M
 			fi
 		done
+	done
+else
+	wget -O $LIB_DIR.txt "http://www.ebi.ac.uk/ena/data/warehouse/filereport?accession=$LIB_DIR&result=read_run&download=text"
+	if [ "$(sed -n '$=' $LIB_DIR.txt)" -gt 1 ]
+	then
+		for i in $(seq 0 $(( ${#ARCH[@]} - 1 )) ) 
+		do
+			wget -O - ${ARCH[$i]} | dd of=${ARCH[$i]##*/} bs=1M && ARCH[$i]=${ARCH[$i]##*/}
+		done
 	else
-		wget -O $LIB_DIR.txt "http://www.ebi.ac.uk/ena/data/warehouse/filereport?accession=$LIB_DIR&result=read_run&download=text"
-		if [ "$(sed -n '$=' $LIB_DIR.txt)" -gt 1 ]
-		then
-			while read lib 
-			do
-				wget -O - $lib | dd of=${lib##*/} bs=1M
-			done < <(cat ../config/lib1.list)
-		else
-			echo "The accession $LIB_DIR was not found at the European Nucleotide Archive (http://www.ebi.ac.uk/ena/data)"
-			echo "Aborting"
-			exit 100
-		fi
+		echo "The accession $LIB_DIR was not found at the European Nucleotide Archive (http://www.ebi.ac.uk/ena/data)"
+		echo "Aborting"
+		exit 100
 	fi
-done
+fi
+
 
 # Extract
 for i in "${ARCH[@]}"
 do
 	if [[ -f "$i" ]]
 	then
-		mkdir tmp
-		case $i in
-			*.tar.bz2) tar xjvf $i -C tmp ;;
-			*.tar.gz) tar xzvf $i -C tmp ;;
-			*.bz2) bunzip2 -p1 $i ;;
-			*.gz) dd if=$i ibs=1M | unpigz -p 1 | dd of=${i%.*} obs=1M && rm $i ;;
-			*.tar) tar xf $i -C tmp ;;
-			*.tbz2) tar xjvf $i -C tmp ;;
-			*.tgz) tar xzvf $i -C tmp ;;
-			*.zip) unzip -j $i ;;
-			#*.7z) 7za e -o./tmp $i && rm $i;;
-			*) echo "ERROR: '$i' cannot be extracted, unknown extension" && exit 100 ;;
-		esac
-		find ./tmp -type f -exec mv -i {} . \;
-		rm -r ./tmp
+		if [[ "$i" != *$RAW_EXT ]]
+		then
+			mkdir tmp
+			case $i in
+				*.tar.bz2) tar xjvf $i -C tmp ;;
+				*.tar.gz) tar xzvf $i -C tmp ;;
+				*.bz2) bunzip2 -p1 $i ;;
+				*.gz) dd if=$i ibs=1M | unpigz -p 1 | dd of=${i%.*} obs=1M && rm $i ;;
+				*.tar) tar xf $i -C tmp ;;
+				*.tbz2) tar xjvf $i -C tmp ;;
+				*.tgz) tar xzvf $i -C tmp ;;
+				*.zip) unzip -j $i ;;
+				#*.7z) 7za e -o./tmp $i && rm $i;;
+				*) echo "ERROR: '$i' cannot be extracted, unknown extension" && exit 100 ;;
+			esac
+			find ./tmp -type f -exec mv -i {} . \;
+			rm -r ./tmp
+		fi
 	else
 		echo "ERROR: '$i' does not exist or is not a file" && exit 100
 	fi

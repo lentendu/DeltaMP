@@ -1,0 +1,54 @@
+# Define Variables
+while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
+. $BIN/check_previous_step
+
+# load modules
+module load DeltaMP/${VERSION[DELTAMP]}
+
+# Define what to archive
+if [[ $JOBNAME == *"processing"* ]]
+then
+	DIRECTORY=$EXEC/archives/$SUBPROJECT.processing
+	ARCHIVE=$OUT/$SUBPROJECT.processing.files.tar.gz
+elif [[ $JOBNAME == *"output"* ]]
+then
+	DIRECTORY=$EXEC/archives/$SUBPROJECT.outputs
+	ARCHIVE=$OUT/$SUBPROJECT.outputs.tar.gz
+elif  [[ $JOBNAME == *"$RAW_EXT"* ]]
+then
+	DIRECTORY=$EXEC/libraries/$RAW_EXT
+	ARCHIVE=$OUT/$SUBPROJECT.$RAW_EXT.tar.gz
+else
+	echo "[ERROR] The jobname does not contain output, processing or ${RAW_EXT}."
+	exit 1
+fi
+
+# checking directory
+if [[ ! -d "$DIRECTORY" || ! -r "$DIRECTORY" || ! -x "$DIRECTORY" ]]
+then
+	echo "[ERROR] The source directory $DIRECTORY is not valid or readable."
+	exit 1
+else
+	cd $(dirname "$DIRECTORY")
+	DATA="$(basename "$DIRECTORY")"
+fi
+
+# archiving
+tar cz $DATA -b 2048 | dd of="$ARCHIVE" obs=1M 2> /dev/null
+
+# check internal checksum
+dd if="$ARCHIVE" ibs=1M 2> /dev/null | archive-sum -d md5 - | tee "$ARCHIVE"-internal.md5 | parallel -j ${NCPUS:-1} --pipe -N 1 md5sum -c
+err=$?
+if [[ "x$err" != "x0" ]]
+then
+	"Internal md5sum check failed for $ARCHIVE."
+	exit 1
+fi
+
+# archive checksum
+dd if="$ARCHIVE" ibs=1M 2> /dev/null | md5sum | sed "s#$(dirname $ARCHIVE)/##" > "$ARCHIVE".md5
+
+# List files
+. $BIN/list_step_files.sh
+
+echo END

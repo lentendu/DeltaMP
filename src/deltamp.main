@@ -10,10 +10,12 @@ NAME
 	deltamp version ${VERSION[DELTAMP]} - amplicon pipeline for grid engine
 	
 SYNOPSIS
-	Usage: ${0##*/} [-cdhqs] [-m max_running_tasks] [-r SUBRPOJECT] [CONFIGURATION_FILE]
+	Usage: ${0##*/} [-a account_or_project_name] [-cdhqs] [-m max_running_tasks] [-r SUBRPOJECT] [CONFIGURATION_FILE]
 
 DESCRIPTION
 	-h	display this help and exit
+	
+	-a	account or project name for the job queueing system
 	
 	-c	at the end of a dry run (-d option), avoid the deletion of the SUBPROJECT and PROJECT (if empty) directories from output directory
 		
@@ -77,9 +79,9 @@ INIT_DIR=$PWD
 
 # Version
 declare -A VERSION
-VERSION[DELTAMP]=1.5
-AMP_BUILD=/global/apps/ecogen/deltamp/${VERSION[DELTAMP]}
-AMP_VER=amp${VERSION[DELTAMP]//./}
+VERSION[DELTAMP]=
+DELTAMP_BUILD=
+DELTAMP_VER=deltamp${VERSION[DELTAMP]//./}
 BIN=$DELTAMP_BUILD/bin
 
 # Option's default value
@@ -93,11 +95,12 @@ BENCHM=yes
 REF_SUBPROJECT=no
 
 # get options
-while getopts ":cdfhm:nqsr:" opt
+while getopts ":a:cdfhm:nqsr:" opt
 do
 	case $opt in
 		h)	show_help | fmt -s -w $(tput cols)
 			exit 1;;
+		a)	DELTAMP_ACCOUNT=$OPTARG;;
 		c)	CLEAN=no;;
 		d)	DRY=yes;;
 		f)	show_default | fmt -s -w $(tput cols)
@@ -267,6 +270,15 @@ CITATION[BIOM]="McDonald et al., 2012"
 FULLCITATION[BIOM]="McDonald, D., Clemente, J. C., Kuczynski, J., Rideout, J. R., Stombaugh, J., Wendel, D., … others. (2012). The Biological Observation Matrix (BIOM) format or: how I learned to stop worrying and love the ome-ome. GigaScience, 1(1), 7."
 VERSION[BIOM]=`biom --version | awk '{print $3}'`
 
+	#ITSx
+if [ $TARG == "ITS" ] && [ $ITSX != "no" ]
+then
+	CITATION[ITSX]="Bengtsson‐Palme Johan et al. 2013"
+	FULLCITATION[ITSX]="Bengtsson‐Palme Johan, Ryberg Martin, Hartmann Martin, Branco Sara, Wang Zheng, Godhe Anna, … Bunce Michael. (2013). Improved software detection and extraction of ITS1 and ITS2 from ribosomal ITS sequences of fungi and other eukaryotes for analysis of environmental sequencing data. Methods in Ecology and Evolution, 4(10), 914–919. doi:10.1111/2041-210X.12073"
+	VERSION[ITSX]=`ITSx --license 2>&1 | sed -n 's/^Version: //p'`
+fi
+
+
 if [ $TECH == "454" ]
 then
 	# 454 SOP
@@ -377,91 +389,43 @@ elif [ $TECH == "Illumina" ]
 then
 	LIB1_SIZE=1
 	sed '1,/^Barcode sequence/d;/^$/d;s/^\t//' config/$METADATA | awk '{print}' > config/barcodes.txt
-	sed 's/\.fastq//g;s/-/_/g' config/barcodes.txt > config/lib3.list
+	sed 's/\.fastq[^\t$]*//g;s/-/_/g;s/ftp\.sra[^\t]*\///g' config/barcodes.txt > config/lib3.list
 	LIB3_SIZE=`sed -n '$=' config/lib3.list`
 	while read samp fwd rvs
 	do
 		prefix=`printf "%s\n%s\n" $fwd $rvs | sed -e 'N;s/^\(.*\).*\n\1.*$/\1/'`
 		echo $prefix ${fwd/$prefix/} ${rvs/$prefix/}
 	done < config/barcodes.txt > config/lib1.list
-	sed 's/-/_/g' config/lib1.list > config/lib2.list
+	sed 's/-/_/g;s/ftp\.sra.*\///' config/lib1.list > config/lib2.list
 	paste <(cut -f 1 config/lib3.list) <(cut -f 1 config/lib2.list) | sort -k 1,1 | awk '{if(NR==1){S=$1;printf "%s %s",S,$2} else {if($1==S){printf " %s",$2} else {S=$1;printf "\n%s %s",S,$2}}}END{printf "\n"}' > config/lib4.list
 fi
 SAMP_SIZE=`sed -n '$=' config/lib4.list`
 	
 # Databases
-DBFOLD=/data/ecogen/databases/mothur
-if [ $REF_DB == "UNITE" ] && [ $TARG == "ITS" ]
+if [ $TARG == "ITS" ]
 then
-	VERSION[DB]=v7_2
-	DB=unite.${VERSION[DB]}
-	CITATION[DB]="Kõljalg et al., 2013"
-	FULLCITATION[DB]="Kõljalg U, Nilsson RH, Abarenkov K et al. (2013) Towards a unified paradigm for sequence-based identification of fungi. Molecular Ecology, 22, 5271–5277."
+	if [ $CUT_DB == "yes" ]
+	then
+		echo "Database can only be reduced to amplified fragment for SSU fragments."
+		show_doc | fmt -s -w $(tput cols) >&2
+		exit 1
+	fi
 	CITATION[FUN]="Nguyen et al., 2016"
 	FULLCITATION[FUN]="Nguyen, N. H., Song, Z., Bates, S. T., Branco, S., Tedersoo, L., Menke, J., … Kennedy, P. G. (2016). FUNGuild: An open annotation tool for parsing fungal community datasets by ecological guild. Fungal Ecology, 20, 241–248."
 	VERSION[FUN]=1.1
-elif [ $REF_DB == "SILVA" ]
-then
-	VERSION[DB]=128
-	CITATION[DB]="Quast et al., 2013"
-	FULLCITATION[DB]="Quast C, Pruesse E, Yilmaz P et al. (2013) The SILVA ribosomal RNA gene database project: improved data processing and web-based tools. Nucleic Acids Research, 41, D590–D596."
-	if [ $TARG == "16S" ]
-	then
-		DB=silva.${VERSION[DB]}.Nr99.prok
-	elif [ $TARG == "18S" ]
-	then
-		DB=silva.${VERSION[DB]}.Nr99.euk
-	fi
-elif [ $REF_DB == "PR2" ] && [ $TARG == "18S" ]
-then
-	VERSION[DB]=gb203
-	DB=PR2_${VERSION[DB]}
-	CITATION[DB]="Guillou et al., 2012"
-	FULLCITATION[DB]="Guillou L, Bachar D, Audic S et al. (2012) The Protist Ribosomal Reference database (PR2): a catalog of unicellular eukaryote Small Sub-Unit rRNA sequences with curated taxonomy. Nucleic Acids Research, 41, D597–D604."
-elif [ $REF_DB == "NCBI" ] && [ $TARG == "COI" ]
-then
-	VERSION[DB]=gb211
-	DB=ncbi_COI
-	CITATION[DB]="Benson et al., 2013"
-	FULLCITATION[DB]="Benson DA, Cavanaugh M, Clark K et al. (2013) GenBank. Nucleic Acids Research, 41, D36–42."
-elif [ $REF_DB == "NCBI_16ranks" ] && [ $TARG == "COI" ]
-then
-	VERSION[DB]=gb211
-	DB=ncbi_COI_16ranks
-	CITATION[DB]="Benson et al., 2013"
-	FULLCITATION[DB]="Benson DA, Cavanaugh M, Clark K et al. (2013) GenBank. Nucleic Acids Research, 41, D36–42."
-elif [ $REF_DB == "GBOL" ] && [ $TARG == "COI" ]
-then
-	DB=ncbi_GBOL_COI
-	CITATION[DB]="GBOL: http://www.bolgermany.de"
-elif [ $REF_DB == "GBOL_16ranks" ] && [ $TARG == "COI" ]
-then
-	DB=ncbi_GBOL_COI_16ranks
-	CITATION[DB]="GBOL: http://www.bolgermany.de"
-else
-	echo "# The reference database does not match with the target gene."
-	show_doc | fmt -s -w $(tput cols) >&2
-	cd .. && rm -r $SUBPROJECT
-	if [ ! "$(ls -A)" ] ; then cd .. && rmdir $PROJECT ; fi
-	exit 1
 fi
 
-if [[ $DB == "silva"* ]]
+if ( [ $TARG == "18S" ] || [ $TARG == "16S" ] ) && [ $CUT_DB == "yes" ]
 then
-	DBALIGN=$(echo $DB | sed 's/^\(.*\)\.\([^\.]*\)$/\1\.align\.\2/')
-	if [ $TECH == "454" ]
+	if [ $TECH == "454" ] && [ $FLIP == "true" ]
 	then
-		if [ $FLIP == "true" ]
-		then
-			DBCHOP=$RVS_NAME.$FWD_NAME.$DBALIGN
-			DBCUT=$RVS_NAME.$FWD_NAME.$DB
-		else
-			DBCHOP=$FWD_NAME.$RVS_NAME.$DBALIGN
-			DBCUT=$FWD_NAME.$RVS_NAME.$DB
-		fi
-	else	
-		DBCHOP=$FWD_NAME.$RVS_NAME.$DBALIGN
+		DBCUT=$RVS_NAME.$FWD_NAME.$DB
+	else
 		DBCUT=$FWD_NAME.$RVS_NAME.$DB
+	fi
+	if [ ! -z $DBALIGN ] || [ $DBALIGN != "no" ]
+	then
+		DBCHOP=`echo $DBCUT | sed "s/$DB$/$DBALIGN/"`
 	fi
 fi
 
@@ -475,7 +439,7 @@ if [ $DEMULTI_ONLY == "yes" ]
 then
 	if [ $TECH == "454" ] && [ $DEMULTI == "no" ]
 	then
-		. <(sed '/^## Quality/,/^## Archive raw/d;/^## Document/,$d' $BIN/deltamp.pipeline_master) config/configuration.$SUBPROJECT.tsv > config/steps
+		. <(sed '/^## Quality/,/^## Archive raw/d;/^## Document/,$d' $BIN/pipeline_master) config/configuration.$SUBPROJECT.tsv > config/steps
 	else
 		echo "# The -s option can only be used for non demultiplexed libraries and demultiplexing is only supported for 454 libraries." >&2
 		show_doc | fmt -s -w $(tput cols) >&2
@@ -488,16 +452,16 @@ else
 	then
 		if [ $TECH == "454" ] && [ $DEMULTI == "yes" ]
 		then
-			. <(sed '/^## Trim/,/^## Archive outputs/d;/^## ## Archive raw/,$d' $BIN/deltamp.pipeline_master) config/configuration.$SUBPROJECT.tsv > config/steps
+			. <(sed '/^## Trim/,/^## Archive outputs/d;/^## ## Archive raw/,$d' $BIN/pipeline_master) config/configuration.$SUBPROJECT.tsv > config/steps
 		else
-			. <(sed '/^## Trim/,/^## Archive outputs/d;/^## Document/,$d' $BIN/deltamp.pipeline_master) config/configuration.$SUBPROJECT.tsv > config/steps
+			. <(sed '/^## Trim/,/^## Archive outputs/d;/^## Document/,$d' $BIN/pipeline_master) config/configuration.$SUBPROJECT.tsv > config/steps
 		fi
 	else
 		if [ $TECH == "454" ] && [ $DEMULTI == "yes" ]
 		then
-			. <(sed '/^## Archive raw/,/^## Document/d' $BIN/deltamp.pipeline_master) config/configuration.$SUBPROJECT.tsv > config/steps
+			. <(sed '/^## Archive raw/,/^## Document/d' $BIN/pipeline_master) config/configuration.$SUBPROJECT.tsv > config/steps
 		else
-			. $BIN/deltamp.pipeline_master config/configuration.$SUBPROJECT.tsv > config/steps
+			. $BIN/pipeline_master config/configuration.$SUBPROJECT.tsv > config/steps
 		fi
 	fi
 fi
@@ -509,110 +473,92 @@ then
 	if [ $REF_SUBPROJECT == "no" ]
 	then
 		PREV_LIST=(`ls -dt $PROJECT\_$TECH\_$TARG\_* | grep -v $SUBPROJECT`) # last first
-		if [ ! -z "$PREV_LIST" ]
-		then
-			unset TMP_SCRIPT TMP_DIF
-			declare -A TMP_SCRIPT TMP_DIF BAR_DIF TMP_PREV
-			for i in ${PREV_LIST[@]}
-			do
-				TMP_DIF[$i]=$(comm -13 <(sort $i/config/env.txt) <(sort $SUBPROJECT/config/env.txt) | grep -v "$HASH\|TIME\|CLEAN\|REF_SUBPROJECT\|CITATION\|VERSION\|ARGUMENTS\|DRY" | awk '{print $1}' | tr "\n" "#" |  sed 's/#$//')
-				BAR_DIF[$i]=$(comm -3 <(sort $i/config/barcodes.txt) <(sort $SUBPROJECT/config/barcodes.txt) | head -1 | tr "\t" "#")
-				if [ -z "${TMP_DIF[$i]}" ] && [ -z "${BAR_DIF[$i]}" ]
-				then
-					echo "# Previous subproject $i is identical." >&2
-					echo "# At least one parameter need to differ with previous subproject to allow deltamp execution." >&2
-					show_doc | fmt -s -w $(tput cols) >&2
-					rm -r $SUBPROJECT
-					exit 1
-				elif [ ! -z "${BAR_DIF[$i]}" ]
-				then
-					echo "# Previous subproject $i have a different barcode and/or library list." >&2
-					echo "# To avoid using $i as reference subproject, you can for example change the output directory (currently $OUT_PATH) in the configuration file." >&2
-					show_doc | fmt -s -w $(tput cols) >&2
-					rm -r $SUBPROJECT
-					exit 1
-				fi
-				unset MATCH_REGEX
-				MATCH_REGEX=$(grep $(echo ${TMP_DIF[$i]} | sed 's/#/[^A-Z_]\\\|$/g;s/^/$/;s/$/[^A-Z_]/') $(awk '$1=="qsub"{print $NF}' $SUBPROJECT/config/steps) | cut -d ":" -f 1 | sed 's/.*\///' | sort | uniq | tr "\n" "|" | sed 's/|$//;s/|/\\\|/g')
-				if [ -z $MATCH_REGEX ]
-				then
-					if [ ${TMP_DIF[$i]} == "QUAL_ONLY" ]
-					then
-						TMP_SCRIPT[$i]=script_trim
-					else
-						TMP_SCRIPT[$i]=$(sed '1d;s/ -hold_jid [^ ]*//;s/ /_/g' $SUBPROJECT/config/steps | nl | sort -k 2,2 | join -v 1 -1 2 - <(sed 's/ -hold_jid [^ ]*//;s/'"$i"'/'"$SUBPROJECT"'/g;s/ /_/g' $i/config/steps.final | sort) | sort -k 2,2n | head -1 | sed 's/^.*\///;s/ .*$//')
-					fi
-				else
-					TMP_SCRIPT[$i]=$(grep -m 1 -o $MATCH_REGEX $SUBPROJECT/config/steps)
-				fi
-				TMP_PREV[$i]=$(tac $i/config/steps.final | grep -v "^#" | grep -o -m 1 $(sed '/'"${TMP_SCRIPT[$i]}"'/,$d' $BIN/ref.steps.$TECH | tr "\n" " " | sed 's/ $/\n/;s/ /\\\|/g'))
-			done
-			REF_SUBPROJECT=`for i in "${PREV_LIST[@]}"; do sed -n '/'"${TMP_PREV[$i]}"'/=' $BIN/ref.steps.$TECH | paste <(echo $i) <(stat -c "%Y" $i) - ; done | sort -k 3,3nr -k 2,2nr | cut -f 1 | head -1`
-			FIRST_STEP=${TMP_SCRIPT[$REF_SUBPROJECT]}
-			LAST_REF=${TMP_PREV[$REF_SUBPROJECT]}
-			awk -v F=$FIRST_STEP 'BEGIN{p=0} {if($NF~F"$"){p=1} ; if(p || NR==1){print} else {print "#"$0}}' $SUBPROJECT/config/steps | awk -v V=$DELTAMP_VER -v S=$SUBPROJECT -v R=$REF_SUBPROJECT -v L=${LAST_REF/script_/} 'BEGIN{c=0} {if(NR==1){sub(V".pinit."S" ",V".pinit."S" -hold_jid "V"."L"."R" ")} else {if($0!~"^#" && c==0){sub("-hold_jid [^ ]* ","-hold_jid "V".pinit."S" ");c+=1}};print}' > $SUBPROJECT/config/steps.final
-		else
-			sed '/script_pinit/s/^/#/;/script_pget$/s/ -hold_jid [^ ]* / /' $SUBPROJECT/config/steps > $SUBPROJECT/config/steps.final
-		fi
 	else
-		if [ "$(ls -d $REF_SUBPROJECT 2> /dev/null)" == "" ]
-		then
-			echo "# Error: previous subproject $REF_SUBPROJECT not found in $OUT" >&2
-			show_doc | fmt -s -w $(tput cols) >&2
-			rm -r $SUBPROJECT
-			if [ ! "$(ls -A)" ] ; then cd .. && rmdir $PROJECT ; fi
-			exit 1
-		else
-			TMP_DIF=$(comm -13 <(sort $REF_SUBPROJECT/config/env.txt) <(sort $SUBPROJECT/config/env.txt) | grep -v "$HASH\|TIME\|CLEAN\|REF_SUBPROJECT\|CITATION\|VERSION\|ARGUMENTS\|DRY" | awk '{print $1}' | tr "\n" "|" | sed 's/|$/[^A-Z_]\n/;s/^/$/;s/|/[^A-Z_]\\|$/g')
-			BAR_DIF=$(comm -3 <(sort $REF_SUBPROJECT/config/barcodes.txt) <(sort $SUBPROJECT/config/barcodes.txt) | head -1 | tr "\t" "#")
-			if [ -z "$TMP_DIF" ] && [ -z "$BAR_DIF" ]
+		PREV_LIST=$REF_SUBPROJECT
+	fi
+
+	if [ ! -z "$PREV_LIST" ]
+	then
+		unset TMP_SCRIPT TMP_DIF
+		declare -A TMP_SCRIPT TMP_DIF BAR_DIF TMP_PREV
+		for i in ${PREV_LIST[@]}
+		do
+			# which environmental variable(s) differ between the two SUBPROJECTs
+			TMP_DIF[$i]=$(comm -13 <(sort $i/config/env.txt) <(sort $SUBPROJECT/config/env.txt) | grep -v "$HASH\|TIME\|CLEAN\|REF_SUBPROJECT\|CITATION\|VERSION\|ARGUMENTS\|DRY" | awk '{print $1}' | tr "\n" "#" |  sed 's/#$//')
+			BAR_DIF[$i]=$(comm -3 <(sort $i/config/barcodes.txt) <(sort $SUBPROJECT/config/barcodes.txt) | head -1 | tr "\t" "#")
+			if [ -z "${TMP_DIF[$i]}" ] && [ -z "${BAR_DIF[$i]}" ]
 			then
-				echo "# Previous subproject $REF_SUBPROJECT is identical." >&2
+				echo "# Previous subproject $i is identical." >&2
 				echo "# At least one parameter need to differ with previous subproject to allow deltamp execution." >&2
 				show_doc | fmt -s -w $(tput cols) >&2
 				rm -r $SUBPROJECT
-				if [ ! "$(ls -A)" ] ; then cd .. && rmdir $PROJECT ; fi
 				exit 1
-			elif [ ! -z "$BAR_DIF" ]
+			elif [ ! -z "${BAR_DIF[$i]}" ]
 			then
-					echo "# Previous subproject $REF_SUBPROJECT have a different barcode and/or library list." >&2
-					echo "# Barcodes, samples and libraries provided in the configuration file have to be identical to those provided in $REF_SUBPROJECT to use the -r option." >&2
-					show_doc | fmt -s -w $(tput cols) >&2
-					rm -r $SUBPROJECT
-					exit 1
-			else
-				unset MATCH_REGEX
-				MATCH_REGEX=$(grep ${TMP_DIF} $DELTAMP_BUILD/bin/script* | cut -d ":" -f 1 | sed 's/^.*\///' | uniq | tr "\n" "|" | sed 's/|$/\n/;s/|/\\|/g')
-				if [ -z $MATCH_REGEX ]
-				then
-					if [ ${TMP_DIF[$i]} == "QUAL_ONLY" ]
-					then
-						TMP_SCRIPT[$i]=script_trim
-					else
-						TMP_SCRIPT=$(sed '1d;s/ -hold_jid [^ ]*//;s/ /_/g' $SUBPROJECT/config/steps | nl | sort -k 2,2 | join -v 1 -1 2 - <(sed 's/ -hold_jid [^ ]*//;s/'"$REF_SUBPROJECT"'/'"$SUBPROJECT"'/g;s/ /_/g' $REF_SUBPROJECT/config/steps.final | sort) | sort -k 2,2n | head -1 | sed 's/^.*\///;s/ .*$//')
-					fi
-				else
-					TMP_SCRIPT=$(grep -m 1 $MATCH_REGEX $BIN/ref.steps.$TECH)
-				fi
-				START_SCRIPT=(`tac $BIN/ref.steps.$TECH | awk -v R=$TMP_SCRIPT 'BEGIN{p=1} {if(p){print} ; if(match($0,R)){p=0}}' | tac`)
-				FIRST_STEP=`grep -o -m 1 $(echo ${START_SCRIPT[@]} | sed 's/ /\\\|/g') $SUBPROJECT/config/steps`
-				LAST_REF=`tac $REF_SUBPROJECT/config/steps.final | grep -m 1 -o $(sed '/'$FIRST_STEP'/,$d' $BIN/ref.steps.$TECH | tr "\n" "|" | sed 's/|$//;s/|/\\\|/g')`
-				awk -v F=$FIRST_STEP 'BEGIN{p=0} {if($NF~F"$"){p=1} ; if(p || NR==1){print} else {print "#"$0}}' $SUBPROJECT/config/steps | awk -v V=$DELTAMP_VER -v S=$SUBPROJECT -v R=$REF_SUBPROJECT -v L=${LAST_REF/script_/} 'BEGIN{c=0} {if(NR==1){sub(V".pinit."S" ",V".pinit."S" -hold_jid "V"."L"."R" ")} else {if($0!~"^#" && c==0){sub("-hold_jid [^ ]* ","-hold_jid "V".pinit."S" ");c+=1}};print}' > $SUBPROJECT/config/steps.final
+				echo "# Previous subproject $i have a different barcode and/or library list." >&2
+				echo "# To avoid using $i as reference subproject, you can for example change the output directory (currently $OUT_PATH) in the configuration file." >&2
+				show_doc | fmt -s -w $(tput cols) >&2
+				rm -r $SUBPROJECT
+				exit 1
 			fi
-		fi
-	fi
-	# Check archiving raw reads in previous subproject
-	if [ $REF_SUBPROJECT != "no" ] && ( ( [ $TECH == "454" ] && [ $DEMULTI == "no" ] ) || [ $TECH == "Illumina" ] )
-	then
-		tac $SUBPROJECT/config/steps.final | awk '{if(NR<=3 && $1~"^submit"){print "#"$0} else print $0}' | tac > $SUBPROJECT/config/tmp
-		mv $SUBPROJECT/config/tmp $SUBPROJECT/config/steps.final
-		for i in "" -internal.md5 .md5
-		do
-			ln -s $OUT_PATH/$PROJECT/$REF_SUBPROJECT/$REF_SUBPROJECT.$RAW_EXT.tar.gz$i $OUT/$SUBPROJECT.$RAW_EXT.tar.gz$i
+			# in which step script(s) is found the differing variable(s)
+			unset MATCH_REGEX
+			MATCH_REGEX=$(grep $(echo ${TMP_DIF[$i]} | sed 's/#/[^A-Z_]\\\|$/g;s/^/$/;s/$/[^A-Z_]/') $(awk '$0~"QUEUE_SUB"{sub(")$","");print $NF}' $SUBPROJECT/config/steps | sort -u) | cut -d ":" -f 1 | sed 's/.*\///;s/\.sh$//' | sort -u | tr "\n" "|" | sed 's/|$//;s/|/\\\|/g')
+			if [ -z $MATCH_REGEX ]
+			then
+				if [ ${TMP_DIF[$i]} == "QUAL_ONLY" ]
+				then
+					TMP_SCRIPT[$i]=trim
+				else
+					TMP_SCRIPT[$i]=$(sed '1d;s/ QUEUE_HOLD[^ ]*//;s/ /_/g' $SUBPROJECT/config/steps | nl | sort -k 2,2 | join -v 1 -1 2 - <(sed 's/ QUEUE_HOLD[^ ]*//;s/'$i'/'$SUBPROJECT'/g;s/ /_/g' $i/config/steps.final | sort) | sort -k 2,2n | head -1 | sed 's/^.*\///;s/ .*$//')
+				fi
+			else
+				TMP_SCRIPT[$i]=$(awk '$0!~"^#"{print $NF}' $SUBPROJECT/config/steps | grep -m 1 -o $MATCH_REGEX)
+			fi
+			# which was the las step executed before the differing step
+			TMP_PREV[$i]=$(awk '$0!~"^#"{print $NF}' $i/config/steps.final | tac | grep -o -m 1 $(sed '/'"${TMP_SCRIPT[$i]}"'/,$d' $BIN/ref.steps.$TECH | tr "\n" " " | sed 's/ $/\n/;s/ /\\\|/g'))
 		done
+		# the previous SUBPROJECT which have the most number of steps in common with the current SUBPROJECT is set as seed
+		REF_SUBPROJECT=`for i in "${PREV_LIST[@]}"; do sed -n '/'"${TMP_PREV[$i]}"'/=' $BIN/ref.steps.$TECH | paste <(echo $i) <(stat -c "%Y" $i) - ; done | sort -k 3,3nr -k 2,2nr | cut -f 1 | head -1`
+		FIRST_STEP=${TMP_SCRIPT[$REF_SUBPROJECT]}
+		LAST_REF=${TMP_PREV[$REF_SUBPROJECT]}
+		# the steps to be queued are updated accordingly
+		awk -v F=$FIRST_STEP 'BEGIN{p=0} {if($NF~F".sh)$"){p=1} ; if(p || NR==1){print} else {print "#"$0}}' $SUBPROJECT/config/steps | awk -v V=$DELTAMP_VER -v S=$SUBPROJECT -v R=$REF_SUBPROJECT -v L=${LAST_REF} 'BEGIN{c=0} {if(NR==1){sub(V".init."S" ",V".init."S" QUEUE_HOLD"V"."L"."R" ")} else {if($0!~"^#" && c==0){sub("QUEUE_HOLD[^ ]* ","QUEUE_HOLD"V".init."S" ");c+=1}};print}' > $SUBPROJECT/config/steps.final
+		# Check archiving of raw reads in previous subproject
+		if [ $TECH == "454" ] && [ $DEMULTI == "no" ]
+		then
+			for i in "" -internal.md5 .md5
+			do
+				ln -s $OUT_PATH/$PROJECT/$REF_SUBPROJECT/$REF_SUBPROJECT.$RAW_EXT.tar.gz$i $OUT/$SUBPROJECT.$RAW_EXT.tar.gz$i
+			done
+		fi
+	else
+		# if there is no previous SUBPROJECT, the init step is skipped
+		sed '/^init_jobid/s/^/#/;/get.sh)$/s/ QUEUE_HOLD[^ ]* / /' $SUBPROJECT/config/steps > $SUBPROJECT/config/steps.final
 	fi
 else
-	sed '/script_pinit/s/^/#/;/script_pget$/s/ -hold_jid [^ ]* / /' $SUBPROJECT/config/steps > $SUBPROJECT/config/steps.final
+	# if benchmarking is not allowed, the init step is skipped
+	sed '/^init_jobid/s/^/#/;/get.sh)$/s/ QUEUE_HOLD[^ ]* / /' $SUBPROJECT/config/steps > $SUBPROJECT/config/steps.final
+fi
+
+# fix job dependencies
+if [ $DEMULTI != "no" ]
+then
+	sed 's/QUEUE_SEP\${demulti_jobid%\.\*}//' $SUBPROJECT/config/steps.final > $SUBPROJECT/config/steps.final.tmp && mv $SUBPROJECT/config/steps.final.tmp $SUBPROJECT/config/steps.final
+fi
+if [ $CUT_DB == "no" ]
+then
+	sed 's/QUEUE_SEP\${cut_db_jobid}//' $SUBPROJECT/config/steps.final > $SUBPROJECT/config/steps.final.tmp && mv $SUBPROJECT/config/steps.final.tmp $SUBPROJECT/config/steps.final
+fi
+if [ $TECH != "Illumina" ]
+then
+	sed 's/QUEUE_SEP\${pair_end_jobid%\.\*}//' $SUBPROJECT/config/steps.final > $SUBPROJECT/config/steps.final.tmp && mv $SUBPROJECT/config/steps.final.tmp $SUBPROJECT/config/steps.final
+fi
+
+# Add account/project name to queueing commands
+if [ ! -z $DELTAMP_ACCOUNT ]
+then
+	sed "s/QUEUE_SUB/QUEUE_SUB QUEUE_ACCOUNT $DELTAMP_ACCOUNT/" $SUBPROJECT/config/steps.final > $SUBPROJECT/config/steps.final.tmp && mv $SUBPROJECT/config/steps.final.tmp $SUBPROJECT/config/steps.final
 fi
 
 # Save variables about previous SUBPROJECT
@@ -620,7 +566,7 @@ comm -23 <(set -o posix; set | sort) <(sort /tmp/amp.$STIME.set) | tr "=" "\t" |
 rm -f /tmp/amp.$STIME.set
 
 # Tree 
-grep -v "^#" $SUBPROJECT/config/steps.final | awk '$1=="qsub"{print $NF"\tx"}' | sed 's/.*\///' | sort | join -a 2 -2 2 -o 2.1,0,1.2 -e "." -t $'\t' - <(nl $BIN/ref.steps.$TECH | sort -k 2,2) | sort -k 1,1n | cut -f 2- > $SUBPROJECT/config/steps.summary
+grep -v "^#" $SUBPROJECT/config/steps.final | awk '$0~"QUEUE_SUB"{if($1~"archiver"){print $1} else print $NF"\tx"}' | sed 's/.*\///;s/\.sh)\t/\t/;s/_jobid.*$/\tx/' | sort | join -a 2 -2 2 -o 2.1,0,1.2 -e "." -t $'\t' - <(nl $BIN/ref.steps.$TECH | sort -k 2,2) | sort -k 1,1n | cut -f 2- > $SUBPROJECT/config/steps.summary
 if [ $REF_SUBPROJECT != "no" ]
 then
 	if [ -f $REF_SUBPROJECT/config/tree.summary ]
@@ -633,7 +579,7 @@ then
 	fi
 fi
 
-# Execution (i.e. qsub call) : need to be executed in $EXEC folder
+# Execution
 if [ $DRY == "yes" ]
 then
 	declare -a TITLE=("deltamp options" "new SUBPROJECT" "use of previous SUBPROJECT" "Commands to be passed to queueing system")
@@ -659,8 +605,8 @@ then
 		printf '%'$((${#TITLE[2]}+9))'s\n' |tr " " "#"
 		echo "### ${TITLE[2]}: ###"
 		printf '%'$((${#TITLE[2]}+9))'s\n' |tr " " "#"
-		echo "The initial steps of the pipeline are identical to $REF_SUBPROJECT (until ${LAST_REF/script_/} step)."
-		echo "deltamp execution will begin with ${FIRST_STEP/script_/} step."
+		echo "The initial steps of the pipeline are identical to $REF_SUBPROJECT (until ${LAST_REF} step)."
+		echo "deltamp execution will begin with ${FIRST_STEP} step."
 		echo ""
 		echo "The following parameters differ between both SUBPROJECTs:"
 		diff --suppress-common-lines -y <(sort $SUBPROJECT/config/env.txt | grep -v "${SUBPROJECT##*_}\|START\|CITATION\|VERSION\|ARGUMENTS") <(sort $REF_SUBPROJECT/config/env.txt | grep -v "${REF_SUBPROJECT##*_}\|START\|CITATION\|VERSION\|ARGUMENTS") | awk '{print $1"\t"$2"\t"$5}' | cat <(echo -e "Parameter\tCurrent SUBPROJECT\tPrevious SUBPROJECT") - > $SUBPROJECT/config/prev.diff.txt

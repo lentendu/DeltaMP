@@ -11,4 +11,7 @@ merge
 OTU
 id
 end
+processing_archiver
+output_archiver
+raw_archiver
 doc

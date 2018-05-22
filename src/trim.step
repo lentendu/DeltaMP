@@ -1,9 +1,9 @@
 # Define Variables
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
-. $BIN/check_previous_step.sh
+. $BIN/check_previous_step
 
 # load modules
-module load deltamp/${VERSION[DELTAMP]}
+module load DeltaMP/${VERSION[DELTAMP]}
 
 # Choose a sample
 LIB=(`sed -n "$ARRAY_TASK"'p' config/lib4.list`)
@@ -35,27 +35,58 @@ do
 			fi
 			ln -s $EXEC/libraries/fasta/oligos.$i ./
 			sed 's/forward/primer,'$i'/;s/^#//;s/barcode/midtag/' $EXEC/libraries/fasta/oligos.$i | awk '{if($1=="midtag"){print $1,$3,$2} else print $0}' | sed 's/ /,/g' > master.$i.csv
-			MID=`sed -n '/midtag/{s/^.*,//;p;q;}' master.$i.csv`
-			MID_E=$(awk -v F=${#MID} -v B=$BDIFFS 'BEGIN{printf "%.2f",B/F+0.005}')
 			FWD_E=$(awk -v F=${#FWD} -v P=$PDIFFS 'BEGIN{printf "%.2f",P/F+0.005}')
-			awk '{print $1}' $EXEC/libraries/fasta/$i.fasta | cutadapt -g ${MID} -e ${MID_E} --trimmed-only - | cutadapt -g ${FWD} -e ${FWD_E} --trimmed-only --info-file=cutadapt.$i - > $i.cut.fasta
-			while read count prim; do sed '1 s/,[^,]*$/_'$count','$prim'/' master.$i.csv ; done < <(awk -v F=${#FWD} 'length($5)>=F{print $5}' cutadapt.$i | sort -u | awk '{print NR,$1}') > master.all.$i.csv
-			FlowClus -a -m master.all.$i.csv -i $i.txt -em $BDIFFS -ep 0 -r -er $PDIFFS -l $((LENGTH + ${#MID} + ${#FWD})) -t $((LENGTH + ${#MID} + ${#FWD})) -n $MAXAMBIG -g $MAXHOMOP -s $QUAL -lf $MINFLOW -c FlowClus.$i.stat.txt #-Lf $MAXFLOW 
-			for j in ${i}_[0-9]*.flow; do sed '1d' $j ; done | cat <(head -1 $(ls ${i}_*.flow | head -1)) - > $i.flow
-			rm $i.cut.fasta cutadapt.$i ${i}_*.flow
-			FlowClus -b -m master.$i.csv -j 0.50 -ch -cu .denoised.fasta -cm .denoised.names -o $i.denoised_all.fasta
-			awk '{if($2~","){sub(",*"$1"$","",$2);print $1,$1","$2} else print}' $i.denoised.names > $i.names
-			if [ $FLIP == "yes" ]
+			# allow looping over multiple barcodes for same sample
+			while read name samp mid
+			do
+				MID_E=$(awk -v F=${#mid} -v B=$BDIFFS 'BEGIN{printf "%.2f",B/F+0.005}')
+				awk '{print $1}' $EXEC/libraries/fasta/$i.fasta | cutadapt -g ${mid} -e ${MID_E} --trimmed-only - | cutadapt -g ${FWD} -e ${FWD_E} --trimmed-only --info-file=cutadapt.${i}_$mid - > ${i}_$mid.cut.fasta
+				while read count prim
+				do
+					sed '1 s/,[^,]*$/_'$count','$prim'/' master.$i.csv
+				done < <(awk -v F=${#FWD} 'length($5)>=F{print $5}' cutadapt.${i}_$mid | sort -u | awk '{print NR,$1}') > master.all.$i.csv
+			done < <(grep "^midtag" master.$i.csv | tr "," "\t") > master.all.$i.csv
+			# Filter reads for each combination of barcode and primer variant into flows
+			if [ $TARG == "ITS" ] && [ $ITSX != "no" ]
 			then
-				obicomplement --uppercase | sed 's/_CMP.*$//' | twofasta > $i.trim.fasta
+				FlowClus -a -m master.all.$i.csv -i $i.txt -em $BDIFFS -ep 0 -r -er $PDIFFS -l $((LENGTH + ${#MID} + ${#FWD})) -n $MAXAMBIG -g $MAXHOMOP -s $QUAL -lf $MINFLOW -c FlowClus.$i.stat.txt #-Lf $MAXFLOW
 			else
-				awk '{print $1}' $i.denoised.fasta > $i.trim.fasta
+				FlowClus -a -m master.all.$i.csv -i $i.txt -em $BDIFFS -ep 0 -r -er $PDIFFS -l $((LENGTH + ${#MID} + ${#FWD})) -t $((LENGTH + ${#MID} + ${#FWD})) -n $MAXAMBIG -g $MAXHOMOP -s $QUAL -lf $MINFLOW -c FlowClus.$i.stat.txt #-Lf $MAXFLOW 
 			fi
-			rm $i.denoised* $i.flow $i.txt
+			# Merge flows for each barcode
+			awk -v I=$i '{if($0~"^primer"){F=$0} else if($0~"^reverse"){R=$0} else if($0~"^midtag"){M[NR]=$0}}END{for(x in M){split(M[x],mid,",");sub(I".*,",I"_"mid[3]",",F);printf "%s\n%s\n%s\n",F,R,M[x]}}' master.$i.csv > master.$i.ok.csv
+			for k in $(grep primer master.$i.ok.csv | cut -d "," -f 2)
+			do
+				for j in ${k%_*}_[0-9]*.flow; do sed '1d' $j ; done | cat <(head -1 $(ls ${k%_*}_*.flow | head -1)) - > ${k}.flow
+				rm ${k%_*}_[0-9]*.flow ${k}.cut.fasta cutadapt.${k}
+			done
+			# Denoise for each barcode separetedly
+			FlowClus -b -m master.$i.ok.csv -j 0.50 -ch -cu .denoised.fasta -cm .denoised.names -o $i.denoised_all.fasta
+			# Merge all denoised reads and mapping files from the same library
+			for k in $(grep primer master.$i.ok.csv | cut -d "," -f 2)
+			do
+				awk '{if($2~","){sub(",*"$1"$","",$2);print $1"\t"$1","$2} else print}' ${k}.denoised.names >> $i.names
+				if [ $FLIP == "yes" ]
+				then
+					obicomplement --uppercase ${k}.denoised.fasta | sed 's/_CMP.*$//' | twofasta >> $i.trim.fasta
+				else
+					awk '{print $1}' ${k}.denoised.fasta >> $i.trim.fasta
+				fi
+				rm ${k}.denoised* ${k}.flow
+			done
+			rm $i.txt
+			
 		else
-			mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile);
-			set.dir(input=../../libraries/fasta, output=./);
-			trim.seqs(fasta=$i.fasta, oligos=oligos.$i, qfile=$i.qual, flip=$FLIP, qaverage=$QUAL, bdiffs=$BDIFFS, pdiffs=$PDIFFS, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$LENGTH, keepfirst=$LENGTH)"
+			if [ $TARG == "ITS" ] && [ $ITSX != "no" ]
+			then
+				mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile);
+				set.dir(input=../../libraries/fasta, output=./);
+				trim.seqs(fasta=$i.fasta, oligos=oligos.$i, qfile=$i.qual, flip=$FLIP, qaverage=$QUAL, bdiffs=$BDIFFS, pdiffs=$PDIFFS, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$LENGTH)"
+			else
+				mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile);
+				set.dir(input=../../libraries/fasta, output=./);
+				trim.seqs(fasta=$i.fasta, oligos=oligos.$i, qfile=$i.qual, flip=$FLIP, qaverage=$QUAL, bdiffs=$BDIFFS, pdiffs=$PDIFFS, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$LENGTH, keepfirst=$LENGTH)"
+			fi
 		fi
 	elif [ $TECH == "Illumina" ]
 	then
@@ -65,6 +96,7 @@ do
 		trim.seqs(fasta=$i.pairend.fasta, qfile=$i.pairend.qual, qaverage=$QUAL, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$MINLEN, maxlength=$MAXLEN)"
 	fi
 done
+# Merge trimmed reads of all libraries of the sample
 cat *.trim.fasta > $SAMP.trim.fasta
 if [ $TECH == "454" ] && [ "$DENOISE" == "yes" ] ; then cat *.names > $SAMP.names ; fi
 
@@ -165,6 +197,19 @@ else
 		remove.seqs(accnos=$ACCNOS.accnos, fasta=$FASTA.fasta, name=$NAMES.names);
 		get.current()"
 	fi
+fi
+
+# ITSx
+if [ $TARG == "ITS" ] && [ $ITSX != "no" ]
+then
+	unset FASTA NAMES
+	FASTA=`tac $LOG | sed -n '1,/get.current()/p' | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
+	NAMES=`tac $LOG | sed -n '1,/get.current()/p' | grep "^name=" | sed 's/name=//;s/\.names//'`
+	ITSx -i $FASTA.fasta --save_regions $ITSX --preserve T --graphical F -o $FASTA.itsx
+	awk '$0~"^>"{sub(">","");print $1}' $FASTA.itsx.$ITSX.fasta | sort | join - <(sort -k 1,1 $NAMES.names) > $NAMES.itsx.$ITSX.names
+	mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile, append=T);
+	unique.seqs(fasta=$FASTA.itsx.$ITSX.fasta, name=$NAMES.itsx.$ITSX.names);
+	get.current()"
 fi
 
 # list files and directories

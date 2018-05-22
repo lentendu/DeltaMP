@@ -3,9 +3,9 @@
 RAND=$RANDOM
 WRONG=0
 (set -o posix; set > $RAND.set)
-MY_JOB=`grep "N $JOB_NAME " config/steps.final`
-MY_NAME=`echo ${MY_JOB##*/} | sed 's/script_//'`
-PREV_NAME=(`echo $MY_JOB | sed 's/^.*hold_jid \([^ ]*\) .*$/\1/;s/,/ /g;s/\.'"$SUBPROJECT"'//g;s/'"$DELTAMP_VER"'\.//g'`)
+MY_JOB=`grep "\QUEUE_JOBNAME $QUEUE_INTERNAL_JOBNAME " config/steps.final`
+MY_NAME=`echo ${MY_JOB##*/} | sed 's/\.sh)//'`
+PREV_NAME=(`echo $MY_JOB | sed "s/^.*QUEUE_HOLD\([^ ]*\) .*$/\1/;s/QUEUE_SEP/ /g;s/\.$SUBPROJECT//g;s/$DELTAMP_VER\.//g"`)
 declare -A PREV_JOB
 for i in "${PREV_NAME[@]}"; do PREV_JOB[$i]="`grep "$i$" config/steps.final`" ; done
 for i in "${PREV_NAME[@]}"

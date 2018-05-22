@@ -1,9 +1,9 @@
 # Define Variables
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
-. $BIN/check_previous_step.sh
+. $BIN/check_previous_step
 
 # load modules
-module load deltamp/${VERSION[DELTAMP]}
+module load DeltaMP/${VERSION[DELTAMP]}
 
 # record newly set variables
 (set -o posix; set > config/merge.set)
@@ -23,8 +23,8 @@ do
 	)
 done
 
-# If denoised 454 reads, chop to the same length
-if [ $DENOISE == "yes" ]
+# If denoised 454 reads and no ITSx extraction, chop to the same length
+if [ "$DENOISE" == "yes" ] && [ $ITSX == "no" ]
 then
 	LENGTH=`cut -d "." -f 1 $EXEC/quality_check/trimming.parameters.txt`
 	MIN_LENGTH=`awk -v L=$LENGTH 'BEGIN{min=L} $1!~"^>" && length($1)<min{min=length($1)}END{print min}' $SUBPROJECT.fasta`
