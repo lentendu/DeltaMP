@@ -25,9 +25,9 @@ then
 	else
 		CAND=$FASTA_OTUS
 	fi
-	TEMPLATE=($DB.dynamic.fasta $DB.full.fasta)
-	TAXONOMY=($DB.dynamic.taxonomy $DB.full.taxonomy)
-	SUFFIX=(dynamic full)
+	TEMPLATE=($DB.fasta ${DB}_s.fasta)
+	TAXONOMY=($DB.taxonomy ${DB}_s.taxonomy)
+	SUFFIX=(dynamic dynamic_s)
 	
 	# First identification with UNITE dynamic DB
 	mothur "#set.dir(tempdefault=$DBFOLD);
@@ -42,10 +42,10 @@ then
 		classify.seqs(fasta=$CAND.${SUFFIX[0]}.nofungi.fasta, template=${TEMPLATE[1]}, taxonomy=${TAXONOMY[1]}, cutoff=60, method=wang, processors=$NCPUS)"
 
 	# Merge and consensus
-		TAXO=$CAND.unite_dynamic-full.wang
+		TAXO=$CAND.unite.wang
 		sort $CAND.${SUFFIX[0]}.wang.taxonomy | join -v 1 - <(sort $CAND.${SUFFIX[0]}.nofungi.accnos) | cat - $CAND.${SUFFIX[0]}.nofungi.${SUFFIX[1]}.wang.taxonomy > $TAXO.taxonomy
 	else
-		TAXO=$CAND.unite_dynamic.wang
+		TAXO=$CAND.unite.wang
 		cp $CAND.${SUFFIX[0]}.wang.taxonomy $TAXO.taxonomy
 	fi
 	if [ $ASSIGN_ALL == "yes" ]
