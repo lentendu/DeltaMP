@@ -406,9 +406,7 @@ if [ $TARG == "ITS" ]
 then
 	if [ $CUT_DB == "yes" ]
 	then
-		echo "Database can only be reduced to amplified fragment for SSU fragments."
-		show_doc | fmt -s -w $(tput cols) >&2
-		exit 1
+		DBCUT=$ITSX.$DB
 	fi
 	CITATION[FUN]="Nguyen et al., 2016"
 	FULLCITATION[FUN]="Nguyen, N. H., Song, Z., Bates, S. T., Branco, S., Tedersoo, L., Menke, J., … Kennedy, P. G. (2016). FUNGuild: An open annotation tool for parsing fungal community datasets by ecological guild. Fungal Ecology, 20, 241–248."
@@ -423,10 +421,12 @@ then
 	else
 		DBCUT=$FWD_NAME.$RVS_NAME.$DB
 	fi
-	if [ ! -z $DBALIGN ] || [ $DBALIGN != "no" ]
-	then
-		DBCHOP=`echo $DBCUT | sed "s/$DB$/$DBALIGN/"`
-	fi
+fi
+
+DBALIGN=$DB.align
+if [ -f $DBFOLD/$DBALIGN.fasta ] && [ $CUT_DB == "yes" ]
+then
+	DBCHOP=$DBCUT.align
 fi
 
 # Save newly set variables to file (avoiding lowercase variables from loops):

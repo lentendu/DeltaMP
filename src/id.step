@@ -25,8 +25,14 @@ then
 	else
 		CAND=$FASTA_OTUS
 	fi
-	TEMPLATE=($DB.fasta ${DB}_s.fasta)
-	TAXONOMY=($DB.taxonomy ${DB}_s.taxonomy)
+	if [ $ITSX != "no" ]
+	then
+		TEMPLATE=($DB.$ITSX.fasta ${DB}_s.$ITSX.fasta)
+		TAXONOMY=($DB.$ITSX.taxonomy ${DB}_s.$ITSX.taxonomy)
+	else
+		TEMPLATE=($DB.fasta ${DB}_s.fasta)
+		TAXONOMY=($DB.taxonomy ${DB}_s.taxonomy)
+	fi
 	SUFFIX=(dynamic dynamic_s)
 	
 	# First identification with UNITE dynamic DB
