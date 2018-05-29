@@ -172,11 +172,16 @@ else
 	rm temp.${DB}_s* ${DB}*.full.fasta
 	
 	# Initialize mothur database for singleton including version
-	obihead -n 10 $DBFOLD/${DB}_s.$ITSX..fasta > tmp.${DB}_s.$ITSX.fasta
+	obihead -n 10 $DBFOLD/${DB}_s.$ITSX.fasta > tmp.${DB}_s.$ITSX.fasta
 	mothur "#set.dir(output=./, tempdefault=$DBFOLD);
 	set.logfile(name=mothur.initialize.logfile);
 	classify.seqs(fasta=tmp.${DB}_s.$ITSX.fasta, template=${DB}_s.$ITSX.fasta, taxonomy=${DB}_s.$ITSX.taxonomy, cutoff=80, method=wang)"
 	rm tmp.${DB}_s*
+	
+	# Format to vsearch udb database for singleton including version
+	sed '$!N;/>/s/\n/ /;s/>//' $DBFOLD/${DB}_s.$ITSX.fasta | sort -k 1,1 | join - <(sort -k 1,1 $DBFOLD/${DB}_s.$ITSX.taxonomy) | sed 's/;$//;s/;/,/g' | awk '{print ">"$1";tax="$3";\n"$2}' > vsearch.${DB}_s.$ITSX.fasta
+	vsearch --makeudb_usearch vsearch.${DB}_s.$ITSX.fasta --output $DBFOLD/${DB}_s.$ITSX.udb
+	rm vsearch.${DB}_s.$ITSX.fasta
 fi
 
 # Initialize mothur database
@@ -186,7 +191,7 @@ set.logfile(name=mothur.initialize.logfile);
 classify.seqs(fasta=tmp.$DBCUT.fasta, template=$DBCUT.fasta, taxonomy=$DBCUT.taxonomy, cutoff=80, method=wang)"
 rm tmp.$DBCUT*
 
-# Format to vsearch database
+# Format to vsearch udb database
 sed '$!N;/>/s/\n/ /;s/>//' $DBFOLD/$DBCUT.fasta | sort -k 1,1 | join - <(sort -k 1,1 $DBFOLD/$DBCUT.taxonomy) | sed 's/;$//;s/;/,/g' | awk '{print ">"$1";tax="$3";\n"$2}' > vsearch.$DBCUT.fasta
 vsearch --makeudb_usearch vsearch.$DBCUT.fasta --output $DBFOLD/$DBCUT.udb
 rm vsearch.$DBCUT.fasta

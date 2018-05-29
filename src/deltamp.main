@@ -406,7 +406,7 @@ if [ $TARG == "ITS" ]
 then
 	if [ $CUT_DB == "yes" ]
 	then
-		DBCUT=$ITSX.$DB
+		DBCUT=$DB.$ITSX
 	fi
 	CITATION[FUN]="Nguyen et al., 2016"
 	FULLCITATION[FUN]="Nguyen, N. H., Song, Z., Bates, S. T., Branco, S., Tedersoo, L., Menke, J., … Kennedy, P. G. (2016). FUNGuild: An open annotation tool for parsing fungal community datasets by ecological guild. Fungal Ecology, 20, 241–248."
