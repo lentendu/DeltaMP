@@ -26,8 +26,9 @@ echo "qual_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.${TECH}_qu
 if [ $CUT_DB == "yes" ] && [ ! -f $DBFOLD/$DBCUT.fasta ]
 then
 	echo "cut_db_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.cut_db.$SUBPROJECT $BIN/cut_db.sh)"
+	HOLD_CUT_DB=QUEUE_SEP\${cut_db_jobid}
 fi
-echo "trim_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.trim.$SUBPROJECT QUEUE_ARRAYS 1-${SAMP_SIZE}QUEUE_THREADMAX$MAX_TASK QUEUE_HOLD\${qual_jobid}QUEUE_SEP\${cut_db_jobid} $BIN/trim.sh)"
+echo "trim_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.trim.$SUBPROJECT QUEUE_ARRAYS 1-${SAMP_SIZE}QUEUE_THREADMAX$MAX_TASK QUEUE_HOLD\${qual_jobid}${HOLD_CUT_DB} $BIN/trim.sh)"
 echo "merge_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.merge.$SUBPROJECT QUEUE_HOLD\${trim_jobid%.*} $BIN/merge.sh)"
 
 ## OTUs and taxonomic assignment
