@@ -7,12 +7,21 @@ then
 	exit
 fi
 
+if [ -z "$(command -v vsearch)" ]
+then
+	read -p "vsearch is not availble, so the UTAX version will not be downloaded and no udb format will be created for this database. Do you whish to continue (y/n)? " -n 1 -r
+	echo ""
+	if [[ ! $REPLY =~ ^[Yy]$ ]]
+	then
+	    [[ "$0" = "$BASH_SOURCE" ]] && echo "Aborted" && exit 1 || return 1
+	fi
+fi
+
 VERSION=$1
 TARGET_DIRECTORY=$(readlink -f $2)
 
 wget https://github.com/vaulot/pr2_database/releases/download/$VERSION/pr2_version_${VERSION}_mothur.fasta.gz
 wget https://github.com/vaulot/pr2_database/releases/download/$VERSION/pr2_version_${VERSION}_mothur.tax.gz
-wget https://github.com/vaulot/pr2_database/releases/download/$VERSION/pr2_version_${VERSION}_UTAX.fasta.gz
 
 for i in pr2_version_${VERSION}_*gz; do gunzip $i ; done
 
@@ -23,8 +32,14 @@ FULLCITATION    Guillou L, Bachar D, Audic S et al. (2012) The Protist Ribosomal
 EOF
 ln -s $PWD/pr2_version_${VERSION}_mothur.fasta ${TARGET_DIRECTORY}/pr2_${VERSION}.fasta
 ln -s $PWD/pr2_version_${VERSION}_mothur.tax ${TARGET_DIRECTORY}/pr2_${VERSION}.taxonomy
-vsearch --makeudb_usearch pr2_version_${VERSION}_UTAX.fasta --output pr2_version_${VERSION}_UTAX.udb
-ln -s $PWD/pr2_version_${VERSION}_UTAX.udb ${TARGET_DIRECTORY}/pr2_${VERSION}.udb
+
+if [ ! -z "$(command -v vsearch)" ]
+then
+	wget https://github.com/vaulot/pr2_database/releases/download/$VERSION/pr2_version_${VERSION}_UTAX.fasta.gz
+	gunzip pr2_version_${VERSION}_UTAX.fasta.gz
+	vsearch --makeudb_usearch pr2_version_${VERSION}_UTAX.fasta --output pr2_version_${VERSION}_UTAX.udb
+	ln -s $PWD/pr2_version_${VERSION}_UTAX.udb ${TARGET_DIRECTORY}/pr2_${VERSION}.udb
+fi
 
 echo "The database is now ready to be used in DeltaMP under the name pr2_${VERSION} ."
 echo "The database containing directory to provide in DeltaMP configuration file is ${TARGET_DIRECTORY} ."
