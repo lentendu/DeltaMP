@@ -69,6 +69,7 @@ if [ $CLASSIF == "bayesian" ]
 then
 	cut -f 1,3 $CTAXO.taxonomy | paste - <(cat <(echo "representative_sequence") <(cut -f 1 $NAMES_OTUS.names)) | sed '/\tTaxonomy/s/^/#/;s/)//g' | awk '{if(NR==1){print $1"\t"$3"\t"$2"\tbootstrap"} else {s=split($2,a,";"); delete x; split(a[1],b,"("); printf "%s\t%s\t%s",$1,$3,b[1]; x[1]=b[2]; for(i=2;i<=(s-1);i++){split(a[i],b,"("); printf ";%s",b[1]; x[i]=b[2]} ; printf "\t%s",x[1]; for(i=2;i<=(s-1);i++){if(x[i]!=""){printf ";%s",x[i]} else {printf ";%s","null"}} ; printf "\n"}}' > $CTAXO.taxo
 elif [ $CLASSIF == "vsearch" ]
+then
 	cut -f 1 $CTAXO.taxonomy | paste - <(cat <(echo "representative_sequence") <(cut -f 1 $NAMES_OTUS.names)) <(cut -f 3-5 $CTAXO.taxonomy) | sed 's/)//g' | awk '{if(NR==1){print "#"$1"\t"$2"\t"$3"\tbootstrap\t"$4"\t"$5} else {s=split($3,a,";"); delete x; split(a[1],b,"("); printf "%s\t%s\t%s",$1,$2,b[1]; x[1]=b[2]; for(i=2;i<=(s-1);i++){split(a[i],b,"("); printf ";%s",b[1]; x[i]=b[2]} ; printf "\t%s",x[1]; for(i=2;i<=(s-1);i++){if(x[i]!=""){printf ";%s",x[i]} else {printf ";%s","null"}} ; printf "\t%s\t%s\n",$4,$5}}' > $CTAXO.taxo
 fi
 # Functional assignment

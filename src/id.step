@@ -67,6 +67,7 @@ then
 			sort -k 1,1 $TAXO.taxonomy | join -1 2 <(cut -f 3- $LIST.list | transpose | awk '{n=split($2,a,",");print $1,a[1],n}' | sort -k 2,2) - | sort -k 2,2 | awk 'BEGIN{print "OTU\tSize\tTaxonomy"} {print $2"\t"$3"\t"$4}' > $CTAXO.taxonomy	
 		fi
 	elif [ $CLASSIF == "vsearch" ]
+	then
 		# First identification with UNITE dynamic DB
 		vsearch --usearch_global ${CAND}.fasta --threads $NCPUS --db ${DBFOLD}/${TEMPLATE[0]}.udb --dbmask none --qmask none --rowlen 0 --notrunclabels --userfields query+id${IDDEF}+target --maxaccepts 0 --maxrejects 32 --top_hits_only --output_no_hits --id 0.6 --iddef ${IDDEF} --userout ${CAND}.hits
 		# Alternative classification of Fungi only or non-fungus identified sequences against the UNITE dynamic DB including singletons
@@ -122,6 +123,7 @@ else
 			TAXO=`sed -n '/get.current()/,$p' $LOG | grep "^taxonomy=" | sed 's/taxonomy=//;s/\.taxonomy//'`
 			CTAXO=$LIST.$DISIM.cons
 		elif [ $CLASSIF == "vsearch" ]
+		then
 			vsearch --usearch_global ${FASTA}.fasta --threads $NCPUS --db ${DBFOLD}/${TEMPLATE}.udb --dbmask none --qmask none --rowlen 0 --notrunclabels --userfields query+id${IDDEF}+target --maxaccepts 0 --maxrejects 32 --top_hits_only --output_no_hits --id 0.6 --iddef ${IDDEF} --userout ${FASTA}.hits
 			# Consensus among best matches (allow max 1 % similarity range per OTU)
 			cut -f 3- $LIST.list | transpose_tab | awk '{split($2,a,",");for(i in a){print $1,a[i]}}' | sort --parallel=$NCPUS -k 2,2 | join -1 2 -o 1.1,2.2,2.3 - <(sort -k 1,1 $FASTA.hits) | sed 's/;tax=/ /' | sort --parallel=$NCPUS -k 1,1 -k 2,2nr | awk '{if($1!=p){sim=$2};if($2>=sim-1){print;p=$1}}' | sort --parallel=$NCPUS -k 1,1 -k 4,4 -k 3,3 | awk '$1 != p{printf ">"}{p=$1}1' | parallel -j $NCPUS --recstart ">" --pipe -k lca > ${FASTA}.taxonomy
@@ -140,6 +142,7 @@ else
 			cut -f 3- $LIST.list | transpose | awk '{n=split($2,a,",");print $1,a[1],n}' | sort -k 2,2 | join -1 2 - <(sort -k 1,1 $TAXO.taxonomy) | sort -k 2,2 | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy"} {print $2,$3,$4}' > $TAXO.cons.taxonomy
 			CTAXO=$TAXO.cons
 		elif [ $CLASSIF == "vsearch" ]
+		then
 			vsearch --usearch_global ${FASTA_OTUS}.fasta --threads $NCPUS --db ${DBFOLD}/${TEMPLATE}.udb --dbmask none --qmask none --rowlen 0 --notrunclabels --userfields query+id${IDDEF}+target --maxaccepts 0 --maxrejects 32 --top_hits_only --output_no_hits --id 0.6 --iddef ${IDDEF} --userout ${FASTA_OTUS}.hits
 			# Consensus among best matches
 			sed 's/;tax=/\t/' ${FASTA_OTUS}.hits | sort --parallel=$NCPUS -k 1,1 -k 4,4 | awk '$1 != p{printf ">"}{p=$1}1' | parallel -j $NCPUS --recstart ">" --pipe -k lca > ${FASTA_OTUS}.taxonomy
