@@ -32,7 +32,7 @@ echo "trim_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.trim.$SUBP
 echo "merge_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.merge.$SUBPROJECT QUEUE_HOLD\${trim_jobid%.*} $BIN/merge.sh)"
 
 ## OTUs and taxonomic assignment
-echo "otu_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.otu.$SUBPROJECT QUEUE_HOLD\${merge_jobid} $BIN/OTU.sh)"
+echo "otu_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.OTU.$SUBPROJECT QUEUE_HOLD\${merge_jobid} $BIN/OTU.sh)"
 echo "id_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.id.$SUBPROJECT QUEUE_HOLD\${otu_jobid} $BIN/id.sh)"
 
 ## OTU tables, documentation, logs and copy back to output directory

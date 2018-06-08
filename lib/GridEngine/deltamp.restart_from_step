@@ -10,7 +10,7 @@ if [ -z "$1" ]; then
 fi
 
 SUBPROJECT=$1 ; shift
-PROUT=${1%/} ; shift
+PROUT=$(readlink -f $1) ; shift
 STEP=$1 ; shift
 
 # Check SUBPROJECT
