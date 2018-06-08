@@ -3,13 +3,13 @@
 # author: Guillaume Lentendu (guillaume.lentendu@ufz.de)
 
 if [ -z "$1" ]; then 
-	echo usage: ${0##*/} SUBPROJECT PROJECT_output_directory_full_path
+	echo usage: ${0##*/} SUBPROJECT PROJECT_output_directory
 	echo "Delete deltamp SUBPROJECT output and working directories as well as running and queued jobs related to it."
 	exit 1
 fi
 
 SUBPROJECT=$1 ; shift
-OUT=$1 ; shift
+OUT=$(readlink -f $1) ; shift
 
 if [ -d $OUT/$SUBPROJECT ]
 then
