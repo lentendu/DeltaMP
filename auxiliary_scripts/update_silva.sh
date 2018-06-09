@@ -48,7 +48,7 @@ fi
 
 # mothur format
 awk 'BEGIN{FS=";"}{print $1}' silva_${VERSION}_SSURef_Nr99_UTAX.fasta > silva_${VERSION}_SSURef_Nr99.fasta
-awk '$0~"^>"{sub("^>","");gsub("\\|",";");print $1"\t"$2";"}' silva_${VERSION}_SSURef_Nr99_UTAX.fasta > silva_${VERSION}_SSURef_Nr99.taxonomy
+sed -n '/>/{s/^>//;s/;tax=/\t/;s/,/;/g;s/[;,]*$/;/;p}' silva_${VERSION}_SSURef_Nr99_UTAX.fasta > silva_${VERSION}_SSURef_Nr99.taxonomy
 awk '{print $1}' SILVA_${VERSION}_SSURef_Nr99_tax_silva_full_align_trunc.fasta | sed '/>/!s/U/T/g' > silva_${VERSION}_SSURef_Nr99.align.fasta
 cat << EOF > ${TARGET_DIRECTORY}/silva_${VERSION}.txt
 VERSION $VERSION
