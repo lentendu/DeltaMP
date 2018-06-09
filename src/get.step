@@ -67,7 +67,7 @@ do
 			case $i in
 				*.tar.bz2) tar xjvf $i -C tmp ;;
 				*.tar.gz) tar xzvf $i -C tmp ;;
-				*.bz2) bunzip2 -p1 $i ;;
+				*.bz2) bunzip2 -1 $i ;;
 				*.gz) dd if=$i ibs=1M | unpigz -p 1 | dd of=${i%.*} obs=1M && rm $i ;;
 				*.tar) tar xf $i -C tmp ;;
 				*.tbz2) tar xjvf $i -C tmp ;;
