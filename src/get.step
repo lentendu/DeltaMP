@@ -117,7 +117,13 @@ then
 fi
 
 # Replace "-" by "_" in library names
-rename - _ *.$RAW_EXT
+for i in *.$RAW_EXT
+do
+	if [[ $i =~ - ]]
+	then
+		mv $i ${i//-/_}
+	fi
+done
 
 # list files and directories
 . $BIN/list_step_files.sh
