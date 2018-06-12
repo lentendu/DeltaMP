@@ -3,14 +3,14 @@
 # author: Guillaume Lentendu (guillaume.lentendu@ufz.de)
 
 if [ -z "$1" ]; then
-	echo "usage: ${0##*/} SUBPROJECT PROJECT_output_directory_full_path [step_name]"
+	echo "usage: ${0##*/} SUBPROJECT PROJECT_output_directory [step_name]"
 	echo "Delete every files created by the provided step_name and all following steps, and resubmit steps of SUBPROJECT starting from the provided step_name."
 	echo "Alternatively, avoiding the step_name argument will output all available step names for the SUBPROJECT."
 	exit
 fi
 
 SUBPROJECT=$1 ; shift
-PROUT=${1%/} ; shift
+PROUT=$(readlink -f $1) ; shift
 STEP=$1 ; shift
 
 # Check SUBPROJECT
@@ -107,5 +107,5 @@ TO_DEL_D=`comm -13 <(sort config/$UNTIL.dir) <(find $EXEC/* -type d | sort)`
 if [ ! -z "$TO_DEL_F" ] ; then rm $TO_DEL_F ; fi
 if [ ! -z "$TO_DEL_D" ] ; then rmdir $TO_DEL_D ; fi
 
-# Re-execute from STEP
-. <(awk -v S=$STEP 'BEGIN{FS="/";flag=0} $NF==S{flag=1} flag{print}' config/steps.final)
+# Re-queue from STEP
+. <(sed -n '/'$STEP'\.sh)/,$p' config/steps.final | sed '1 s/ -hold_jid ${[^ ]* / /')

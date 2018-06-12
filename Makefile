@@ -5,6 +5,7 @@ batch := $(shell grep BATCH $(config) | cut -f 2)
 module := modulefiles/DeltaMP/$(version)
 module_load := $(shell grep MODULES_TO_BE_LOADED $(config) | cut -f 2)
 max_cpus := $(shell grep MAX_CPU_PER_NODES $(config) | cut -f 2)
+max_mem := $(shell grep MAX_MEMORY_FOR_HIGH_MEM $(config) | cut -f 2)
 deltamp := $(patsubst src/%,bin/%,$(patsubst %.main,%,$(wildcard $(addsuffix *.main,src/))))
 batch_spec := $(addprefix bin/,$(notdir $(shell ls lib/$(batch)/deltamp.*)))
 steps := $(patsubst src/%,bin/%,$(patsubst %.step,%.sh,$(wildcard $(addsuffix *.step,src/))))
@@ -63,9 +64,9 @@ endif
 # rules to build high memory job headers
 $(highmems): lib/$(batch)/%_highmem.head : %.head
 ifeq ($(batch),GridEngine)
-	sed 's/mem=6G/mem=20G/;$$s/^$$/#$$ -l highmem\n/' $< > $@
+	sed 's/mem=6G/mem=$(max_mem)G/;$$s/^$$/#$$ -l highmem\n/' $< > $@
 else ifeq ($(batch),Slurm)
-	sed 's/mem=64G/mem=256G/' $< > $@
+	sed 's/mem=64G/mem=$(max_mem)G/' $< > $@
 endif
 
 # Copy batch queueing system specific executables to bin
