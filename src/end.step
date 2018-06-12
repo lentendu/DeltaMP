@@ -65,12 +65,17 @@ then
 fi
 
 # biom format (all OTUs only)
-cut -f 1,3 $CTAXO.taxonomy | paste - <(cat <(echo "representative_sequence") <(cut -f 1 $NAMES_OTUS.names)) | sed '/\tTaxonomy/s/^/#/;s/)//g' | awk '{if(NR==1){print $1"\t"$3"\t"$2"\tbootstrap"} else {s=split($2,a,";"); delete x; split(a[1],b,"("); printf "%s\t%s\t%s",$1,$3,b[1]; x[1]=b[2]; for(i=2;i<=(s-1);i++){split(a[i],b,"("); printf ";%s",b[1]; x[i]=b[2]} ; printf "\t%s",x[1]; for(i=2;i<=(s-1);i++){if(x[i]!=""){printf ";%s",x[i]} else {printf ";%s","null"}} ; printf "\n"}}' > $CTAXO.taxo
-if [ $TARG == "ITS" ]
+if [ $CLASSIF == "bayesian" ]
 then
-	# Functional assignment
-	#cut -f 1,3 $CTAXO.taxo | sed '1d;s/;/ /g' | awk '{for(i=2;i<=NF;i++){print $1,i,$i}}' | sort -k 3,3 | join -1 3 - <(cut -f 1,3-6 /data/ecogen/databases/FUNGuild/funguild_db.tsv | sed '1d;s/ /_/g;s/\t/ /;s/\t/#/g' | sort -k 1,1) | sort -k 2,2 -k 3,3nr | awk '{if(NR==1){prev=$2;print $2,$3,$4} else {if($2!=prev){prev=$2;print $2,$3,$4}}}' | join -a 1 -o 0,1.2,1.3,1.4,2.2,2.3 -e "NA" <(sed '1d' $CTAXO.taxo) - | sed 's/NA NA/NA NA#NA#NA#NA/;s/ /\t/g;s/#/\t/g' | cat <(paste <(head -1 $CTAXO.taxo) <(echo "functional_assignment_level") <(head -1 /data/ecogen/databases/FUNGuild/funguild_db.tsv | cut -f 3-6)) - > tmp.$CTAXO
-	cut -f 1,3 $CTAXO.taxo | sed '1d;s/;/ /g' | awk '{for(i=2;i<=NF;i++){print $1,i,$i}}' | sort -k 3,3 | join -1 3 -o 0,1.1,1.2,2.2 -a 1 -e "NA" - <(cut -f 1,3-6 /data/ecogen/databases/FUNGuild/funguild_db.tsv | sed '1d;s/ /_/g;s/\t/ /;s/\t/#/g' | sort -k 1,1) | sort -k 2,2 -k 3,3n | awk '{if(NR==1){prev=$2;printf "%s %s",prev,$4} else {if($2==prev){printf " %s",$4} else {prev=$2;printf "\n%s %s",prev,$4}}}END{printf "\n"}' | awk '{for(i=NF;i>=2;i--){if($i!="NA"){print $1,i-1,$i;break};if(i==2){print $1,"0","NA#NA#NA#NA"}}}' | join <(sed '1d' $CTAXO.taxo) - | sed 's/ /\t/g;s/#/\t/g' | cat <(paste <(head -1 $CTAXO.taxo) <(echo "functional_assignment_level") <(head -1 /data/ecogen/databases/FUNGuild/funguild_db.tsv | cut -f 3-6)) - > tmp.$CTAXO
+	cut -f 1,3 $CTAXO.taxonomy | paste - <(cat <(echo "representative_sequence") <(cut -f 1 $NAMES_OTUS.names)) | sed '/\tTaxonomy/s/^/#/;s/)//g' | awk '{if(NR==1){print $1"\t"$3"\t"$2"\tbootstrap"} else {s=split($2,a,";"); delete x; split(a[1],b,"("); printf "%s\t%s\t%s",$1,$3,b[1]; x[1]=b[2]; for(i=2;i<=(s-1);i++){split(a[i],b,"("); printf ";%s",b[1]; x[i]=b[2]} ; printf "\t%s",x[1]; for(i=2;i<=(s-1);i++){if(x[i]!=""){printf ";%s",x[i]} else {printf ";%s","null"}} ; printf "\n"}}' > $CTAXO.taxo
+elif [ $CLASSIF == "vsearch" ]
+then
+	cut -f 1 $CTAXO.taxonomy | paste - <(cat <(echo "representative_sequence") <(cut -f 1 $NAMES_OTUS.names)) <(cut -f 3-5 $CTAXO.taxonomy) | sed 's/)//g' | awk '{if(NR==1){print "#"$1"\t"$2"\t"$3"\tbootstrap\t"$4"\t"$5} else {s=split($3,a,";"); delete x; split(a[1],b,"("); printf "%s\t%s\t%s",$1,$2,b[1]; x[1]=b[2]; for(i=2;i<=(s-1);i++){split(a[i],b,"("); printf ";%s",b[1]; x[i]=b[2]} ; printf "\t%s",x[1]; for(i=2;i<=(s-1);i++){if(x[i]!=""){printf ";%s",x[i]} else {printf ";%s","null"}} ; printf "\t%s\t%s\n",$4,$5}}' > $CTAXO.taxo
+fi
+# Functional assignment
+if [ $TARG == "ITS" ] && [ FUNCT == "yes" ]
+then
+	cut -f 1,3 $CTAXO.taxo | sed '1d;s/;/ /g' | awk '{for(i=2;i<=NF;i++){print $1,i,$i}}' | sort -k 3,3 | join -1 3 -o 0,1.1,1.2,2.2 -a 1 -e "NA" - <(cut -f 1,3-6 $DBFOLD/FUNGuild.tsv | sed '1d;s/ /_/g;s/\t/ /;s/\t/#/g' | sort -k 1,1) | sort -k 2,2 -k 3,3n | awk '{if(NR==1){prev=$2;printf "%s %s",prev,$4} else {if($2==prev){printf " %s",$4} else {prev=$2;printf "\n%s %s",prev,$4}}}END{printf "\n"}' | awk '{for(i=NF;i>=2;i--){if($i!="NA"){print $1,i-1,$i;break};if(i==2){print $1,"0","NA#NA#NA#NA"}}}' | join <(sed '1d' $CTAXO.taxo) - | sed 's/ /\t/g;s/#/\t/g' | cat <(paste <(head -1 $CTAXO.taxo) <(echo "functional_assignment_level") <(head -1 $DBFOLD/FUNGuild.tsv | cut -f 3-6)) - > tmp.$CTAXO
 	mv tmp.$CTAXO $CTAXO.taxo
 fi
 biom convert -i $LIST.otu -o $LIST.json.biom  --table-type="OTU table" --to-json
@@ -82,7 +87,6 @@ else
 	biom add-metadata -i $LIST.json.biom -o $SUBPROJECT.json.biom --output-as-json --observation-metadata-fp $CTAXO.taxo --sc-separated taxonomy,bootstrap
 fi
 rm $LIST.json.biom
-
 
 # Representative sequences
 twofasta $FASTA_OTUS.fasta > $SUBPROJECT.${LABELS[0]}_repseq.fasta
