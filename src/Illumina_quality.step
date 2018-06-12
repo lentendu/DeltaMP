@@ -9,8 +9,8 @@ module load DeltaMP/${VERSION[DELTAMP]}
 while read lib fwd rvs
 do
 	samp=`awk -v L=$lib '{for(i=2;i<=NF;i++){if($i==L){print $1}}}' config/lib4.list`
-	paste <(echo -e "$samp\t$lib") <(awk 'BEGIN{a=0}{a++;}END{print a/4}' libraries/$lib${fwd%.gz}) <(tac libraries/fastq/log.pandaseq.$lib.txt | grep -m 1 -P "STAT\tREADS" | cut -f 4) <(tac libraries/fastq/log.pandaseq.$lib.txt | grep -m 1 -P "STAT\tOK\t" | cut -f 4) quality_check/$lib.stat
-done < config/lib2.list | cat <(paste <(echo -e "Sample\tLibrary\tRaw\tPrimer detected\tPair-end") <(seq $MINQUAL 30 | sed 's/\(.*\)/Trimmed at \1 Phred score/' | tr "\n" "\t" | sed 's/$/\n/')) -> quality_check/$SUBPROJECT.lib_counts.tsv
+	paste <(echo -e "$samp\t$lib") <(awk 'BEGIN{a=0}{a++;}END{print a/4}' libraries/$lib${fwd}) <(tac libraries/fastq/log.pandaseq.$lib.txt | grep -m 1 -P "STAT\tREADS" | cut -f 4) <(tac libraries/fastq/log.pandaseq.$lib.txt | grep -m 1 -P "STAT\tOK\t" | cut -f 4) quality_check/$lib.stat
+done < <(sed 's/\.fastq\.[^ ]*/\.fastq/g' config/lib2.list) | cat <(paste <(echo -e "Sample\tLibrary\tRaw\tPrimer detected\tPair-end") <(seq $MINQUAL 30 | sed 's/\(.*\)/Trimmed at \1 Phred score/' | tr "\n" "\t" | sed 's/$/\n/')) -> quality_check/$SUBPROJECT.lib_counts.tsv
 cd quality_check
 
 # per sample
