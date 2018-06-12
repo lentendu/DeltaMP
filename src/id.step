@@ -16,11 +16,16 @@ if [ $TARG == "COI" ]
 then
 	NCPUS=`awk -v N=$NCPUS 'BEGIN{printf "%.f",N/2}'`
 fi
+# LCA function
+lca() {
+	parallel --recstart ">" --remove-rec-sep --pipe -k -N1 awk -v cons=$CONS -f $BIN/lca_vsearch.awk
+}
+export -f lca
+export CONS BIN
 
-
+# ITS
 if [ $TARG == "ITS" ]
 then
-# ITS
 	if [ $ASSIGN_ALL == "yes" ]
 	then
 		CAND=$FASTA
@@ -104,12 +109,6 @@ else
 		TEMPLATE=$DBCUT
 		IDDEF=1 # no end gap allowed
 	fi
-	# LCA function
-	lca() {
-		parallel --recstart ">" --remove-rec-sep --pipe -k -N1 awk -v cons=$CONS -f $BIN/lca_vsearch.awk
-	}
-	export -f lca
-	export CONS
 	if [ $ASSIGN_ALL == "yes" ]
 	then
 		if [ $CLASSIF == "bayesian" ]
