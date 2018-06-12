@@ -159,33 +159,35 @@ fi
 
 
 # Chimera recheck
-NSLOTS2=$(( $NCPUS / 2 ))
-mothur "#chimera.uchime(fasta=$FASTA_OTUS.fasta, name=$NAMES_OTUS.names, group=$GROUP.groups, reference=self, processors=$NSLOTS2);
-get.current()"
-unset LOG ACCNOS
-LOG=`ls mothur.*.logfile | tail -1`
-ACCNOS=`sed -n '/get.current()/,$p' $LOG | grep "^accnos=" | sed 's/accnos=//;s/\.accnos//'`
-
-if [ -s $ACCNOS.accnos ]
+if [ $CHIMERA == "after" ] || [ $CHIMERA == "both" ]
 then
-	mothur "#remove.seqs(accnos=$ACCNOS.accnos, name=$NAMES_OTUS.names, fasta=$FASTA_OTUS.fasta);
+	NSLOTS2=$(( $NCPUS / 2 ))
+	mothur "#chimera.uchime(fasta=$FASTA_OTUS.fasta, name=$NAMES_OTUS.names, group=$GROUP.groups, reference=self, processors=$NSLOTS2);
 	get.current()"
-	unset LOG
+	unset LOG ACCNOS
 	LOG=`ls mothur.*.logfile | tail -1`
-	NAMES_OTUS=`sed -n '/get.current()/,$p' $LOG | grep "^name=" | sed 's/name=//;s/\.names//'`
-	FASTA_OTUS=`sed -n '/get.current()/,$p' $LOG | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
+	ACCNOS=`sed -n '/get.current()/,$p' $LOG | grep "^accnos=" | sed 's/accnos=//;s/\.accnos//'`
 	
-	mothur "#list.seqs(name=$NAMES_OTUS.names);
-	get.seqs(accnos=current, fasta=$FASTA.fasta, list=$LIST.list, name=$NAMES.names, group=$GROUP.groups);
-	get.current()"
-	unset LOG FASTA NAMES GROUP LIST
-	LOG=`ls mothur.*.logfile | tail -1`
-	FASTA=`sed -n '/get.current()/,$p' $LOG | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
-	NAMES=`sed -n '/get.current()/,$p' $LOG | grep "^name=" | sed 's/name=//;s/\.names//'`
-	GROUP=`sed -n '/get.current()/,$p' $LOG | grep "^group=" | sed 's/group=//;s/\.groups//'`
-	LIST=`sed -n '/get.current()/,$p' $LOG | grep "^list=" | sed 's/list=//;s/\.list//'`
+	if [ -s $ACCNOS.accnos ]
+	then
+		mothur "#remove.seqs(accnos=$ACCNOS.accnos, name=$NAMES_OTUS.names, fasta=$FASTA_OTUS.fasta);
+		get.current()"
+		unset LOG
+		LOG=`ls mothur.*.logfile | tail -1`
+		NAMES_OTUS=`sed -n '/get.current()/,$p' $LOG | grep "^name=" | sed 's/name=//;s/\.names//'`
+		FASTA_OTUS=`sed -n '/get.current()/,$p' $LOG | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
+		
+		mothur "#list.seqs(name=$NAMES_OTUS.names);
+		get.seqs(accnos=current, fasta=$FASTA.fasta, list=$LIST.list, name=$NAMES.names, group=$GROUP.groups);
+		get.current()"
+		unset LOG FASTA NAMES GROUP LIST
+		LOG=`ls mothur.*.logfile | tail -1`
+		FASTA=`sed -n '/get.current()/,$p' $LOG | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
+		NAMES=`sed -n '/get.current()/,$p' $LOG | grep "^name=" | sed 's/name=//;s/\.names//'`
+		GROUP=`sed -n '/get.current()/,$p' $LOG | grep "^group=" | sed 's/group=//;s/\.groups//'`
+		LIST=`sed -n '/get.current()/,$p' $LOG | grep "^list=" | sed 's/list=//;s/\.list//'`
+	fi
 fi
-
 
 # Save newly set and updated variables
 cd ..

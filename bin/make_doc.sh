@@ -155,14 +155,14 @@ then
 	echo "The read count was randomly normalized to $SUBSIZE reads in each samples."
 	echo ""
 fi
-if [[ $DB == *"silva"* ]] && [ $TECH == "454" ]
+if [ $PRECLUST == "mothur" ]
 then
 	PRECL=`for i in log/trim.*.out; do grep -B 1 "^pre.cluster removed" $i | grep -o '[0-9]\+' | paste - - | awk '{print $2/$1*100}' ; done | awk '{m+=$1}END{print m/NR}'`
-	echo "Dereplicated sequences of each sample were aligned against the reference alignment of the database $DB (version ${VERSION[DB]}, ${CITATION[DB]}) and pre-clustered following the 454 SOP (${CITATION[SOP]})."
+	echo "Dereplicated sequences of each sample were aligned against the reference alignment of the database $DB (version ${VERSION[DB]}, ${CITATION[DB]}) and pre-clustered following the mothur $TARG SOP (${CITATION[SOP]})."
 	echo "Approximately 5% of the reads with bad alignment were discarded after the alignment and pre-clustering reduced the number of sequences to analyse by an average of $PRECL %."
 	echo ""
 	CIT+=(SOP)
-elif [ $TECH == "Illumina" ]
+elif [ $PRECLUST == "cdhit454" ]
 then
 	PRECL=`for i in log/trim.*.out; do grep "^ *[0-9].*clusters$" $i ; done | awk '{mean+=$3/$1*100}END{print mean/NR}'`
 	echo "The reads were pre-clustered in order to merge reads likely arising from sequencing errors (${CITATION[PRECL]}) and thus reducing the computational load."
@@ -171,15 +171,18 @@ then
 	echo ""
 	CIT+=(PRECL PRECDHIT)
 fi
-CHIMMEAN=$(grep "Removed [0-9]* sequences from your name file" log/trim.[0-9]*.out | cut -d " " -f 2 | awk '{c+=$1}END{printf "%.0d\n", c/NR}')
-echo "An average of $CHIMMEAN chimeric reads were detected and removed from each sample using the UCHIME algorithm as implemented in MOTHUR (${CITATION[UCHIME]})."
-CIT+=(UCHIME)
-echo ""
+
 if [ $TARG == "ITS" ] && [ $ITSX != "no" ]
 then
 	ITSXMEAN=$(while read num samp; do NAMES=$(tac log/trim.$num.out | sed -n "1,/unique\.seqs/{s/^.*name=\([^)]*\))$/processing\/$samp\/\1/p}") ; echo $(sed -n '$=' $NAMES) $(sed -n '$=' ${NAMES/itsx\.$ITSX\./}) ; done < <(awk '{print NR,$1}' config/lib4.list) | awk '{sum+=$1/$2*100}END{print sum/NR}')
 	echo "The $ITSX fragment was detected and extracted from $ITSXMEAN % of chimera free reads using ITSx (version ${VERSION[ITSX]}, ${CITATION[ITSX]}). "
 	CIT+=(ITSX)
+	echo ""
+elif [ $CHIMERA == "before" ] || [ $CHIMERA == "both" ]
+then
+	CHIMMEAN=$(grep "Removed [0-9]* sequences from your name file" log/trim.[0-9]*.out | cut -d " " -f 2 | awk '{c+=$1}END{printf "%.0d\n", c/NR}')
+	echo "An average of $CHIMMEAN chimeric reads were detected and removed from each sample using the UCHIME algorithm as implemented in MOTHUR (${CITATION[UCHIME]})."
+	CIT+=(UCHIME)
 	echo ""
 fi
 

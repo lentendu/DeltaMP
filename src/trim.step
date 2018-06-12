@@ -9,6 +9,7 @@ module load DeltaMP/${VERSION[DELTAMP]}
 LIB=(`sed -n "$ARRAY_TASK"'p' config/lib4.list`)
 SAMP=${LIB[0]}
 LIB_NAME=(`echo ${LIB[@]} | cut -d " " -f 2-`)
+LOG=mothur.${TECH}_trim.$SAMP.logfile
 cd processing && mkdir $SAMP
 cd $SAMP
 
@@ -79,11 +80,11 @@ do
 		else
 			if [ $TARG == "ITS" ] && [ $ITSX != "no" ]
 			then
-				mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile);
+				mothur "#set.logfile(name=$LOG, append=T);
 				set.dir(input=../../libraries/fasta, output=./);
 				trim.seqs(fasta=$i.fasta, oligos=oligos.$i, qfile=$i.qual, flip=$FLIP, qaverage=$QUAL, bdiffs=$BDIFFS, pdiffs=$PDIFFS, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$LENGTH)"
 			else
-				mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile);
+				mothur "#set.logfile(name=$LOG, append=T);
 				set.dir(input=../../libraries/fasta, output=./);
 				trim.seqs(fasta=$i.fasta, oligos=oligos.$i, qfile=$i.qual, flip=$FLIP, qaverage=$QUAL, bdiffs=$BDIFFS, pdiffs=$PDIFFS, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$LENGTH, keepfirst=$LENGTH)"
 			fi
@@ -91,7 +92,7 @@ do
 	elif [ $TECH == "Illumina" ]
 	then
 		QUAL=`cat $EXEC/quality_check/optimized.quality.txt`
-		mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile);
+		mothur "#set.logfile(name=$LOG, append=T);
 		set.dir(input=../../libraries/fasta, output=./);
 		trim.seqs(fasta=$i.pairend.fasta, qfile=$i.pairend.qual, qaverage=$QUAL, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$MINLEN, maxlength=$MAXLEN)"
 	fi
@@ -106,12 +107,12 @@ then
 	SIZE=$(grep "Minimum" ../../quality_check/$SUBPROJECT.summary.stat.tsv | cut -f 3 | cut -d "." -f 1)
 	if [ $TECH == "454" ] && [ "$DENOISE" == "yes" ]
 	then
-		mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile, append=T);
+		mothur "#set.logfile(name=$LOG, append=T);
 		unique.seqs(fasta=$SAMP.trim.fasta, name=$SAMP.names);
 		sub.sample(fasta=current, name=current, size=$SIZE);
 		get.current()"
 	else
-		mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile, append=T);
+		mothur "#set.logfile(name=$LOG, append=T);
 		unique.seqs(fasta=$SAMP.trim.fasta);
 		sub.sample(fasta=current, name=current, size=$SIZE);
 		get.current()"
@@ -119,72 +120,75 @@ then
 else
 	if [ $TECH == "454" ] && [ "$DENOISE" == "yes" ]
 	then
-		mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile, append=T);
+		mothur "#set.logfile(name=$LOG, append=T);
 		unique.seqs(fasta=$SAMP.trim.fasta, name=$SAMP.names);
 		get.current()"
 	else
-		mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile, append=T);
+		mothur "#set.logfile(name=$LOG, append=T);
 		unique.seqs(fasta=$SAMP.trim.fasta);
 		get.current()"
 	fi
 fi
 
 #store current files in variables
-unset LOG FASTA NAMES
-LOG=mothur.${TECH}_trim.$SAMP.logfile
+unset FASTA NAMES
 FASTA=`tac $LOG | sed -n '1,/get.current()/p' | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
 NAMES=`tac $LOG | sed -n '1,/get.current()/p' | grep "^name=" | sed 's/name=//;s/\.names//'`
 
-# align to reference (silva DB only), pre-cluster (silva DB and/or Illumina), and chimera removal
-if [ ! -z $DBCHOP ] && [ $TECH == "454" ]
+# Precluster
+if [ $PRECLUST == "mothur" ]
 then
-	PRECDIFF=$(( ${LENGTH} / 100 ))
-	mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile, append=T);
-	set.dir(tempdefault=/data/ecogen/databases/mothur);
-	align.seqs(candidate=$FASTA.fasta, template=$DBCHOP.fasta, align=needleman);
-	screen.seqs(fasta=current, name=$NAMES.names, optimize=start-end, criteria=95);
-	filter.seqs(fasta=current, vertical=T, trump=.);
-	pre.cluster(fasta=current, name=current, diffs=$PRECDIFF);
-	chimera.uchime(fasta=current, name=current, reference=self);
-	get.current()"
-	unset FASTA NAMES ACCNOS
-	FASTA=`tac $LOG | sed -n '1,/get.current()/p' | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
-	NAMES=`tac $LOG | sed -n '1,/get.current()/p' | grep "^name=" | sed 's/name=//;s/\.names//'`
-	ACCNOS=`tac $LOG | sed -n '1,/get.current()/p' | grep "^accnos=" | sed 's/accnos=//;s/\.accnos//'`
-	if [ -s $ACCNOS.accnos ]
+	# pre-cluster at max 1% after aligning to reference and removing the 5 % worse aligned reads
+	if [ $TECH == "454" ] && [ $ITSX == "no" ]
 	then
-		mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile, append=T);
-		remove.seqs(accnos=$ACCNOS.accnos, fasta=$FASTA.fasta, name=$NAMES.names);
-		filter.seqs(fasta=current, vertical=T, trump=.);
-		get.current()"
+		PRECDIFF=$(( ${LENGTH} / 100 ))
+	else
+		PRECDIFF=$(twofasta $FASTA.fasta | awk -v M=$MAXLEN 'BEGIN{min=M}length($1)<M{min=length($1)}END{print int(min/100)'awk '$1!~"^>"{sum+=length($1)}END{print int(sum/(FNR/2)/100)}')
 	fi
-elif [ $TECH == "Illumina" ]
+	if [ $PRECDIFF -ge 1 ]
+	then
+		mothur "#set.logfile(name=$LOG, append=T);
+		set.dir(tempdefault=/data/ecogen/databases/mothur);
+		align.seqs(candidate=$FASTA.fasta, template=$DBCHOP.fasta, align=needleman);
+		screen.seqs(fasta=current, name=$NAMES.names, optimize=start-end, criteria=95);
+		filter.seqs(fasta=current, vertical=T, trump=.);
+		pre.cluster(fasta=current, name=current, diffs=$PRECDIFF);
+		get.current()"
+		unset FASTA NAMES
+		FASTA=`tac $LOG | sed -n '1,/get.current()/p' | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
+		NAMES=`tac $LOG | sed -n '1,/get.current()/p' | grep "^name=" | sed 's/name=//;s/\.names//'`
+	else
+		echo "The pre-culstering step was skipped because the smallest sequence have less than 100nt."
+	fi
+elif [ $PRECLUST == "cdhit454" ]
 then
-	# pre-cluster with cd-hit-454, allowing 1% dissimilarity with indel of size 1 at max 
+	# pre-cluster with cd-hit-454, allowing 1% dissimilarity with indel of max 1 nt long
 	cdhit4542mothur () {
 		bak=$1 ; fasta=$2 ; names=$3
 		nl $bak | sed 's/>//;s/\.\.\.//' | awk '{print $4,$1,$2}' | sort -k 1,1 | join - <(sort -k 1,1 $names) | awk '{size=split($4,a,",");print $0,size}' | sort -k 3,3n -k 5,5nr | awk '{if(NR==1){nb=$3;printf "%s\t%s\t%s", $1,$2,$4} else {if($3==nb){printf ",%s", $4} else {nb=$3;printf "\n%s\t%s\t%s",$1,$2,$4}}}END{printf "\n"}' | sort -k 2,2n | cut -f 1,3 > ${names%.*}.precl.names
-		obigrep --uppercase --id-list=<(cut -f 1 ${names%.*}.precl.names) $fasta| twofasta > ${fasta%.*}.precl.fasta
-		echo "cdhit4542mothur output files:#${fasta%.*}.precl.fasta#${names%.*}.precl.names" | tr "#" "\n"
+		obigrep --uppercase --id-list=<(cut -f 1 ${names%.*}.precl.names) $fasta | twofasta > ${fasta%.*}.precl.fasta
 	}
 	cd-hit-454 -B 1 -g 1 -M 6000 -c 0.99 -bak 1 -i $FASTA.fasta -o $FASTA.precl.fasta.temp
 	cdhit4542mothur $FASTA.precl.fasta.temp.bak.clstr $FASTA.fasta $NAMES.names
 	rm $FASTA.precl.fasta.temp*
-	mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile, append=T);
-	chimera.uchime(fasta=$FASTA.precl.fasta, name=$NAMES.precl.names, reference=self);
+	FASTA=$FASTA.precl
+	NAMES=$NAMES.precl
+fi
+
+# [ITSx and] Chimera removal
+if [ $TARG == "ITS" ] && [ $ITSX != "no" ]
+then
+	ITSx -i $FASTA.fasta --save_regions $ITSX --preserve T --graphical F -o $FASTA.itsx
+	awk '$0~"^>"{sub(">","");print $1}' $FASTA.itsx.$ITSX.fasta | sort | join - <(sort -k 1,1 $NAMES.names) > $NAMES.itsx.$ITSX.names
+	mothur "#set.logfile(name=$LOG, append=T);
+	unique.seqs(fasta=$FASTA.itsx.$ITSX.fasta, name=$NAMES.itsx.$ITSX.names);
 	get.current()"
-	unset FASTA NAMES ACCNOS
+	unset FASTA NAMES
 	FASTA=`tac $LOG | sed -n '1,/get.current()/p' | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
 	NAMES=`tac $LOG | sed -n '1,/get.current()/p' | grep "^name=" | sed 's/name=//;s/\.names//'`
-	ACCNOS=`tac $LOG | sed -n '1,/get.current()/p' | grep "^accnos=" | sed 's/accnos=//;s/\.accnos//'`
-	if [ -s $ACCNOS.accnos ]
-	then
-		mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile, append=T);
-		remove.seqs(accnos=$ACCNOS.accnos, fasta=$FASTA.fasta, name=$NAMES.names);
-		get.current()"
-	fi
-else
-	mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile, append=T);
+elif [ $CHIMERA == "before" ] || [ $CHIMERA == "both" ]
+then
+	mothur "#set.logfile(name=$LOG, append=T);
 	chimera.uchime(fasta=$FASTA.fasta, name=$NAMES.names, reference=self);
 	get.current()"
 	unset FASTA NAMES ACCNOS
@@ -193,23 +197,10 @@ else
 	ACCNOS=`tac $LOG | sed -n '1,/get.current()/p' | grep "^accnos=" | sed 's/accnos=//;s/\.accnos//'`
 	if [ -s $ACCNOS.accnos ]
 	then
-		mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile, append=T);
+		mothur "#set.logfile(name=$LOG, append=T);
 		remove.seqs(accnos=$ACCNOS.accnos, fasta=$FASTA.fasta, name=$NAMES.names);
 		get.current()"
 	fi
-fi
-
-# ITSx
-if [ $TARG == "ITS" ] && [ $ITSX != "no" ]
-then
-	unset FASTA NAMES
-	FASTA=`tac $LOG | sed -n '1,/get.current()/p' | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
-	NAMES=`tac $LOG | sed -n '1,/get.current()/p' | grep "^name=" | sed 's/name=//;s/\.names//'`
-	ITSx -i $FASTA.fasta --save_regions $ITSX --preserve T --graphical F -o $FASTA.itsx
-	awk '$0~"^>"{sub(">","");print $1}' $FASTA.itsx.$ITSX.fasta | sort | join - <(sort -k 1,1 $NAMES.names) > $NAMES.itsx.$ITSX.names
-	mothur "#set.logfile(name=mothur.${TECH}_trim.$SAMP.logfile, append=T);
-	unique.seqs(fasta=$FASTA.itsx.$ITSX.fasta, name=$NAMES.itsx.$ITSX.names);
-	get.current()"
 fi
 
 # list files and directories

@@ -238,6 +238,56 @@ else
 	exit 1
 fi
 
+	
+# Databases
+if [ $TARG == "ITS" ]
+then
+	if [ $CUT_DB == "yes" ]
+	then
+		DBCUT=$DB.$ITSX
+	fi
+	if [ $ASSIGN_FUNCT == "yes" ]
+	then
+		CITATION[FUN]="Nguyen et al., 2016"
+		FULLCITATION[FUN]="Nguyen, N. H., Song, Z., Bates, S. T., Branco, S., Tedersoo, L., Menke, J., … Kennedy, P. G. (2016). FUNGuild: An open annotation tool for parsing fungal community datasets by ecological guild. Fungal Ecology, 20, 241–248."
+		VERSION[FUN]=1.1
+	fi
+fi
+
+if ( [ $TARG == "18S" ] || [ $TARG == "16S" ] ) && [ $CUT_DB == "yes" ]
+then
+	if [ $TECH == "454" ] && [ $FLIP == "true" ]
+	then
+		DBCUT=$RVS_NAME.$FWD_NAME.$DB
+	else
+		DBCUT=$FWD_NAME.$RVS_NAME.$DB
+	fi
+fi
+
+DBALIGN=$DB.align
+if [ -f $DBFOLD/$DBALIGN.fasta ] && [ $CUT_DB == "yes" ]
+then
+	DBCHOP=$DBCUT.align
+fi
+
+# Pre-clustering
+if [ $CLUST == "swarm" ] && [ $PRECLUST != "no" ]
+then
+	echo "# Configuration file error: pre-clustering is not allowed for swarm based OTU clustering. Turn off the 'Pre-clustering' argument with 'no' or use another clustering algorithm." >&2
+	show_doc | fmt -s -w $(tput cols) >&2
+	exit 1
+fi
+
+if [ $PRECLUST == "mothur" ]
+then
+	if [ ! -f $DBFOLD/$DBALIGN.fasta ]
+	then
+		echo "# Configuration file error: the mothur pre-clustering method could only be used if an aligned version of the reference database is available." >&2
+		show_doc | fmt -s -w $(tput cols) >&2
+		exit 1
+	fi
+fi
+
 # Dependencies
 # modules
 # gnu parallel
@@ -294,6 +344,9 @@ then
 	
 elif [ $TECH == "Illumina" ]
 then
+	# MiSeq SOP
+	CITATION[SOP]="Kozich et al., 2013"
+	FULLCITATION[SOP]="Kozich, J. J., Westcott, S. L., Baxter, N. T., Highlander, S. K., & Schloss, P. D. (2013). Development of a dual-index sequencing strategy and curation pipeline for analyzing amplicon sequence data on the MiSeq Illumina sequencing platform. Applied and Environmental Microbiology, AEM.01043-13. doi:10.1128/AEM.01043-13"
 	# PANDAseq
 	CITATION[PANDA]="Masella et al., 2012"
 	FULLCITATION[PANDA]="Masella AP, Bartram AK, Truszkowski JM, Brown DG, Neufeld JD (2012) PANDAseq: paired-end assembler for illumina sequences. BMC Bioinformatics, 13, 31."
@@ -400,34 +453,6 @@ then
 	paste <(cut -f 1 config/lib3.list) <(cut -f 1 config/lib2.list) | sort -k 1,1 | awk '{if(NR==1){S=$1;printf "%s %s",S,$2} else {if($1==S){printf " %s",$2} else {S=$1;printf "\n%s %s",S,$2}}}END{printf "\n"}' > config/lib4.list
 fi
 SAMP_SIZE=`sed -n '$=' config/lib4.list`
-	
-# Databases
-if [ $TARG == "ITS" ]
-then
-	if [ $CUT_DB == "yes" ]
-	then
-		DBCUT=$DB.$ITSX
-	fi
-	CITATION[FUN]="Nguyen et al., 2016"
-	FULLCITATION[FUN]="Nguyen, N. H., Song, Z., Bates, S. T., Branco, S., Tedersoo, L., Menke, J., … Kennedy, P. G. (2016). FUNGuild: An open annotation tool for parsing fungal community datasets by ecological guild. Fungal Ecology, 20, 241–248."
-	VERSION[FUN]=1.1
-fi
-
-if ( [ $TARG == "18S" ] || [ $TARG == "16S" ] ) && [ $CUT_DB == "yes" ]
-then
-	if [ $TECH == "454" ] && [ $FLIP == "true" ]
-	then
-		DBCUT=$RVS_NAME.$FWD_NAME.$DB
-	else
-		DBCUT=$FWD_NAME.$RVS_NAME.$DB
-	fi
-fi
-
-DBALIGN=$DB.align
-if [ -f $DBFOLD/$DBALIGN.fasta ] && [ $CUT_DB == "yes" ]
-then
-	DBCHOP=$DBCUT.align
-fi
 
 # Save newly set variables to file (avoiding lowercase variables from loops):
 join -v 1 <(set -o posix; set | tr "=" "\t" | sort -k 1,1 ) <(cat /tmp/amp.$STIME.set | tr "=" "\t" | sort -k 1,1 ) | grep -v "^[a-z]\|BASH_REMATCH" | sed "s/'//g" > config/env.txt
