@@ -24,8 +24,31 @@ then
 	fi
 fi
 
-if [ $ITSX == "no" ]
-	then
+if [ $ITSX != "no" ]
+then
+	ITSx -i $DB.fasta --cpu $NCPUS --multi_threads T --save_regions $ITSX --preserve T --graphical F --not_found F -o $DB
+	grep "^>" $DB.$ITSX.fasta | sed 's/^>//' | sort | join - <(sort -k 1,1 $DB.taxonomy) | sed 's/ /\t/' > $DB.$ITSX.taxonomy
+	obigrep -v --id-list=<(grep "^>" $DB.fasta | sed 's/>//') ${DB}_s.fasta | ITSx -i $DB.fasta --cpu $NCPUS --multi_threads T --save_regions $ITSX --preserve T --graphical F --not_found F -o temp.${DB}_s
+	for i in fasta positions summary
+	do
+		cat $DB.$ITSX.$i temp.${DB}_s.$ITSX.$i > ${DB}_s.$ITSX.$i
+	done
+	grep "^>" ${DB}_s.$ITSX.fasta | sed 's/^>//' | sort | join - <(sort -k 1,1 ${DB}_s.taxonomy) | sed 's/ /\t/' > ${DB}_s.$ITSX.taxonomy
+	rm temp.${DB}_s* ${DB}*.full.fasta
+	
+	# Initialize mothur database for singleton including version
+	obihead -n 10 $DBFOLD/${DB}_s.$ITSX.fasta > tmp.${DB}_s.$ITSX.fasta
+	mothur "#set.dir(output=./, tempdefault=$DBFOLD);
+	set.logfile(name=mothur.initialize.logfile);
+	classify.seqs(fasta=tmp.${DB}_s.$ITSX.fasta, template=${DB}_s.$ITSX.fasta, taxonomy=${DB}_s.$ITSX.taxonomy, cutoff=80, method=wang)"
+	rm tmp.${DB}_s*
+	
+	# Format to vsearch udb database for singleton including version
+	sed '$!N;/>/s/\n/ /;s/>//' $DBFOLD/${DB}_s.$ITSX.fasta | sort -k 1,1 | join - <(sort -k 1,1 $DBFOLD/${DB}_s.$ITSX.taxonomy) | sed 's/;$//;s/;/,/g' | awk '{print ">"$1";tax="$3";\n"$2}' > vsearch.${DB}_s.$ITSX.fasta
+	vsearch --makeudb_usearch vsearch.${DB}_s.$ITSX.fasta --output $DBFOLD/${DB}_s.$ITSX.udb
+	rm vsearch.${DB}_s.$ITSX.fasta
+elif [[ $DB =~ [Ss][Ii][Ll][Vv][Aa] ]]
+then
 	# Primers
 	unset PRIMER
 	declare -A PRIMER
@@ -146,43 +169,40 @@ if [ $ITSX == "no" ]
 	cd .. && rm -r $DBCUT.temp
 	
 	# Cut align database
-	if [[ $DB == *"silva"* ]]
+	if [ -f $DBFOLD/$DBALIGN.fasta ]
 	then
-		if [ -f $DBFOLD/$DBALIGN.fasta ]
-		then
-			CUT_POS=(`grep -m 1 ${PRIMER_I[$FWD_NAME]}.*${PRIMER_I[$RVS_NAME.rc]} $DBFOLD/$DBALIGN.fasta | awk -v F=${PRIMER_I[$FWD_NAME]} -v R=${PRIMER_I[$RVS_NAME.rc]} '{match($1,F);print RSTART+RLENGTH;match($1,R);print RSTART-1}'`)
-			obigrep --without-progress-bar --id-list=<(cut -f 1 $DBFOLD/$DBCUT.taxonomy) $DBFOLD/$DBALIGN.fasta > $DBCHOP.pick.fasta
-			mothur "#set.logfile(name=mothur.dbalign.logfile);
-			pcr.seqs(fasta=$DBCHOP.pick.fasta, start=${CUT_POS[0]}, end=${CUT_POS[1]}, processors=$NCPUS);
-			filter.seqs(processors=$NCPUS)"
-			mv $DBCHOP.pick.pcr.filter.fasta $DBFOLD/$DBCHOP.fasta
-			rm $DBCHOP.pick.*
-		else
-			echo "The align version of the database $DB was not found (expected directory: $DBFOLD , expected file name: $DBALIGN.fasta"
-		fi
+		CUT_POS=(`grep -m 1 ${PRIMER_I[$FWD_NAME]}.*${PRIMER_I[$RVS_NAME.rc]} $DBFOLD/$DBALIGN.fasta | awk -v F=${PRIMER_I[$FWD_NAME]} -v R=${PRIMER_I[$RVS_NAME.rc]} '{match($1,F);print RSTART+RLENGTH;match($1,R);print RSTART-1}'`)
+		obigrep --without-progress-bar --id-list=<(cut -f 1 $DBFOLD/$DBCUT.taxonomy) $DBFOLD/$DBALIGN.fasta > $DBCHOP.pick.fasta
+		mothur "#set.logfile(name=mothur.dbalign.logfile);
+		pcr.seqs(fasta=$DBCHOP.pick.fasta, start=${CUT_POS[0]}, end=${CUT_POS[1]}, processors=$NCPUS);
+		filter.seqs(processors=$NCPUS)"
+		mv $DBCHOP.pick.pcr.filter.fasta $DBFOLD/$DBCHOP.fasta
+		rm $DBCHOP.pick.*
+	else
+		echo "The align version of the database $DB was not found (expected directory: $DBFOLD , expected file name: $DBALIGN.fasta)."
 	fi
 else
-	ITSx -i $DB.fasta --cpu $NCPUS --multi_threads T --save_regions $ITSX --preserve T --graphical F --not_found F -o $DB
-	grep "^>" $DB.$ITSX.fasta | sed 's/^>//' | sort | join - <(sort -k 1,1 $DB.taxonomy) | sed 's/ /\t/' > $DB.$ITSX.taxonomy
-	obigrep -v --id-list=<(grep "^>" $DB.fasta | sed 's/>//') ${DB}_s.fasta | ITSx -i $DB.fasta --cpu $NCPUS --multi_threads T --save_regions $ITSX --preserve T --graphical F --not_found F -o temp.${DB}_s
-	for i in fasta positions summary
-	do
-		cat $DB.$ITSX.$i temp.${DB}_s.$ITSX.$i > ${DB}_s.$ITSX.$i
-	done
-	grep "^>" ${DB}_s.$ITSX.fasta | sed 's/^>//' | sort | join - <(sort -k 1,1 ${DB}_s.taxonomy) | sed 's/ /\t/' > ${DB}_s.$ITSX.taxonomy
-	rm temp.${DB}_s* ${DB}*.full.fasta
-	
-	# Initialize mothur database for singleton including version
-	obihead -n 10 $DBFOLD/${DB}_s.$ITSX.fasta > tmp.${DB}_s.$ITSX.fasta
-	mothur "#set.dir(output=./, tempdefault=$DBFOLD);
-	set.logfile(name=mothur.initialize.logfile);
-	classify.seqs(fasta=tmp.${DB}_s.$ITSX.fasta, template=${DB}_s.$ITSX.fasta, taxonomy=${DB}_s.$ITSX.taxonomy, cutoff=80, method=wang)"
-	rm tmp.${DB}_s*
-	
-	# Format to vsearch udb database for singleton including version
-	sed '$!N;/>/s/\n/ /;s/>//' $DBFOLD/${DB}_s.$ITSX.fasta | sort -k 1,1 | join - <(sort -k 1,1 $DBFOLD/${DB}_s.$ITSX.taxonomy) | sed 's/;$//;s/;/,/g' | awk '{print ">"$1";tax="$3";\n"$2}' > vsearch.${DB}_s.$ITSX.fasta
-	vsearch --makeudb_usearch vsearch.${DB}_s.$ITSX.fasta --output $DBFOLD/${DB}_s.$ITSX.udb
-	rm vsearch.${DB}_s.$ITSX.fasta
+	RVS_RC=$(echo ">a $RVS" | tr " " "\n" | obicomplement --uppercase | grep -v ">")
+	mkdir $DBCUT.temp && cd $DBCUT.temp
+	FWD_E=$(awk -v F=${#FWD} 'BEGIN{printf "%.2f",1/F+0.005}')
+	RVS_E=$(awk -v F=${#RVS} 'BEGIN{printf "%.2f",1/F+0.005}')
+	twofasta ../$DB.fasta | cutadapt -g ${FWD} -e ${FWD_E} --no-indels --trimmed-only - | cutadapt -a ${RVS_RC} -e ${RVS_E} --no-indels --trimmed-only - > $DBCUT.cut.fasta
+	# clean: remove sequences with n's, longer than 800 nt, smaller than MINLEN, with a taxonomic path with less than 3 ranks and containing the primer sequence internaly
+	PRIMER_REG=$(for i in $FWD $RVS_RC; do TMP=$(awk -v I=$i 'BEGIN{print tolower(I)}') ; while read A B; do TMP=`echo $TMP | sed "s/$A/$B/g"` ; done < $BIN/IUPAC.txt ; echo $TMP ; done)
+	paste - - < $DBCUT.cut.fasta | sort -k 1,1 | join <(sort -k 1,1 $DBFOLD/$DB.taxonomy | sed 's/^/>/;s/;$//;s/;/|/g') - | awk '{rank=split($2,a,"|");print $1,"ranks="rank"; taxo="$2";\n"$3}' | obigrep -p 'ranks>2' -l $MINLEN -L 800 -s '^[atcg]*$' | obigrep -v -s $(echo $PRIMER_REG | sed 's/ /|/g') | sed 's/ .*taxo=/ /;s/; *$//' | twofasta | sed '$!N;/>/s/\n/ /' | sort -k 2,2 | awk '{if($2==prev){print $1"\n"$3} else {print "#"$1"\n"$3;prev=$2}}' > $DBCUT.taxo.fasth
+	# For each taxonomic path with more than a sequence, dereplicate then cluster with swarm and keep only the seed
+	clust() {
+		cat /dev/stdin | parallel --recstart "#" --remove-rec-sep --pipe -N1 "cat | vsearch --derep_fulllength - --sizeout --quiet --output - | swarm -n -z -w seed.$1.{#} -o swarm.$1.{#} -l /dev/null"
+		cat seed.$1.* > seed.$1
+		cat swarm.$1.* > swarm.$1
+		rm seed.$1.* swarm.$1.*
+	}
+	export -f clust
+	cat $DBCUT.taxo.fasth | parallel -j $NCPUS --block 2M --recstart "#" --pipe clust {#} {}
+	cat seed.* | sed 's/;.*$//' > ../$DBCUT.fasta
+	cat swarm.* > $DBCUT.swarm
+	grep ">" ../$DBCUT.fasta | sed 's/^>//' | nl | sort -k 2,2 | join -1 2 - <(sort -k 1,1 ../$DB.taxonomy) | sort -k 2,2n | cut -d " " -f 1,3 | tr " " "\t" > ../$DBCUT.taxonomy
+	cd .. && rm -r $DBCUT.temp
 fi
 
 # Initialize mothur database
