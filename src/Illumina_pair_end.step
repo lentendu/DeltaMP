@@ -16,6 +16,10 @@ pandaseq -f fastq/$LIB_NAME.fwd.fastq -r fastq/$LIB_NAME.rvs.fastq -g fastq/log.
 mothur "#set.dir(input=fastq, output=fasta);
 fastq.info(fastq=$LIB_NAME.pairend.fastq)"
 
+# Replace "-" by "_" in sequence identifier names
+sed '/>/s/-/_/g' fasta/$LIB_NAME.pairend.fasta > fasta/$LIB_NAME.pairend.tmp && mv fasta/$LIB_NAME.pairend.tmp fasta/$LIB_NAME.pairend.fasta
+sed '/>/s/-/_/g' fasta/$LIB_NAME.pairend.qual > fasta/$LIB_NAME.pairend.tmp && mv fasta/$LIB_NAME.pairend.tmp fasta/$LIB_NAME.pairend.qual
+
 # Stat on assembly
 sed -n '/OVERLAPS/p' fastq/log.pandaseq.$LIB_NAME.txt | cut -f 4- | paste -d " " <(echo $LIB_NAME) - >> raw_stat/overlap.txt
 awk '$0!~"^>"{print length($1)}' fasta/$LIB_NAME.pairend.fasta > raw_stat/$LIB_NAME.pairend.length
