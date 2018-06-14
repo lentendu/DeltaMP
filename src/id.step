@@ -133,7 +133,7 @@ else
 		if [ $CLASSIF == "bayesian" ]
 		then
 			mothur "#set.dir(tempdefault=$DBFOLD);
-			classify.seqs(fasta=${FASTA_OTUS.fasta}, template=$TEMPLATE.fasta, taxonomy=$TEMPLATE.taxonomy, cutoff=60, method=wang, processors=$NCPUS);
+			classify.seqs(fasta=${FASTA_OTUS}.fasta, template=$TEMPLATE.fasta, taxonomy=$TEMPLATE.taxonomy, cutoff=60, method=wang, processors=$NCPUS);
 			get.current()"
 			unset LOG TAXO
 			LOG=`ls mothur.*.logfile | tail -1`
