@@ -109,7 +109,7 @@ if [ ! -z "$TO_DEL_D" ] ; then rmdir $TO_DEL_D ; fi
 
 # Remove unnecessary dependencies and re-queue from STEP
 sed -n '/'$STEP'\.sh)/,$p' config/steps.final > steps.tmp
-AVOID=$(sed -n '1,/'$UNTIL'\.sh)$/{/^#/d;s/=.*$//;s/^/${/;s/$/}/;p}' config/steps.final)
+AVOID=$(sed -n '1,/'$UNTIL'\.sh)$/p' config/steps.final | awk 'BEGIN{FS="="}$0!~"^#"{if($0~" -t "){print "${"$1"%.*}"} else print "${"$1"}"}')
 for i in $AVOID; do sed 's/,*'$i'//' steps.tmp > steps.tmp2 && mv steps.tmp2 steps.tmp  ; done
 . <(sed 's/-hold_jid  \//\//;s/\(-hold_jid \),/\1/' steps.tmp)
 rm steps.tmp
