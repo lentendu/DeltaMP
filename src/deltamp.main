@@ -240,6 +240,7 @@ fi
 
 	
 # Databases
+declare -A CITATION FULLCITATION
 if [ $TARG == "ITS" ]
 then
 	if [ $CUT_DB == "yes" ]
@@ -299,7 +300,6 @@ fi
 
 # Citations
 	# MOTHUR, UCHIME, classifier
-declare -A CITATION FULLCITATION
 CITATION[MOTHUR]="Schloss et al., 2009"
 FULLCITATION[MOTHUR]="Schloss PD, Westcott SL, Ryabin T et al. (2009) Introducing mothur: Open-Source, Platform-Independent, Community-Supported Software for Describing and Comparing Microbial Communities. Applied and Environmental Microbiology, 75, 7537–7541."
 VERSION[MOTHUR]=`mothur --version | grep version | cut -d "=" -f 2`
