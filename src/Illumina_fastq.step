@@ -30,10 +30,11 @@ else
 fi
 
 # Convert to fasta + qual for raw reads stat
-mothur "#set.dir(input=fastq, output=fasta);
-	set.logfile(name=mothur.$LIB_NAME.logfile);
-	fastq.info(fastq=$LIB_NAME.fwd.fastq);
-	fastq.info(fastq=$LIB_NAME.rvs.fastq)"
+mothur "#set.dir(input=$EXEC/libraries/fastq, output=$EXEC/libraries/fasta);
+set.logfile(name=mothur.$LIB_NAME.logfile);
+fastq.info(fastq=$LIB_NAME.fwd.fastq);
+fastq.info(fastq=$LIB_NAME.rvs.fastq)"
+
 awk '$0!~"^>"{sum=0;for(i=1;i<=NF;i++){sum+=$i};print int(sum/NF)}' fasta/$LIB_NAME.fwd.qual > raw_stat/$LIB_NAME.fwd.meanqual
 awk '$0!~"^>"{for(i=1;i<=NF;i++){sum[i]+=$i;nb[i]+=1}}END{for(i=1;sum[i];i++){print int(sum[i]/nb[i])}}' fasta/$LIB_NAME.fwd.qual > raw_stat/$LIB_NAME.fwd.meanposqual
 awk '$0!~"^>"{sum=0;for(i=1;i<=NF;i++){sum+=$i};print int(sum/NF)}' fasta/$LIB_NAME.rvs.qual > raw_stat/$LIB_NAME.rvs.meanqual

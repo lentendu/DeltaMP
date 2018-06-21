@@ -35,7 +35,7 @@ mkdir $LIB_NAME && cd $LIB_NAME
 for i in "${SAMPLE[@]}"
 do
 	awk -v I=$i '$2==I{print $1}' ../$FWD_LIB.contigs.groups > $i.accnos
-	mothur "#set.dir(input=../, output=./);
+	mothur "#set.dir(input=$EXEC/libraries/demultiplex, output=$EXEC/libraries/demultiplex/$LIB_NAME);
 	get.seqs(accnos=$i.accnos, fastq=$FWD_LIB.fastq);
 	get.seqs(accnos=$i.accnos, fastq=$RVS_LIB.fastq)"
 	dd if=$FWD_LIB.pick.fastq of=../../$SUBPROJECT.fastq/$SAMPLE.$FWD_LIB.fastq bs=1M && rm $FWD_LIB.pick.fastq

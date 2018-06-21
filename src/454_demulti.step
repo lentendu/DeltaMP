@@ -22,9 +22,9 @@ then
 fi
 
 #Split library over the different samples
-mothur "#set.dir(input=../, output=./);
+mothur "#set.dir(input=$EXEC/libraries, output=$EXEC/libraries/demultiplex);
 sffinfo(sff=$LIB_NAME.sff);
-set.dir(input=./, output=./);
+set.dir(input=$EXEC/libraries/demultiplex, output=$EXEC/libraries/demultiplex);
 trim.seqs(fasta=current, oligos=oligos.$LIB_NAME, bdiffs=$BDIFFS, pdiffs=$((${#FWD} / 3)), minlength=1, maxlength=1000, maxambig=50, maxhomop=20, processors=$NCPUS)"
 
 # create list of sequences to extract from main sff and oligo file per sample

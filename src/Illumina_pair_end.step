@@ -13,7 +13,7 @@ cd libraries
 pandaseq -f fastq/$LIB_NAME.fwd.fastq -r fastq/$LIB_NAME.rvs.fastq -g fastq/log.pandaseq.$LIB_NAME.txt -F -A $PALG -o $MIN_OV -t $PTRESH -T 1 > fastq/$LIB_NAME.pairend.fastq
 
 # Convert to fasta + qual
-mothur "#set.dir(input=fastq, output=fasta);
+mothur "#set.dir(input=$EXEC/libraries/fastq, output=$EXEC/libraries/fasta);
 set.logfile(name=mothur.$LIB_NAME.logfile, append=T);
 fastq.info(fastq=$LIB_NAME.pairend.fastq)"
 

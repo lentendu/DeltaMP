@@ -16,10 +16,10 @@ do
 	# sff to fasta + qual
 	if [ $DEMULTI == "yes" ]
 	then
-		mothur "#set.dir(input=./, output=./fasta);
+		mothur "#set.dir(input=$EXEC/libraries, output=$EXEC/libraries/fasta);
 		sffinfo(sff=$LIB_NAME.sff)"
 	else
-		mothur "#set.dir(input=./sff, output=./fasta);
+		mothur "#set.dir(input=$EXEC/libraries/sff, output=$EXEC/libraries/fasta);
 		sffinfo(sff=$LIB_NAME.sff)"
 	fi
 	

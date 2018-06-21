@@ -35,7 +35,7 @@ then
 	
 	# Initialize mothur database for singleton including version
 	obihead -n 10 $DBFOLD/${DB}_s.$ITSX.fasta > tmp.${DB}_s.$ITSX.fasta
-	mothur "#set.dir(output=./, tempdefault=$DBFOLD);
+	mothur "#set.dir(output=$DBFOLD, tempdefault=$DBFOLD);
 	set.logfile(name=mothur.initialize.logfile, append=T);
 	classify.seqs(fasta=tmp.${DB}_s.$ITSX.fasta, template=${DB}_s.$ITSX.fasta, taxonomy=${DB}_s.$ITSX.taxonomy, cutoff=80, method=wang)"
 	rm tmp.${DB}_s*
@@ -204,7 +204,7 @@ fi
 
 # Initialize mothur database
 obihead -n 10 $DBFOLD/$DBCUT.fasta > tmp.$DBCUT.fasta
-mothur "#set.dir(output=./, tempdefault=$DBFOLD);
+mothur "#set.dir(output=$DBFOLD, tempdefault=$DBFOLD);
 set.logfile(name=mothur.initialize.logfile, append=T);
 classify.seqs(fasta=tmp.$DBCUT.fasta, template=$DBCUT.fasta, taxonomy=$DBCUT.taxonomy, cutoff=80, method=wang)"
 rm tmp.$DBCUT*
