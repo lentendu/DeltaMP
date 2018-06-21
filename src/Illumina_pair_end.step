@@ -14,6 +14,7 @@ pandaseq -f fastq/$LIB_NAME.fwd.fastq -r fastq/$LIB_NAME.rvs.fastq -g fastq/log.
 
 # Convert to fasta + qual
 mothur "#set.dir(input=fastq, output=fasta);
+set.logfile(name=mothur.$LIB_NAME.logfile, append=T);
 fastq.info(fastq=$LIB_NAME.pairend.fastq)"
 
 # Replace "-" by "_" in sequence identifiers
