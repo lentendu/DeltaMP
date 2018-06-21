@@ -29,7 +29,7 @@ then
 	ITSx -i $DB.fasta --cpu $NCPUS --multi_threads T --save_regions $ITSX --preserve T --graphical F --not_found F -o $DB
 	sed -n '/^>/{s/>//;p}' $DB.$ITSX.fasta | sort | join - <(sort -k 1,1 $DB.taxonomy) | sed 's/ /\t/' > $DB.$ITSX.taxonomy
 	obigrep -v --id-list=<(sed -n '/^>/{s/>//;p}' $DB.fasta) ${DB}_s.fasta | ITSx -i $DB.fasta --cpu $NCPUS --multi_threads T --save_regions $ITSX --preserve T --graphical F --not_found F -o temp.${DB}_s
-	obigrep -v --id-list=<(sed -n '/^>/{s/>//;p}' $DB.fasta | sort | join -v 1 - <(sed -n '/^>/{s/>//;p}' $DB_s.fasta | sort)) $DB.$ITSX.fasta | cat - temp.${DB}_s.$ITSX.fasta > ${DB}_s.$ITSX.fasta
+	obigrep -v --id-list=<(sed -n '/^>/{s/>//;p}' $DB.fasta | sort | join -v 1 - <(sed -n '/^>/{s/>//;p}' ${DB}_s.fasta | sort)) $DB.$ITSX.fasta | cat - temp.${DB}_s.$ITSX.fasta > ${DB}_s.$ITSX.fasta
 	sed -n '/^>/{s/>//;p}' ${DB}_s.$ITSX.fasta | sort | join - <(sort -k 1,1 ${DB}_s.taxonomy) | sed 's/ /\t/' > ${DB}_s.$ITSX.taxonomy
 	rm temp.${DB}_s* ${DB}*.full.fasta ${DB}*positions.txt ${DB}*summary.txt
 	
