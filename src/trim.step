@@ -81,11 +81,11 @@ do
 			if [ $TARG == "ITS" ] && [ $ITSX != "no" ]
 			then
 				mothur "#set.logfile(name=$LOG, append=T);
-				set.dir(input=../../libraries/fasta, output=./);
+				set.dir(input=$EXEC/libraries/fasta, output=./);
 				trim.seqs(fasta=$i.fasta, oligos=oligos.$i, qfile=$i.qual, flip=$FLIP, qaverage=$QUAL, bdiffs=$BDIFFS, pdiffs=$PDIFFS, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$LENGTH)"
 			else
 				mothur "#set.logfile(name=$LOG, append=T);
-				set.dir(input=../../libraries/fasta, output=./);
+				set.dir(input=$EXEC/libraries/fasta, output=./);
 				trim.seqs(fasta=$i.fasta, oligos=oligos.$i, qfile=$i.qual, flip=$FLIP, qaverage=$QUAL, bdiffs=$BDIFFS, pdiffs=$PDIFFS, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$LENGTH, keepfirst=$LENGTH)"
 			fi
 		fi
@@ -93,7 +93,7 @@ do
 	then
 		QUAL=`cat $EXEC/quality_check/optimized.quality.txt`
 		mothur "#set.logfile(name=$LOG, append=T);
-		set.dir(input=../../libraries/fasta, output=./);
+		set.dir(input=$EXEC/libraries/fasta, output=./);
 		trim.seqs(fasta=$i.pairend.fasta, qfile=$i.pairend.qual, qaverage=$QUAL, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$MINLEN, maxlength=$MAXLEN)"
 	fi
 done
@@ -104,7 +104,7 @@ if [ $TECH == "454" ] && [ "$DENOISE" == "yes" ] ; then cat *.names > $SAMP.name
 # unique and subsample
 if [ $SUBSAMPLE == "yes" ]
 then
-	SIZE=$(grep "Minimum" ../../quality_check/$SUBPROJECT.summary.stat.tsv | cut -f 3 | cut -d "." -f 1)
+	SIZE=$(grep "Minimum" $EXEC/quality_check/$SUBPROJECT.summary.stat.tsv | cut -f 3 | cut -d "." -f 1)
 	if [ $TECH == "454" ] && [ "$DENOISE" == "yes" ]
 	then
 		mothur "#set.logfile(name=$LOG, append=T);
