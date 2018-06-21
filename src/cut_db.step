@@ -27,19 +27,16 @@ fi
 if [ $ITSX != "no" ]
 then
 	ITSx -i $DB.fasta --cpu $NCPUS --multi_threads T --save_regions $ITSX --preserve T --graphical F --not_found F -o $DB
-	grep "^>" $DB.$ITSX.fasta | sed 's/^>//' | sort | join - <(sort -k 1,1 $DB.taxonomy) | sed 's/ /\t/' > $DB.$ITSX.taxonomy
-	obigrep -v --id-list=<(grep "^>" $DB.fasta | sed 's/>//') ${DB}_s.fasta | ITSx -i $DB.fasta --cpu $NCPUS --multi_threads T --save_regions $ITSX --preserve T --graphical F --not_found F -o temp.${DB}_s
-	for i in fasta positions summary
-	do
-		cat $DB.$ITSX.$i temp.${DB}_s.$ITSX.$i > ${DB}_s.$ITSX.$i
-	done
-	grep "^>" ${DB}_s.$ITSX.fasta | sed 's/^>//' | sort | join - <(sort -k 1,1 ${DB}_s.taxonomy) | sed 's/ /\t/' > ${DB}_s.$ITSX.taxonomy
-	rm temp.${DB}_s* ${DB}*.full.fasta
+	sed -n '/^>/{s/>//;p}' $DB.$ITSX.fasta | sort | join - <(sort -k 1,1 $DB.taxonomy) | sed 's/ /\t/' > $DB.$ITSX.taxonomy
+	obigrep -v --id-list=<(sed -n '/^>/{s/>//;p}' $DB.fasta) ${DB}_s.fasta | ITSx -i $DB.fasta --cpu $NCPUS --multi_threads T --save_regions $ITSX --preserve T --graphical F --not_found F -o temp.${DB}_s
+	obigrep -v --id-list=<(sed -n '/^>/{s/>//;p}' $DB.fasta | sort | join -v 1 - <(sed -n '/^>/{s/>//;p}' $DB_s.fasta | sort)) $DB.$ITSX.fasta | cat - temp.${DB}_s.$ITSX.fasta > ${DB}_s.$ITSX.fasta
+	sed -n '/^>/{s/>//;p}' ${DB}_s.$ITSX.fasta | sort | join - <(sort -k 1,1 ${DB}_s.taxonomy) | sed 's/ /\t/' > ${DB}_s.$ITSX.taxonomy
+	rm temp.${DB}_s* ${DB}*.full.fasta ${DB}*positions.txt ${DB}*summary.txt
 	
 	# Initialize mothur database for singleton including version
 	obihead -n 10 $DBFOLD/${DB}_s.$ITSX.fasta > tmp.${DB}_s.$ITSX.fasta
 	mothur "#set.dir(output=./, tempdefault=$DBFOLD);
-	set.logfile(name=mothur.initialize.logfile);
+	set.logfile(name=mothur.initialize.logfile, append=T);
 	classify.seqs(fasta=tmp.${DB}_s.$ITSX.fasta, template=${DB}_s.$ITSX.fasta, taxonomy=${DB}_s.$ITSX.taxonomy, cutoff=80, method=wang)"
 	rm tmp.${DB}_s*
 	
@@ -208,7 +205,7 @@ fi
 # Initialize mothur database
 obihead -n 10 $DBFOLD/$DBCUT.fasta > tmp.$DBCUT.fasta
 mothur "#set.dir(output=./, tempdefault=$DBFOLD);
-set.logfile(name=mothur.initialize.logfile);
+set.logfile(name=mothur.initialize.logfile, append=T);
 classify.seqs(fasta=tmp.$DBCUT.fasta, template=$DBCUT.fasta, taxonomy=$DBCUT.taxonomy, cutoff=80, method=wang)"
 rm tmp.$DBCUT*
 
