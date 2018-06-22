@@ -68,7 +68,11 @@
 				if(rank[i]!="NA")
 					endref=refall
 			}
-			printf "%s", rank[1]
+			if(rank[i]=="NA") {
+				printf "%s" , rank[1]
+			} else {
+				printf "%s(%.0f)" , rank[1], stat[1]
+			}
 			for(i=2;i<=nf;i++) {
 				if(rank[i]=="NA") {
 					printf ";%s" , rank[i]
