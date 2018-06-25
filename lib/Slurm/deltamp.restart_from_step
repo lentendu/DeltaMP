@@ -70,7 +70,7 @@ fi
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
 
 # Delete jobs from the queue
-TO_DEL=`squeue -o "%.i %.j" | grep $(eval echo $DELTAMP_VER.{$(echo ${TO_CLEAN[@]} | sed 's/ /,/g')}.$SUBPROJECT | sed 's/ /\\\|/g') | awk '{print $1}'`
+TO_DEL=`squeue -o "%.i %.j" | grep $(eval echo $DELTAMP_VER.{$(echo ${TO_CLEAN[@]} | sed 's/ /,/g')}.$SUBPROJECT | sed 's/ /\\\|/g') | awk '{print $1}' | cut -d "_" -f 1`
 if [ ! -z "$TO_DEL" ]
 then
 	scancel $TO_DEL
@@ -108,7 +108,7 @@ if [ ! -z "$TO_DEL_F" ] ; then rm $TO_DEL_F ; fi
 if [ ! -z "$TO_DEL_D" ] ; then rmdir $TO_DEL_D ; fi
 
 # Remove unnecessary dependencies and re-queue from STEP
-sed -n '/'$STEP'\.sh)/,$p' config/steps.final > steps.tmp
+sed -n '\@ '$BIN/$STEP'\.sh)$@,$p' config/steps.final > steps.tmp
 AVOID=$(sed -n '1,/'$UNTIL'\.sh)$/p' config/steps.final | awk 'BEGIN{FS="="}$0!~"^#"{if($0~" -a "){print "${"$1"%.*}"} else print "${"$1"}"}')
 for i in $AVOID; do sed 's/:'$i'//' steps.tmp > steps.tmp2 && mv steps.tmp2 steps.tmp  ; done
 . <(sed 's/ -d afterok / /' steps.tmp)
