@@ -26,7 +26,7 @@ list2otu () {
 module load DeltaMP/${VERSION[DELTAMP]}
 
 # load environment of previous step
-while read var val; do unset $var ; if [ $REF_SUBPROJECT == "no" ] ; then declare $var="$val" ; else declare $var="${val//$REF_SUBPROJECT/$SUBPROJECT}" ; fi ; done < config/id_env.txt
+while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; if [ $REF_SUBPROJECT != "no" ] ; then declare $var=$(eval echo "$"$var | sed 's/'$REF_SUBPROJECT'/'$SUBPROJECT'/') ; fi ; done < config/id_env.txt
 
 # OTU table
 cd processing
