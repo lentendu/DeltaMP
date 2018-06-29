@@ -121,7 +121,8 @@ then
 	vsearch --cluster_smallmem $FASTA.sort.fasta --usersort --id $SIM --centroids $FASTA.vsearch.fasta --xsize -uc $FASTA.uc
 	vsearch2mothur $FASTA.uc $NAMES.names $DISIM
 	NAMES_OTUS=$NAMES.vsearch
-	FASTA_OTUS=$FASTA.vsearch && sed '/>/s/;$//' $FASTA_OTUS.fasta > tmp.FASTA_OTUS && mv tmp.FASTA_OTUS FASTA_OTUS.fasta
+	FASTA_OTUS=$FASTA.vsearch
+	sed '/>/s/;$//' $FASTA_OTUS.fasta > tmp.$FASTA_OTUS && mv tmp.$FASTA_OTUS $FASTA_OTUS.fasta
 	LIST=$NAMES.vsearch
 elif [ $CLUST == "swarm" ]
 then
