@@ -1,0 +1,3 @@
+#!/bin/bash
+
+squeue -o "%.i %.j %.T %.M %.C %.m %.P %.R %.E" -S "i,T" $@ | awk 'NR==1 || $2~"deltamp" {print $0}' | column -t

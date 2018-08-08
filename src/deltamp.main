@@ -540,7 +540,7 @@ then
 			else
 				TMP_SCRIPT[$i]=$(awk '$0!~"^#"{print $NF}' $SUBPROJECT/config/steps | grep -m 1 -o $MATCH_REGEX)
 			fi
-			# which was the las step executed before the differing step
+			# which was the last step executed before the differing step
 			TMP_PREV[$i]=$(awk '$0!~"^#"{print $NF}' $i/config/steps.final | tac | grep -o -m 1 $(sed '/'"${TMP_SCRIPT[$i]}"'/,$d' $BIN/ref.steps.$TECH | tr "\n" " " | sed 's/ $/\n/;s/ /\\\|/g'))
 		done
 		# the previous SUBPROJECT which have the most number of steps in common with the current SUBPROJECT is set as seed
