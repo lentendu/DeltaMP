@@ -547,8 +547,13 @@ then
 		REF_SUBPROJECT=`for i in "${PREV_LIST[@]}"; do sed -n '/'"${TMP_PREV[$i]}"'/=' $BIN/ref.steps.$TECH | paste <(echo $i) <(stat -c "%Y" $i) - ; done | sort -k 3,3nr -k 2,2nr | cut -f 1 | head -1`
 		FIRST_STEP=${TMP_SCRIPT[$REF_SUBPROJECT]}
 		LAST_REF=${TMP_PREV[$REF_SUBPROJECT]}
-		# the steps to be queued are updated accordingly
-		awk -v F=$FIRST_STEP 'BEGIN{p=0} {if($NF~F".sh)$"){p=1} ; if(p || NR==1){print} else {print "#"$0}}' $SUBPROJECT/config/steps | awk -v V=$DELTAMP_VER -v S=$SUBPROJECT -v R=$REF_SUBPROJECT -v L=${LAST_REF} 'BEGIN{c=0} {if(NR==1){sub(V".init."S" ",V".init."S" QUEUE_HOLD"V"."L"."R" ")} else {if($0!~"^#" && c==0){sub("QUEUE_HOLD[^ ]* ","QUEUE_HOLD"V".init."S" ");c+=1}};print}' > $SUBPROJECT/config/steps.final
+		# the steps to be queued are updated accordingly (avoid hold on previous subproject last step if not anymore in the queue)
+		if [ -z $(deltamp.queue | grep ${DELTAMP_VER}.${LAST_REF}.${REF_SUBPROJECT}) ]
+		then
+			awk -v F=$FIRST_STEP 'BEGIN{p=0} {if($NF~F".sh)$"){p=1} ; if(p || NR==1){print} else {print "#"$0}}' $SUBPROJECT/config/steps | awk -v V=$DELTAMP_VER -v S=$SUBPROJECT -v R=$REF_SUBPROJECT -v L=${LAST_REF} 'BEGIN{c=0} {if($0!~"^#" && c==0){sub("QUEUE_HOLD[^ ]* ","QUEUE_HOLD"V".init."S" ");c+=1};print}' > $SUBPROJECT/config/steps.final
+		else
+			awk -v F=$FIRST_STEP 'BEGIN{p=0} {if($NF~F".sh)$"){p=1} ; if(p || NR==1){print} else {print "#"$0}}' $SUBPROJECT/config/steps | awk -v V=$DELTAMP_VER -v S=$SUBPROJECT -v R=$REF_SUBPROJECT -v L=${LAST_REF} 'BEGIN{c=0} {if(NR==1){sub(V".init."S" ",V".init."S" QUEUE_HOLD"V"."L"."R" ")} else {if($0!~"^#" && c==0){sub("QUEUE_HOLD[^ ]* ","QUEUE_HOLD"V".init."S" ");c+=1}};print}' > $SUBPROJECT/config/steps.final
+		fi
 		# Check archiving of raw reads in previous subproject
 		if [ $TECH == "454" ] && [ $DEMULTI == "no" ]
 		then
