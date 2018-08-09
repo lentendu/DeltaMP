@@ -10,7 +10,7 @@ then
 	return 0
 fi
 MY_NAME=`echo ${MY_JOB##*/} | sed 's/\.sh)//'`
-PREV_NAME=(`echo $MY_JOB | sed 's/^.*QUEUE_HOLD\([^ ]*\) .*$/\1/;s/QUEUE_SEP/ /g;s/${//g;s/}//g'`)
+PREV_NAME=(`echo $MY_JOB | sed 's/^.*QUEUE_HOLD\([^ ]*\) .*$/\1/;s/QUEUE_SEP/ /g;s/${//g;s/[%\.\*]*}//g'`)
 declare -A PREV_JOB
 for i in "${PREV_NAME[@]}"; do PREV_JOB[$i]="`grep "^$i=" config/steps.final`" ; done
 for i in "${PREV_NAME[@]}"
