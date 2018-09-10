@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# author: Guillaume Lentendu (guillaume.lentendu@ufz.de)
+# author: Guillaume Lentendu (lentendu@rhrk.uni-kl.de)
 
 # Usage info
 show_help() {
@@ -15,15 +15,15 @@ SYNOPSIS
 DESCRIPTION
 	-h	display this help and exit
 	
-	-a	account or project name for the job queueing system
+	-a	account or project name for the job queuing system
 	
 	-c	at the end of a dry run (-d option), avoid the deletion of the SUBPROJECT and PROJECT (if empty) directories from output directory
 		
-	-d	avoid submission to queueing system and only display pipeline submission informations (aka. dry run)
+	-d	avoid submission to queuing system and only display pipeline submission informations (aka. dry run)
 	
 	-f	display default values for optional configuration parameters
 		
-	-n	avoid benchmarking (i.e. searching for previous SUBPROJECT) and run the pipeline from the beginning
+	-n	avoid checkpointing (i.e. searching for previous SUBPROJECT) and run the pipeline from the beginning
 	
 	-m max_running_tasks
 		impose a limit on the maximum number of concurrently running tasks per array jobs, default is 400
@@ -39,7 +39,7 @@ AUTHOR
 	Guillaume Lentendu
 
 REPORTING BUGS
-	guillaume.lentendu@ufz.de
+	lentendu@rhrk.uni-kl.de
 	
 COPYRIGHT
 
@@ -49,7 +49,7 @@ EOF
 show_doc() {
 cat << EOF
 
-# Refere to the manual at $DELTAMP_BUILD/documentation/deltamp_${VERSION[DELTAMP]}_documentation.pdf and be sure to use the correct configuration file format.
+# Refer to the manual at $DELTAMP_BUILD/documentation/deltamp_${VERSION[DELTAMP]}_documentation.pdf and be sure to use the correct configuration file format.
 # A template configuration file can be found at $DELTAMP_BUILD/documentation/configuration_file_template.tsv
 
 # Aborting
@@ -94,39 +94,42 @@ DEMULTI_ONLY=no
 BENCHM=yes
 REF_SUBPROJECT=no
 
+error(){
+	echo "#Error: $1"
+	show_help | fmt -s -w $(tput cols)
+	exit $2
+} >&2
+
 # get options
 while getopts ":a:cdfhm:nqsr:" opt
 do
 	case $opt in
 		h)	show_help | fmt -s -w $(tput cols)
-			exit 1;;
-		a)	DELTAMP_ACCOUNT=$OPTARG;;
+			exit 0;;
+		a)	DELTAMP_ACCOUNT=${OPTARG};;
 		c)	CLEAN=no;;
 		d)	DRY=yes;;
 		f)	show_default | fmt -s -w $(tput cols)
-			exit 1;;
-		m)	MAX_TASK=$OPTARG;;
+			exit 0;;
+		m)	[[ ${OPTARG} =~ ^[0-9]+$ ]] || error " ${OPTARG} is not a number" 1
+			MAX_TASK=${OPTARG};;
 		n)	BENCHM=no;;
 		q)	QUAL_ONLY=yes;;
 		s)	DEMULTI_ONLY=yes;;
-		r)	REF_SUBPROJECT=$OPTARG;;
-		\?)	echo "# Error" >&2
-			echo "# Invalid option: -$OPTARG" >&2
-			show_help | fmt -s -w $(tput cols) >&2
-			exit 1;;
-		:)	echo "# Error" >&2
-			echo "# Option -$OPTARG requires an argument." >&2
-			show_help | fmt -s -w $(tput cols) >&2
-			exit 1;;
+		r)	[[ -d ${OPTARG} ]] || error "Directory ${OPTARG} does not exist" 1
+			[[ -w ${OPTARG} ]] || error "Directory ${OPTARG} is not writable" 1
+			REF_SUBPROJECT=${OPTARG};;
+		\?)	error "# Invalid option: -${OPTARG}" 1
+			;;
+		:)	error "# Option -${OPTARG} requires an argument." 1
+			;;
 	esac
 done
 shift "$((OPTIND-1))" # Shift off the options and optional --.
 
 if [ -z "$1" ]
 then 
-	echo "# Error: configuration file is missing." >&2
-	show_help | fmt -s -w $(tput cols) >&2
-	exit 1
+	error "Configuration file is missing." 1 
 else
 	METAD=`readlink -f $1` ; shift
 fi

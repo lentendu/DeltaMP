@@ -1,5 +1,5 @@
 Dependencies:
-DeltaMP is intend to be used on a HPC with a job scheduler (i.e. batch-queueing system). DeltaMP currently support two job schedulers:
+DeltaMP is intend to be used on a HPC with a job scheduler (i.e. batch-queuing system). DeltaMP currently supports two job schedulers:
 *  SLURM (https://slurm.schedmd.com)
 *  Oracle Grid Engine (http://www.oracle.com/technetwork/oem/grid-engine-166852.html) and its derivatives (e.g. Open Grid Scheduler, http://gridscheduler.sourceforge.net ; Univa Grid Engine, http://www.univa.com/products)
 
@@ -43,12 +43,12 @@ Installation informations:
     or clone only the desired branch with:
     git clone -b BRANCH-NAME --single-branch git@gitlab.com:lentendu/DeltaMP.git
 
-3. cd to the newly create directory DeltaMP
+3. cd to the newly created directory DeltaMP
 
-4. edit the configuration file config.txt, with respecting the format VARIABLE_NAME[Tab]VARIABLE_VALUE
-    a. BATCH: batch queueing system, either 'GridEngine' or 'Slurm'
+4. edit the configuration file config.txt, showing the respective format VARIABLE_NAME[Tab]VARIABLE_VALUE
+    a. BATCH: batch queuing system, either 'GridEngine' or 'Slurm'
     b. MODULES_TO_BE_LOADED: semi-column separated list of dependency modules to be loaded by the DeltaMP module
-    c. MAX_CPU_PER_NODES: maximum number of CPUS/cores on on node for MP parallel jobs
+    c. MAX_CPU_PER_NODES: maximum number of CPUS/cores on one node for MP parallel jobs
 
 5. to build DeltaMP, a simple make is enough:
     make
@@ -60,9 +60,10 @@ To load the DeltaMP/VERSION module you have two options:
 	a. either add the DeltaMP/modulefiles directory to your MODULEPATH variable by adding at the end of your ~/.bashrc or ~/bash_profile file the following line :
     export MODULEPATH=/FULL/PATH/TO/DeltaMP/modulefiles:$MODULEPATH
 with /FULL/PATH/TO/ being the full path to your DeltaMP directory
-	b. or copy the DeltaMP/modulefiles/DeltaMP directory to your prefered modulefiles directory which is already in your MODULEPATH (or copy only the module file named after the current version number if you already have a DeltaMP directory in your prefered modulefiles directory)
+	b. or copy the DeltaMP/modulefiles/DeltaMP directory to your preferred modulefiles directory which is already in your MODULEPATH 
+	(or copy only the module file named after the current version number if you already have a DeltaMP directory in your preferred modulefiles directory)
 
-7. IF you choos 6.a., you first need to reload your bash configurations with to allow the detection of the newly set MODULEPATH variable:
+7. IF you choose 6.a., you first need to reload your bash configurations to allow the detection of the newly set MODULEPATH variable:
     source ~/.bashrc
 or
     source ~/.bash_profile
