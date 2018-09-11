@@ -1,6 +1,6 @@
 DEMULTI	yes	Libraries already demultiplexed	no yes
 SEQ_DIR	forward	Sequencing direction	forward reverse
-BDIFFS	1	Number of mismatches allowed on the barcode sequence	^[0-9]+$
+BDIFFS	1	Number of mismatches allowed on the barcode sequence	^[0-9a]+$
 DENOISE	no	Denoising	no yes
 MINFLOW	360	Minimum number of flows	^[0-9]+$
 MAXFLOW	720	Maximum number of flows	^[0-9]+$
