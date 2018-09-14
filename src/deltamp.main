@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# author: Guillaume Lentendu (guillaume.lentendu@ufz.de)
+# author: Guillaume Lentendu (lentendu@rhrk.uni-kl.de)
 
 # Usage info
 show_help() {
@@ -15,15 +15,15 @@ SYNOPSIS
 DESCRIPTION
 	-h	display this help and exit
 	
-	-a	account or project name for the job queueing system
+	-a	account or project name for the job queuing system
 	
 	-c	at the end of a dry run (-d option), avoid the deletion of the SUBPROJECT and PROJECT (if empty) directories from output directory
 		
-	-d	avoid submission to queueing system and only display pipeline submission informations (aka. dry run)
+	-d	avoid submission to queuing system and only display pipeline submission informations (aka. dry run)
 	
 	-f	display default values for optional configuration parameters
 		
-	-n	avoid benchmarking (i.e. searching for previous SUBPROJECT) and run the pipeline from the beginning
+	-n	avoid checkpointing (i.e. searching for previous SUBPROJECT) and run the pipeline from the beginning
 	
 	-m max_running_tasks
 		impose a limit on the maximum number of concurrently running tasks per array jobs, default is 400
@@ -56,7 +56,7 @@ EOF
 show_doc() {
 cat << EOF
 
-# Refere to the manual at $DELTAMP_BUILD/documentation/deltamp_${VERSION[DELTAMP]}_documentation.pdf and be sure to use the correct configuration file format.
+# Refer to the manual at $DELTAMP_BUILD/documentation/deltamp_${VERSION[DELTAMP]}_documentation.pdf and be sure to use the correct configuration file format.
 # A template configuration file can be found at $DELTAMP_BUILD/documentation/configuration_file_template.tsv
 
 # Aborting
@@ -98,42 +98,52 @@ DRY=no
 MAX_TASK=400
 QUAL_ONLY=no
 DEMULTI_ONLY=no
-BENCHM=yes
+CHECKP=yes
 REF_SUBPROJECT=no
+
+error_help(){
+	echo "#Error: $1"
+	show_help | fmt -s -w $(tput cols)
+	exit $2
+} >&2
+
+error_doc(){
+echo "#Error: $1"
+	show_doc | fmt -s -w $(tput cols)
+	exit $2
+} >&2
+
 
 # get options
 while getopts ":a:cdfhm:nqsr:" opt
 do
 	case $opt in
 		h)	show_help | fmt -s -w $(tput cols)
-			exit 1;;
-		a)	DELTAMP_ACCOUNT=$OPTARG;;
+			exit 0;;
+		a)	DELTAMP_ACCOUNT=${OPTARG};;
 		c)	CLEAN=no;;
 		d)	DRY=yes;;
 		f)	show_default | fmt -s -w $(tput cols)
-			exit 1;;
-		m)	MAX_TASK=$OPTARG;;
-		n)	BENCHM=no;;
+			exit 0;;
+		m)	[[ ${OPTARG} =~ ^[0-9]+$ ]] || error_help " ${OPTARG} is not a number" 1
+			MAX_TASK=${OPTARG};;
+		n)	CHECKP=no;;
 		q)	QUAL_ONLY=yes;;
 		s)	DEMULTI_ONLY=yes;;
-		r)	REF_SUBPROJECT=$OPTARG;;
-		\?)	echo "# Error" >&2
-			echo "# Invalid option: -$OPTARG" >&2
-			show_help | fmt -s -w $(tput cols) >&2
-			exit 1;;
-		:)	echo "# Error" >&2
-			echo "# Option -$OPTARG requires an argument." >&2
-			show_help | fmt -s -w $(tput cols) >&2
-			exit 1;;
+		r)	[[ -d ${OPTARG} ]] || error_help "Directory ${OPTARG} does not exist" 1
+			[[ -w ${OPTARG} ]] || error_help "Directory ${OPTARG} is not writable" 1
+			REF_SUBPROJECT=${OPTARG};;
+		\?)	error_help "# Invalid option: -${OPTARG}" 1
+			;;
+		:)	error_help "# Option -${OPTARG} requires an argument." 1
+			;;
 	esac
 done
 shift "$((OPTIND-1))" # Shift off the options and optional --.
 
 if [ -z "$1" ]
 then 
-	echo "# Error: configuration file is missing." >&2
-	show_help | fmt -s -w $(tput cols) >&2
-	exit 1
+	error "Configuration file is missing." 1 
 else
 	METAD=`readlink -f $1` ; shift
 fi
@@ -148,9 +158,7 @@ do
 	then
 		if [ $std == "#" ]
 		then
-			echo "# Configuration file error: the parameter '$def' is missing and is compulsory." >&2
-			show_doc | fmt -s -w $(tput cols) >&2
-			exit 1
+			error_doc "# Configuration file error: the parameter '$def' is missing and is compulsory." 1
 		else
 			declare $var="$std"
 		fi
@@ -174,9 +182,7 @@ do
 			fi
 		else
 			echo "# Configuration file error: the value of parameter '$def' is not accepted (currently set to $val)." >&2
-			echo "The accepted values $(if [[ $acc == *"^"* ]] ; then echo 'should match the regex(s)' ; else echo 'are' ; fi): $acc (default value is $std)." >&2
-			show_doc | fmt -s -w $(tput cols) >&2
-			exit 1
+			error_doc "The accepted values $(if [[ $acc == *"^"* ]] ; then echo 'should match the regex(s)' ; else echo 'are' ; fi): $acc (default value is $std)." 1
 		fi		
 	else
 		declare $var="$val"
@@ -205,9 +211,7 @@ do
 			declare $var="$val"
 		else
 			echo "# Configuration file error: the value of parameter '$def' is not accepted (currently set to $val)." >&2
-			echo "The accepted values $(if [[ $acc == *"^"* ]] ; then echo 'should match the regex(s)' ; else echo 'are' ; fi): $acc (default value is $std)." >&2
-			show_doc | fmt -s -w $(tput cols) >&2
-			exit 1
+			error_doc "The accepted values $(if [[ $acc == *"^"* ]] ; then echo 'should match the regex(s)' ; else echo 'are' ; fi): $acc (default value is $std)." 1
 		fi
 	fi
 done < $BIN/variables_definition_$TECH.tsv
@@ -225,9 +229,7 @@ then
 		read FWD RVS <<<"$RVS $FWD"
 		read FWD_NAME RVS_NAME <<<"$RVS_NAME $FWD_NAME"
 	else
-		echo "# Configuration file error: wrong sequence direction $SEQ_DIR" >&2
-		show_doc | fmt -s -w $(tput cols) >&2
-		exit 1
+		error_doc "# Configuration file error: wrong sequence direction $SEQ_DIR" 1
 	fi
 elif [ $TECH == "Illumina" ]
 then
@@ -235,14 +237,10 @@ then
 	DEMULTI=yes
 	if [ DEMULTI_ONLY == "yes" ]
 	then
-		echo "# Demultiplexing is not available for $TECH libraries." >&2
-		show_doc | fmt -s -w $(tput cols) >&2
-		exit 1
+	error_doc "# Demultiplexing is not available for $TECH libraries." 1
 	fi
 else
-	echo "# Configuration file error: wrong sequence technology $TECH" >&2
-	show_doc | fmt -s -w $(tput cols) >&2
-	exit 1
+	error_doc "# Configuration file error: wrong sequence technology $TECH" 1
 fi
 
 	
@@ -281,18 +279,14 @@ fi
 # Pre-clustering
 if [ $CLUST == "swarm" ] && [ $PRECLUST != "no" ]
 then
-	echo "# Configuration file error: pre-clustering is not allowed for swarm based OTU clustering. Turn off the 'Pre-clustering' argument with 'no' or use another clustering algorithm." >&2
-	show_doc | fmt -s -w $(tput cols) >&2
-	exit 1
+	error_doc "# Configuration file error: pre-clustering is not allowed for swarm based OTU clustering. Turn off the 'Pre-clustering' argument with 'no' or use another clustering algorithm." 1
 fi
 
 if [ $PRECLUST == "mothur" ]
 then
 	if [ ! -f $DBFOLD/$DBALIGN.fasta ]
 	then
-		echo "# Configuration file error: the mothur pre-clustering method could only be used if an aligned version of the reference database is available." >&2
-		show_doc | fmt -s -w $(tput cols) >&2
-		exit 1
+		error_doc "# Configuration file error: the mothur pre-clustering method could only be used if an aligned version of the reference database is available." 1
 	fi
 fi
 
@@ -420,7 +414,7 @@ cp $METAD config/configuration.$SUBPROJECT.tsv && METADATA=configuration.$SUBPRO
 OUT=$OUT_PATH/$PROJECT/$SUBPROJECT
 EXEC=$EXEC_PATH/$SUBPROJECT
 
-# Store barcodes, libraries and samples lists into files
+# Store barcodes, libraries and sample lists into files
 if [ $TECH == "454" ]
 then
 	sed '1,/^Barcode sequence/d;/^$/d;s/^/barcode\t/' config/$METADATA | awk '{print}' > config/barcodes.txt
@@ -433,12 +427,10 @@ then
 	else
 		if [ $(cut -f 3 config/barcodes.txt | sort | uniq | wc -l) -gt $(cut -f 4 config/barcodes.txt | sort | uniq | wc -l) ]
 		then
-			echo "# There is more samples than libraries, it seems that the libraries are not demultiplexed" >&2
-			echo "# Set 'Libraries already demultiplexed' to 'no' in the configuration file to allow deltamp execution." >&2
-			show_doc | fmt -s -w $(tput cols) >&2
 			cd .. && rm -r $SUBPROJECT
 			if [ ! "$(ls -A)" ] ; then cd .. && rmdir $PROJECT ; fi
-			exit 1
+			echo "# There is more samples than libraries, it seems that the libraries are not demultiplexed" >&2
+			error_doc "# Set 'Libraries already demultiplexed' to 'no' in the configuration file to allow deltamp execution." 1
 		else
 			while read head bar samp lib; do echo $samp ${lib%.*} ; done < config/barcodes.txt | sed 's/-/_/g;s/ftp\.sra.*\///' | sort | uniq > config/lib3.list
 		fi
@@ -473,11 +465,9 @@ then
 	then
 		. <(sed '/^## Quality/,/^## Archive raw/d;/^## Document/,$d' $BIN/pipeline_master) config/configuration.$SUBPROJECT.tsv > config/steps
 	else
-		echo "# The -s option can only be used for non demultiplexed libraries and demultiplexing is only supported for 454 libraries." >&2
-		show_doc | fmt -s -w $(tput cols) >&2
 		cd .. && rm -r $SUBPROJECT
 		if [ ! "$(ls -A)" ] ; then cd .. && rmdir $PROJECT ; fi
-		exit 1
+		error_doc "# The -s option can only be used for non demultiplexed libraries and demultiplexing is only supported for 454 libraries." 1
 	fi
 else
 	if [ $QUAL_ONLY == "yes" ]
@@ -500,7 +490,7 @@ fi
 
 # Compare with previous (the one with less differences) or with the provided previous SUBPROJECT, and cut to avoid redo identical part(s)
 cd ..
-if [ $BENCHM == "yes" ]
+if [ $CHECKP == "yes" ]
 then
 	if [ $REF_SUBPROJECT == "no" ]
 	then
@@ -520,20 +510,16 @@ then
 			BAR_DIF[$i]=$(comm -3 <(sort $i/config/barcodes.txt) <(sort $SUBPROJECT/config/barcodes.txt) | head -1 | tr "\t" "#")
 			if [ -z "${TMP_DIF[$i]}" ] && [ -z "${BAR_DIF[$i]}" ]
 			then
-				echo "# Previous subproject $i is identical." >&2
-				echo "# At least one parameter need to differ with previous subproject to allow deltamp execution." >&2
-				show_doc | fmt -s -w $(tput cols) >&2
 				rm -r $SUBPROJECT
-				exit 1
+				echo "# Previous subproject $i is identical." >&2
+				error_doc "# At least one parameter need to differ with previous subproject to allow deltamp execution." 1
 			elif [ ! -z "${BAR_DIF[$i]}" ]
 			then
-				echo "# Previous subproject $i have a different barcode and/or library list." >&2
-				echo "# To avoid using $i as reference subproject, you can for example change the output directory (currently $OUT_PATH) in the configuration file." >&2
-				show_doc | fmt -s -w $(tput cols) >&2
 				rm -r $SUBPROJECT
-				exit 1
+				echo "# Previous subproject $i have a different barcode and/or library list." >&2
+				error_doc "# To avoid using $i as reference subproject, you can for example change the output directory (currently $OUT_PATH) in the configuration file." 1
 			fi
-			# in which step script(s) is found the differing variable(s)
+			# in which step script(s) the differing variable(s) are found
 			unset MATCH_REGEX
 			MATCH_REGEX=$(grep $(echo ${TMP_DIF[$i]} | sed 's/#/[^A-Z_]\\\|$/g;s/^/$/;s/$/[^A-Z_]/') $(awk '$0~"QUEUE_SUB"{sub(")$","");print $NF}' $SUBPROJECT/config/steps | sort -u) | cut -d ":" -f 1 | sed 's/.*\///;s/\.sh$//' | sort -u | tr "\n" "|" | sed 's/|$//;s/|/\\\|/g')
 			if [ -z $MATCH_REGEX ]
@@ -550,7 +536,7 @@ then
 			# which was the last step executed before the differing step
 			TMP_PREV[$i]=$(awk '$0!~"^#"{print $NF}' $i/config/steps.final | tac | grep -o -m 1 $(sed '/'"${TMP_SCRIPT[$i]}"'/,$d' $BIN/ref.steps.$TECH | tr "\n" " " | sed 's/ $/\n/;s/ /\\\|/g'))
 		done
-		# the previous SUBPROJECT which have the most number of steps in common with the current SUBPROJECT is set as seed
+		# the previous SUBPROJECT which has the most number of steps in common with the current SUBPROJECT is set as seed
 		REF_SUBPROJECT=`for i in "${PREV_LIST[@]}"; do sed -n '/'"${TMP_PREV[$i]}"'/=' $BIN/ref.steps.$TECH | paste <(echo $i) <(stat -c "%Y" $i) - ; done | sort -k 3,3nr -k 2,2nr | cut -f 1 | head -1`
 		FIRST_STEP=${TMP_SCRIPT[$REF_SUBPROJECT]}
 		LAST_REF=${TMP_PREV[$REF_SUBPROJECT]}
@@ -575,7 +561,7 @@ then
 		sed '/^init_jobid/s/^/#/;/get.sh)$/s/ QUEUE_HOLD[^ ]* / /' $SUBPROJECT/config/steps > $SUBPROJECT/config/steps.final
 	fi
 else
-	# if benchmarking is not allowed, the init step is skipped
+	# if checkpointing is not allowed, the init step is skipped
 	sed '/^init_jobid/s/^/#/;/get.sh)$/s/ QUEUE_HOLD[^ ]* / /' $SUBPROJECT/config/steps > $SUBPROJECT/config/steps.final
 fi
 
@@ -589,7 +575,7 @@ then
 	sed 's/QUEUE_SEP\${pair_end_jobid%\.\*}//' $SUBPROJECT/config/steps.final > $SUBPROJECT/config/steps.final.tmp && mv $SUBPROJECT/config/steps.final.tmp $SUBPROJECT/config/steps.final
 fi
 
-# Add account/project name to queueing commands
+# Add account/project name to queuing commands
 if [ ! -z $DELTAMP_ACCOUNT ]
 then
 	sed "s/QUEUE_SUB/QUEUE_SUB QUEUE_ACCOUNT $DELTAMP_ACCOUNT/" $SUBPROJECT/config/steps.final > $SUBPROJECT/config/steps.final.tmp && mv $SUBPROJECT/config/steps.final.tmp $SUBPROJECT/config/steps.final
@@ -616,13 +602,13 @@ fi
 # Execution
 if [ $DRY == "yes" ]
 then
-	declare -a TITLE=("deltamp options" "new SUBPROJECT" "use of previous SUBPROJECT" "Commands to be passed to queueing system")
+	declare -a TITLE=("deltamp options" "new SUBPROJECT" "use of previous SUBPROJECT" "Commands to be passed to queuing system")
 	echo "DRY RUN"
 	echo ""
 	printf '%'$((${#TITLE[0]}+9))'s\n' |tr " " "#"
 	echo "### ${TITLE[0]}: ###"
 	printf '%'$((${#TITLE[0]}+9))'s\n' |tr " " "#"
-	printf 'dry run\t%s\nclean after dry run\t%s\nbenchmarking allowed\t%s\ndemultiplexing only\t%s\nquality check only\t%s\nreference subproject\t%s\nconfiguration file\t%s\n' "$DRY" "$CLEAN" "$BENCHM" "$DEMULTI_ONLY" "$QUAL_ONLY" "$REF_SUBPROJECT" "$METAD" | column -t -s $'\t'
+	printf 'dry run\t%s\nclean after dry run\t%s\ncheckpointing allowed\t%s\ndemultiplexing only\t%s\nquality check only\t%s\nreference subproject\t%s\nconfiguration file\t%s\n' "$DRY" "$CLEAN" "$CHECKP" "$DEMULTI_ONLY" "$QUAL_ONLY" "$REF_SUBPROJECT" "$METAD" | column -t -s $'\t'
 	echo ""
 	printf '%'$((${#TITLE[1]}+9))'s\n' |tr " " "#"
 	echo "### ${TITLE[1]}: ###"
@@ -664,11 +650,10 @@ else
 	then
 		if [ $DRY == "no" ] && [ ! -z "$(grep "DRY yes" $REF_SUBPROJECT/config/env.txt)" ]
 		then
-			echo "# Previous subproject $REF_SUBPROJECT was a DRY RUN only." >&2
-			echo "# Remove $REF_SUBPROJECT from $OUT_PATH/$PROJECT or provide another output directory in the configuration file." >&2
-			show_doc | fmt -s -w $(tput cols) >&2
 			rm -r $SUBPROJECT
 			if [ ! "$(ls -A)" ] ; then cd .. && rmdir $PROJECT ; fi
+			echo "# Previous subproject $REF_SUBPROJECT was a DRY RUN only." >&2
+			error_doc "# Remove $REF_SUBPROJECT from $OUT_PATH/$PROJECT or provide another output directory in the configuration file." 1
 			exit 1
 		fi
 	fi

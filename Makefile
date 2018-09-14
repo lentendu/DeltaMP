@@ -23,7 +23,7 @@ vpath %.config src
 .PHONY: all clean
 all: $(deltamp) $(module) $(steps) $(batch_spec) $(test_config)
 
-# rule to build deltamp, pipeline_master and check_prevuous_step
+# rule to build deltamp, pipeline_master and check_previous_step
 $(deltamp): bin/% : %.main | lib/$(batch)/option_variables
 	SED=$$(sed 's/^/s\//;s/\t/\//;s/$$/\/g/' $| |  tr "\n" ";" | sed 's/^/sed "/;s/;$$/"/'); \
 	eval $$SED $< | sed 's#^\(VERSION\[DELTAMP\]=\)$$#\1$(version)#;s#^\(DELTAMP_BUILD=\)$$#\1$(CURDIR)#' > $@ && chmod +x $@
@@ -69,7 +69,7 @@ else ifeq ($(batch),Slurm)
 	sed 's/mem=64G/mem=$(max_mem)G/' $< > $@
 endif
 
-# Copy batch queueing system specific executables to bin
+# Copy batch queuing system specific executables to bin
 $(batch_spec): bin/deltamp.% : lib/$(batch)/deltamp.%
 	cp $^ $@ && chmod +x $@
 
