@@ -87,7 +87,7 @@ then
 	FWDSIM=`awk -v F=${#FWD} -v D=$PDIFFS 'BEGIN{printf "%.2g\n", 1-D/F}'`
 	RVSSIM=`awk -v R=${#RVS} -v D=$PDIFFS 'BEGIN{printf "%.2g\n", 1-D/R}'`
 	echo "Read pairs were extracted from raw libraries if at least one of the two reads hold the expected primer (forward primer for forward library, reverse primer for reverse library) at its 5' end, with a similarity threshold of $FWDSIM and $RVSSIM for the forward and reverse primer, respectively."
-	CUTAVG=`grep -m 1 "Total read pairs processed:" libraries/fastq/log.cutadapt.* | awk '{sub(",","",$NF);sum+=$NF}END{printf "%.0f\n", sum/NR}'`
+	CUTAVG=`grep -m 1 "Total read pairs processed:" libraries/fastq/log.cutadapt.* | awk '{gsub(",","",$NF);sum+=$NF}END{printf "%.0f\n", sum/NR}'`
 	echo "An average of $CUTAVG reads was extracted per pair of libraries."
 	echo ""
 fi

@@ -49,11 +49,11 @@ dd if=$SUBPROJECT.summary.stat.tsv of=../archives/$SUBPROJECT.outputs/$SUBPROJEC
 # Merge raw stat statistics and weblogos
 cd ..
 gs -q -sDEVICE=pdfwrite -o archives/$SUBPROJECT.outputs/$SUBPROJECT.raw_and_pair-end_reads_statistics.pdf libraries/raw_stat/$SUBPROJECT.raw_reads_with_primer_quality.pdf libraries/raw_stat/$SUBPROJECT.pair-end_reads_quality.pdf libraries/raw_stat/$SUBPROJECT.legend.pdf
-if [ $CLIPPING == "yes" ]
-then
-gs -q -sDEVICE=pdfwrite -dEPSCrop -o archives/$SUBPROJECT.outputs/$SUBPROJECT.forward.weblogo.pdf libraries/raw_stat/weblogo.*.forward.eps
-gs -q -sDEVICE=pdfwrite -dEPSCrop -o archives/$SUBPROJECT.outputs/$SUBPROJECT.reverse.weblogo.pdf libraries/raw_stat/weblogo.*.reverse.eps
-fi
+#if [ $CLIPPING == "yes" ]
+#then
+#gs -q -sDEVICE=pdfwrite -dEPSCrop -o archives/$SUBPROJECT.outputs/$SUBPROJECT.forward.weblogo.pdf libraries/raw_stat/weblogo.*.forward.eps
+#gs -q -sDEVICE=pdfwrite -dEPSCrop -o archives/$SUBPROJECT.outputs/$SUBPROJECT.reverse.weblogo.pdf libraries/raw_stat/weblogo.*.reverse.eps
+#fi
 
 # list files and directories
 . $BIN/list_step_files.sh
