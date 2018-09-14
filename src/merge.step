@@ -28,7 +28,7 @@ if [ "$DENOISE" == "yes" ] && [ $ITSX == "no" ]
 then
 	LENGTH=`cut -d "." -f 1 $EXEC/quality_check/trimming.parameters.txt`
 	MIN_LENGTH=`awk -v L=$LENGTH 'BEGIN{min=L} $1!~"^>" && length($1)<min{min=length($1)}END{print min}' $SUBPROJECT.fasta`
-	obicut --uppercase -e $MIN_LENGTH $SUBPROJECT.fasta | sed 's/_SUB.*$//' | twofasta > $SUBPROJECT.tmp.fasta && mv $SUBPROJECT.tmp.fasta $SUBPROJECT.fasta
+	obicut --without-progress-bar --uppercase -e $MIN_LENGTH $SUBPROJECT.fasta | sed 's/_SUB.*$//' | twofasta > $SUBPROJECT.tmp.fasta && mv $SUBPROJECT.tmp.fasta $SUBPROJECT.fasta
 fi
 
 # Dereplicate

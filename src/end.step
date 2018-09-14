@@ -90,9 +90,9 @@ rm $LIST.json.biom
 
 # Representative sequences
 twofasta $FASTA_OTUS.fasta > $SUBPROJECT.${LABELS[0]}_repseq.fasta
-obigrep --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[1]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[1]}_repseq.fasta
-obigrep --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[2]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[2]}_repseq.fasta
-obigrep --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[3]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[3]}_repseq.fasta
+obigrep --without-progress-bar --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[1]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[1]}_repseq.fasta
+obigrep --without-progress-bar --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[2]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[2]}_repseq.fasta
+obigrep --without-progress-bar --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[3]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[3]}_repseq.fasta
 
 # Sequences stat
 for i in "${LABELS[@]}"

@@ -36,6 +36,7 @@ then
 			FILE_PATH=$(find $j -name $i)
 			if [ ! -z "$FILE_PATH" ]
 			then
+				echo "Copying $FILE_PATH"
 				dd if=$FILE_PATH of=./$i bs=1M
 			fi
 		done
