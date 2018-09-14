@@ -1,0 +1,3 @@
+VERSION 4.10.0
+CITATION        Guillou et al., 2012
+FULLCITATION    Guillou L, Bachar D, Audic S et al. (2012) The Protist Ribosomal Reference database (PR2): a catalog of unicellular eukaryote Small Sub-Unit rRNA sequences with curated taxonomy. Nucleic Acids Research, 41, D597–D604.

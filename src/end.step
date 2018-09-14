@@ -1,3 +1,21 @@
+# 
+# DeltaMP, a flexible, reproducible and resource efficient metabarcoding amplicon pipeline for HPC
+# Copyright (C) 2018 Guillaume Lentendu, Christina Weißbecker, Anna Heintz-Buschart, Tesfaye Wubet
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# 
+
 # Define Variables
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/prev.txt
@@ -26,7 +44,7 @@ list2otu () {
 module load DeltaMP/${VERSION[DELTAMP]}
 
 # load environment of previous step
-while read var val; do unset $var ; if [ $REF_SUBPROJECT == "no" ] ; then declare $var="$val" ; else declare $var="${val//$REF_SUBPROJECT/$SUBPROJECT}" ; fi ; done < config/id_env.txt
+while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; if [ $REF_SUBPROJECT != "no" ] ; then declare $var=$(eval echo "$"$var | sed 's/'$REF_SUBPROJECT'/'$SUBPROJECT'/') ; fi ; done < config/id_env.txt
 
 # OTU table
 cd processing
@@ -34,8 +52,8 @@ LABELS=(all abundant all_$TARG_ORG abundant_$TARG_ORG)
 list2otu $LIST.list $GROUP.groups > $LIST.otu
 paste $LIST.otu <(cut -f 3 $CTAXO.taxonomy | sed 's/([0-9]*);/;/g;s/Taxo/taxo/') <(cat <(echo "repseq") <(cut -f 1 $NAMES_OTUS.names)) > $SUBPROJECT.${LABELS[0]}_OTUs.tsv
 awk -v M=$MIN_DOM -v S=$MIN_SAMP '{if(NR==1){print $0} else {seq=0;sam=0;for(i=2;i<=NF-2;i++){if($i>0){seq+=$i;sam+=1}};if(seq>=M && sam>=S){print $0}}}' $SUBPROJECT.${LABELS[0]}_OTUs.tsv > $SUBPROJECT.${LABELS[1]}_OTUs.tsv
-grep -P "[\t;]$TARG_ORG;" $SUBPROJECT.${LABELS[0]}_OTUs.tsv | cat <(sed -n '1p' $SUBPROJECT.${LABELS[0]}_OTUs.tsv) - > $SUBPROJECT.${LABELS[2]}_OTUs.tsv
-grep -P "[\t;]$TARG_ORG;" $SUBPROJECT.${LABELS[1]}_OTUs.tsv | cat <(sed -n '1p' $SUBPROJECT.${LABELS[0]}_OTUs.tsv) - > $SUBPROJECT.${LABELS[3]}_OTUs.tsv
+grep -P "[\t;_]$TARG_ORG;" $SUBPROJECT.${LABELS[0]}_OTUs.tsv | cat <(sed -n '1p' $SUBPROJECT.${LABELS[0]}_OTUs.tsv) - > $SUBPROJECT.${LABELS[2]}_OTUs.tsv
+grep -P "[\t;_]$TARG_ORG;" $SUBPROJECT.${LABELS[1]}_OTUs.tsv | cat <(sed -n '1p' $SUBPROJECT.${LABELS[0]}_OTUs.tsv) - > $SUBPROJECT.${LABELS[3]}_OTUs.tsv
 
 # retrieve BioProject sample's associated metadata
 if [[ $LIB_DIR != "/"* ]]
@@ -90,9 +108,9 @@ rm $LIST.json.biom
 
 # Representative sequences
 twofasta $FASTA_OTUS.fasta > $SUBPROJECT.${LABELS[0]}_repseq.fasta
-obigrep --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[1]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[1]}_repseq.fasta
-obigrep --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[2]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[2]}_repseq.fasta
-obigrep --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[3]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[3]}_repseq.fasta
+obigrep --without-progress-bar --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[1]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[1]}_repseq.fasta
+obigrep --without-progress-bar --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[2]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[2]}_repseq.fasta
+obigrep --without-progress-bar --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[3]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[3]}_repseq.fasta
 
 # Sequences stat
 for i in "${LABELS[@]}"

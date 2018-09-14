@@ -1,0 +1,4 @@
+#!/bin/bash
+
+export SGE_LONG_JOB_NAMES=-1
+qstat $@  | awk 'NR<3 || $3~"deltamp"{print $0}'

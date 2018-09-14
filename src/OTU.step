@@ -1,3 +1,21 @@
+# 
+# DeltaMP, a flexible, reproducible and resource efficient metabarcoding amplicon pipeline for HPC
+# Copyright (C) 2018 Guillaume Lentendu, Christina Weißbecker, Anna Heintz-Buschart, Tesfaye Wubet
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# 
+
 # Define Variables
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/prev.txt
@@ -8,7 +26,7 @@ module load DeltaMP/${VERSION[DELTAMP]}
 
 # record newly set variables and load environment of previous step
 (set -o posix; set > config/OTU.set)
-while read var val; do unset $var ; if [ $REF_SUBPROJECT == "no" ] ; then declare $var="$val" ; else declare $var="${val//$REF_SUBPROJECT/$SUBPROJECT}" ; fi ; done < config/merge_env.txt
+while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; if [ $REF_SUBPROJECT != "no" ] ; then declare $var=$(eval echo "$"$var | sed 's/'$REF_SUBPROJECT'/'$SUBPROJECT'/') ; fi ; done < config/merge_env.txt
 
 
 # Functions
@@ -24,7 +42,7 @@ cdhit2mothur-2d () {
 	clstr=$1 ; db1=$2 ; db2=$3 ; names=$4 ; tresh=$5
 	# Keep only OTUs with sequences from db2 and output their representative sequences (the most abundant variant, if tie then the variant with highest similarity to db1 seed)
 	awk '{if($1~"^>"){otu=$2} else {if(NF<5){print otu,$3,"100"} else print otu,$3,$5}}' $clstr | sed 's/>//;s/\.\.\.//;s/+\///;s/%//' | sort -k 2,2 | join -v 1 -1 2 - <(awk '$1~">"{sub(">","",$1);print $1}' $db1 | sort) | join - <(sort $names) | awk '{print $1,$2,$3,split($4,a,","),$4}' | sort -k 2,2n -k 4,4nr -k 3,3nr | tee tmp.$clstr | awk '{if(NR==1){otu=$2;print $1} else if($2!=otu){otu=$2;print $1}}' > repseq.$clstr
-	obigrep --id-list=repseq.$clstr $db2 > ${clstr%.*}
+	obigrep --without-progress-bar --id-list=repseq.$clstr $db2 > ${clstr%.*}
 	size=`sed -n '$=' repseq.$clstr`
 	awk -v L=${#size} '{if(NR==1){printf "%s%0"L"d\t%s", "Otu",$2+1,$5;prev=$2} else if($2==prev){printf ",%s",$5} else printf "\n%s%0"L"d\t%s", "Otu",$2+1,$5;prev=$2}END{printf "\n"}' tmp.$clstr | cat <(echo -e "label\t"$tresh) <(echo -e "numOtus\t"$size) - | tee tmp2.$clstr | transpose > ${names%.*}.cdhit.list
 	sed '1,2d' tmp2.$clstr | awk '{split($2,a,",");print a[1]"\t"$2}' > ${names%.*}.cdhit.names
@@ -72,7 +90,7 @@ DISIM=`awk -v S=$SIM 'BEGIN{print 1-S}'`
 
 if [ $CLUST == "cd-hit-est" ]
 then
-	sed 's/,/ /g' $NAMES.names | awk '{print "count="NF-1";"}' | sed G | paste -d " " <(twofasta $FASTA.fasta) -  | sed '/>/!s/-//g' | obisort -r -k count | twofasta | sed '/>/s/ count.*$//' > $FASTA.sort.fasta
+	sed 's/,/ /g' $NAMES.names | awk '{print "count="NF-1";"}' | sed G | paste -d " " <(twofasta $FASTA.fasta) -  | sed '/>/!s/-//g' | obisort --without-progress-bar -r -k count | twofasta | sed '/>/s/ count.*$//' > $FASTA.sort.fasta
 	if [ $PREV_PATH == "no" ]
 	then
 		cd-hit-est -T $NCPUS -M 0 -c $SIM -r 0 -g 1 -d 0 -i $FASTA.sort.fasta -o $FASTA.cdhit.fasta
@@ -96,8 +114,8 @@ then
 	LIST=$NAMES.cdhit
 elif [ $CLUST == "sumaclust" ]
 then
-	sed 's/,/ /g' $NAMES.names | awk '{print "count="NF-1";"}' | sed G | paste -d " " <(twofasta $FASTA.fasta) -  | sed '/>/!s/-//g' | obisort -r -k count | twofasta > $FASTA.sort.fasta
-	sumaclust -t $SIM -s size -p $NCPUS -e -O $FASTA.suma.map $FASTA.sort.fasta | obigrep -a cluster_center:True | obisort -k cluster_weight -r | obiannotate -C > $FASTA.suma.fasta
+	sed 's/,/ /g' $NAMES.names | awk '{print "count="NF-1";"}' | sed G | paste -d " " <(twofasta $FASTA.fasta) -  | sed '/>/!s/-//g' | obisort --without-progress-bar -r -k count | twofasta > $FASTA.sort.fasta
+	sumaclust -t $SIM -s size -p $NCPUS -e -O $FASTA.suma.map $FASTA.sort.fasta | obigrep --without-progress-bar -a cluster_center:True | obisort -k cluster_weight -r | obiannotate -C > $FASTA.suma.fasta
 	suma2mothur $FASTA.suma.map $NAMES.names $DISIM
 	NAMES_OTUS=$NAMES.suma
 	FASTA_OTUS=$FASTA.suma
@@ -109,7 +127,7 @@ then
 	mcl $FASTA.mcl.load -I 1.2 -te $NCPUS -o $FASTA.mcl.clust
 	mcxdump -imx $FASTA.mcl.clust --dump-lines -tabr $FASTA.mcl.dico --lazy-tab --no-values -o $FASTA.mcl
 	clm info --node-self-measures $FASTA.mcl.load $FASTA.mcl.clust | perl -ne '/ni=(\d+).*ci=(\d+).*mf=(\S+).*ns=(\d+)/; local $, = " "; print $1, $2, $3 * $4, "\n";' | sort -k 1,1n | join - $FASTA.mcl.dico | sort -k 4,4 | join -1 4 - <(sort -k 1,1 $NAMES.names) | awk '{S=split($5,a,",");print $1,$2,$3,$4,S}' | sort -k 3,3n -k 4,4nr -k 5,5nr | awk '{if(NR==1){prev=$3;print $1} else {if($3!=prev){prev=$3;print $1}}}' | cat - <(join -2 2 -o 1.1 -v 1 <(sort -k 1,1 $FASTA.names) <(sort -k 2,2 $FASTA.mcl.dico)) > $FASTA.mcl.repseq.list
-	obigrep --id-list=$FASTA.mcl.repseq.list $FASTA.fasta > $FASTA.mcl.fasta
+	obigrep --without-progress-bar --id-list=$FASTA.mcl.repseq.list $FASTA.fasta > $FASTA.mcl.fasta
 	mcl2mothur $FASTA.mcl $FASTA.mcl.repseq.list $NAMES.names $DISIM
 	rm $FASTA.mcl.dico $FASTA.mcl.load $FASTA.mcl.clust $FASTA.mcl.repseq.list
 	NAMES_OTUS=$NAMES.mcl
@@ -117,15 +135,16 @@ then
 	LIST=$NAMES.mcl
 elif [ $CLUST == "vsearch" ]
 then
-	sed 's/,/ /g' $NAMES.names | awk '{print "count="NF-1";"}' | sed G | paste -d " " <(twofasta $FASTA.fasta) -  | sed '/>/!s/-//g' | obisort -r -k count | twofasta | sed '/>/s/  */;/;s/count/size/' > $FASTA.sort.fasta
-	vsearch --cluster_smallmem $FASTA.sort.fasta --usersort --id $SIM --centroids $FASTA.vsearch.fasta --xsize -uc $FASTA.uc
+	sed 's/,/ /g' $NAMES.names | awk '{print "count="NF-1";"}' | sed G | paste -d " " <(twofasta $FASTA.fasta) -  | sed '/>/!s/-//g' | obisort --without-progress-bar -r -k count | twofasta | sed '/>/s/  */;/;s/count/size/' > $FASTA.sort.fasta
+	vsearch --quiet --cluster_smallmem $FASTA.sort.fasta --usersort --id $SIM --centroids $FASTA.vsearch.fasta --xsize -uc $FASTA.uc
 	vsearch2mothur $FASTA.uc $NAMES.names $DISIM
 	NAMES_OTUS=$NAMES.vsearch
 	FASTA_OTUS=$FASTA.vsearch
+	sed '/>/s/;$//' $FASTA_OTUS.fasta > tmp.$FASTA_OTUS && mv tmp.$FASTA_OTUS $FASTA_OTUS.fasta
 	LIST=$NAMES.vsearch
 elif [ $CLUST == "swarm" ]
 then
-	sed 's/,/ /g' $NAMES.names | awk '{print "size="NF-1";"}' | sed G | paste -d " " <(twofasta $FASTA.fasta) -  | sed '/>/!s/-//g' | obisort -r -k size | twofasta | sed '/>/s/ /;/' > $FASTA.sort.fasta
+	sed 's/,/ /g' $NAMES.names | awk '{print "size="NF-1";"}' | sed G | paste -d " " <(twofasta $FASTA.fasta) -  | sed '/>/!s/-//g' | obisort --without-progress-bar -r -k size | twofasta | sed '/>/s/ /;/' > $FASTA.sort.fasta
 	MEM=`awk -v N=$NCPUS 'BEGIN{print 6000*N}'`
 	swarm -f -z -c $MEM -t $NCPUS -w $FASTA.tmp.fasta -o $FASTA.swarm $FASTA.sort.fasta
 	sed '/>/s/;.*//' $FASTA.tmp.fasta > $FASTA.swarm.fasta && rm $FASTA.tmp.fasta
@@ -159,33 +178,35 @@ fi
 
 
 # Chimera recheck
-NSLOTS2=$(( $NCPUS / 2 ))
-mothur "#chimera.uchime(fasta=$FASTA_OTUS.fasta, name=$NAMES_OTUS.names, group=$GROUP.groups, reference=self, processors=$NSLOTS2);
-get.current()"
-unset LOG ACCNOS
-LOG=`ls mothur.*.logfile | tail -1`
-ACCNOS=`sed -n '/get.current()/,$p' $LOG | grep "^accnos=" | sed 's/accnos=//;s/\.accnos//'`
-
-if [ -s $ACCNOS.accnos ]
+if [ $CHIMERA == "after" ] || [ $CHIMERA == "both" ]
 then
-	mothur "#remove.seqs(accnos=$ACCNOS.accnos, name=$NAMES_OTUS.names, fasta=$FASTA_OTUS.fasta);
+	NSLOTS2=$(( $NCPUS / 2 ))
+	mothur "#chimera.uchime(fasta=$FASTA_OTUS.fasta, name=$NAMES_OTUS.names, group=$GROUP.groups, reference=self, processors=$NSLOTS2);
 	get.current()"
-	unset LOG
+	unset LOG ACCNOS
 	LOG=`ls mothur.*.logfile | tail -1`
-	NAMES_OTUS=`sed -n '/get.current()/,$p' $LOG | grep "^name=" | sed 's/name=//;s/\.names//'`
-	FASTA_OTUS=`sed -n '/get.current()/,$p' $LOG | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
+	ACCNOS=`sed -n '/get.current()/,$p' $LOG | grep "^accnos=" | sed 's/accnos=//;s/\.accnos//'`
 	
-	mothur "#list.seqs(name=$NAMES_OTUS.names);
-	get.seqs(accnos=current, fasta=$FASTA.fasta, list=$LIST.list, name=$NAMES.names, group=$GROUP.groups);
-	get.current()"
-	unset LOG FASTA NAMES GROUP LIST
-	LOG=`ls mothur.*.logfile | tail -1`
-	FASTA=`sed -n '/get.current()/,$p' $LOG | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
-	NAMES=`sed -n '/get.current()/,$p' $LOG | grep "^name=" | sed 's/name=//;s/\.names//'`
-	GROUP=`sed -n '/get.current()/,$p' $LOG | grep "^group=" | sed 's/group=//;s/\.groups//'`
-	LIST=`sed -n '/get.current()/,$p' $LOG | grep "^list=" | sed 's/list=//;s/\.list//'`
+	if [ -s $ACCNOS.accnos ]
+	then
+		mothur "#remove.seqs(accnos=$ACCNOS.accnos, name=$NAMES_OTUS.names, fasta=$FASTA_OTUS.fasta);
+		get.current()"
+		unset LOG
+		LOG=`ls mothur.*.logfile | tail -1`
+		NAMES_OTUS=`sed -n '/get.current()/,$p' $LOG | grep "^name=" | sed 's/name=//;s/\.names//'`
+		FASTA_OTUS=`sed -n '/get.current()/,$p' $LOG | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
+		
+		mothur "#list.seqs(name=$NAMES_OTUS.names);
+		get.seqs(accnos=current, fasta=$FASTA.fasta, list=$LIST.list, name=$NAMES.names, group=$GROUP.groups);
+		get.current()"
+		unset LOG FASTA NAMES GROUP LIST
+		LOG=`ls mothur.*.logfile | tail -1`
+		FASTA=`sed -n '/get.current()/,$p' $LOG | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
+		NAMES=`sed -n '/get.current()/,$p' $LOG | grep "^name=" | sed 's/name=//;s/\.names//'`
+		GROUP=`sed -n '/get.current()/,$p' $LOG | grep "^group=" | sed 's/group=//;s/\.groups//'`
+		LIST=`sed -n '/get.current()/,$p' $LOG | grep "^list=" | sed 's/list=//;s/\.list//'`
+	fi
 fi
-
 
 # Save newly set and updated variables
 cd ..

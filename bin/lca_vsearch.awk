@@ -8,6 +8,7 @@
 			flag=1
 			ref[NR]=$3
 			nf=split($4,line,",")
+			maxnf=nf
 			for(i=1;i<=nf;i++){
 				grid[i,NR]=line[i]
 			}
@@ -15,6 +16,7 @@
 	} else {
 		ref[NR]=$3
 		nf=split($4,line,",")
+		nf>maxnf?maxnf=nf:maxnf
 		for(i=1;i<=nf;i++){
 			grid[i,NR]=line[i]
 		}
@@ -36,9 +38,13 @@
 			printf "; %s\n",ref[1]
 		} else {
 			endref=ref[1]
-			for(i=1;i<=nf;i++) {
+			for(i=1;i<=maxnf;i++) {
 				for(j=1;j<=FNR;j++) {
-					taxo[j]=grid[i,j]
+					if(length(grid[i,j])==0) {
+						taxo[j]="NA"
+					} else {
+						taxo[j]=grid[i,j]
+					}
 				}
 				rank[i]="NA"
 				count=1
@@ -68,7 +74,11 @@
 				if(rank[i]!="NA")
 					endref=refall
 			}
-			printf "%s", rank[1]
+			if(rank[i]=="NA") {
+				printf "%s" , rank[1]
+			} else {
+				printf "%s(%.0f)" , rank[1], stat[1]
+			}
 			for(i=2;i<=nf;i++) {
 				if(rank[i]=="NA") {
 					printf ";%s" , rank[i]
