@@ -1,5 +1,23 @@
 #!/bin/bash
 
+# 
+# DeltaMP, a flexible, reproducible and resource efficient metabarcoding amplicon pipeline for HPC
+# Copyright (C) 2018 Guillaume Lentendu, Christina Weißbecker, Anna Heintz-Buschart, Tesfaye Wubet
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# 
+
 LIB_ALL=($@)
 
 echo "Library Raw_reads_count Raw_reads_with_forward_primer Raw_reads_with_one_of_the_provided_barcode Provided_barcode_count Found_barcodes_with_forward_primer_in_library Average_read_count_per_provided_barcodes Unused_provided_barcode(s) Unused_barcode(s)_with_forward_primer_in_library" | tr " " "," | tr "_" " "

@@ -1,3 +1,21 @@
+# 
+# DeltaMP, a flexible, reproducible and resource efficient metabarcoding amplicon pipeline for HPC
+# Copyright (C) 2018 Guillaume Lentendu, Christina Weißbecker, Anna Heintz-Buschart, Tesfaye Wubet
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# 
+
 # Define Variables
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
 . $BIN/check_previous_step
@@ -49,11 +67,11 @@ dd if=$SUBPROJECT.summary.stat.tsv of=../archives/$SUBPROJECT.outputs/$SUBPROJEC
 # Merge raw stat statistics and weblogos
 cd ..
 gs -q -sDEVICE=pdfwrite -o archives/$SUBPROJECT.outputs/$SUBPROJECT.raw_and_pair-end_reads_statistics.pdf libraries/raw_stat/$SUBPROJECT.raw_reads_with_primer_quality.pdf libraries/raw_stat/$SUBPROJECT.pair-end_reads_quality.pdf libraries/raw_stat/$SUBPROJECT.legend.pdf
-if [ $CLIPPING == "yes" ]
-then
-gs -q -sDEVICE=pdfwrite -dEPSCrop -o archives/$SUBPROJECT.outputs/$SUBPROJECT.forward.weblogo.pdf libraries/raw_stat/weblogo.*.forward.eps
-gs -q -sDEVICE=pdfwrite -dEPSCrop -o archives/$SUBPROJECT.outputs/$SUBPROJECT.reverse.weblogo.pdf libraries/raw_stat/weblogo.*.reverse.eps
-fi
+#if [ $CLIPPING == "yes" ]
+#then
+#gs -q -sDEVICE=pdfwrite -dEPSCrop -o archives/$SUBPROJECT.outputs/$SUBPROJECT.forward.weblogo.pdf libraries/raw_stat/weblogo.*.forward.eps
+#gs -q -sDEVICE=pdfwrite -dEPSCrop -o archives/$SUBPROJECT.outputs/$SUBPROJECT.reverse.weblogo.pdf libraries/raw_stat/weblogo.*.reverse.eps
+#fi
 
 # list files and directories
 . $BIN/list_step_files.sh

@@ -7,7 +7,7 @@ show_help() {
 cat << EOF
 
 NAME
-	deltamp version ${VERSION[DELTAMP]} - amplicon pipeline for grid engine
+	DeltaMP version ${VERSION[DELTAMP]} - a flexible, reproducible and resource efficient metabarcoding amplicon pipeline for HPC
 	
 SYNOPSIS
 	Usage: ${0##*/} [-a account_or_project_name] [-cdhqs] [-m max_running_tasks] [-r SUBRPOJECT] [CONFIGURATION_FILE]
@@ -36,12 +36,19 @@ DESCRIPTION
 		only execute additional jobs or with different input variables compared to SUBPROJECT. This will only work if both configuration files have the same input libraries and output directory.
 
 AUTHOR
-	Guillaume Lentendu
+	Guillaume Lentendu, Christina Weißbecker, Anna Heintz-Buschart and Tesfaye Wubet
 
 REPORTING BUGS
-	lentendu@rhrk.uni-kl.de
+	Submit suggestions and bug-reports at <https://github.com/lentendu/issues>, send a pull request on <https://github.com/lentendu>, or compose  an e-mail to Guillaume Lentendu <lentendu@rhrk.uni-kl.de>.
 	
 COPYRIGHT
+	Copyright (C) 2018 Guillaume Lentendu, Christina Weißbecker, Anna Heintz-Buschart and Tesfaye Wubet
+
+	This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+	 
+	This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+	 
+	You should have received a copy of the GNU General Public License along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 EOF
 }

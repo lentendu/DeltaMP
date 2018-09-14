@@ -1,3 +1,21 @@
+# 
+# DeltaMP, a flexible, reproducible and resource efficient metabarcoding amplicon pipeline for HPC
+# Copyright (C) 2018 Guillaume Lentendu, Christina Weißbecker, Anna Heintz-Buschart, Tesfaye Wubet
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# 
+
 # Define Variables
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/prev.txt
@@ -90,9 +108,9 @@ rm $LIST.json.biom
 
 # Representative sequences
 twofasta $FASTA_OTUS.fasta > $SUBPROJECT.${LABELS[0]}_repseq.fasta
-obigrep --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[1]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[1]}_repseq.fasta
-obigrep --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[2]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[2]}_repseq.fasta
-obigrep --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[3]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[3]}_repseq.fasta
+obigrep --without-progress-bar --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[1]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[1]}_repseq.fasta
+obigrep --without-progress-bar --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[2]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[2]}_repseq.fasta
+obigrep --without-progress-bar --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[3]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[3]}_repseq.fasta
 
 # Sequences stat
 for i in "${LABELS[@]}"

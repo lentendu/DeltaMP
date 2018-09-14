@@ -1,3 +1,21 @@
+# 
+# DeltaMP, a flexible, reproducible and resource efficient metabarcoding amplicon pipeline for HPC
+# Copyright (C) 2018 Guillaume Lentendu, Christina Weißbecker, Anna Heintz-Buschart, Tesfaye Wubet
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# 
+
 # Define Variables
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
 . $BIN/check_previous_step
@@ -35,7 +53,7 @@ then
 	rm temp.${DB}_s* ${DB}*.full.fasta ${DB}*positions.txt ${DB}*summary.txt
 	
 	# Initialize mothur database for singleton including version
-	obihead -n 10 $DBFOLD/${DB}_s.$ITSX.fasta > tmp.${DB}_s.$ITSX.fasta
+	obihead --without-progress-bar -n 10 $DBFOLD/${DB}_s.$ITSX.fasta > tmp.${DB}_s.$ITSX.fasta
 	mothur "#set.dir(output=$DBFOLD, tempdefault=$DBFOLD);
 	set.logfile(name=mothur.initialize.logfile, append=T);
 	classify.seqs(fasta=tmp.${DB}_s.$ITSX.fasta, template=${DB}_s.$ITSX.fasta, taxonomy=${DB}_s.$ITSX.taxonomy, cutoff=80, method=wang)"
@@ -89,10 +107,10 @@ then
 	
 	# clean (remove sequences with n's, longer than 800 nt, with a taxonomic path with less than 3 ranks and containing the primer sequence internaly) and annotate for obitools (at genus level for 16S)
 	PRIMER_REG=$(for i in ${PRIMER[@]}; do TMP=$i ; while read A B; do TMP=`echo $TMP | sed "s/$A/$B/g"` ; done < $BIN/IUPAC.txt ; echo $TMP ; done)
-	paste - - < $DBCUT.cut.fasta | sort -k 1,1 | join <(sort -k 1,1 $DBFOLD/$DB.taxonomy | sed 's/^/>/;s/;$//;s/;/|/g') - | awk '{rank=split($2,a,"|");print $1,"ranks="rank"; taxo="$2";\n"$3}' | obigrep -p 'ranks>2' -L 800 -s '^[atcg]*$' | obigrep -v -s $(echo $PRIMER_REG | sed 's/ /|/g') | twofasta > $DBCUT.taxo.fasta
+	paste - - < $DBCUT.cut.fasta | sort -k 1,1 | join <(sort -k 1,1 $DBFOLD/$DB.taxonomy | sed 's/^/>/;s/;$//;s/;/|/g') - | awk '{rank=split($2,a,"|");print $1,"ranks="rank"; taxo="$2";\n"$3}' | obigrep --without-progress-bar -p 'ranks>2' -L 800 -s '^[atcg]*$' | obigrep -v -s $(echo $PRIMER_REG | sed 's/ /|/g') | twofasta > $DBCUT.taxo.fasta
 	
 	# dereplicate with prefix option and find LCA for unique reads from different taxonomic paths; remove if LCA have less than 3 taxonomic ranks
-	obiuniq -p -m taxo $DBCUT.taxo.fasta > $DBCUT.uniq.fasta
+	obiuniq --without-progress-bar -p -m taxo $DBCUT.taxo.fasta > $DBCUT.uniq.fasta
 	grep "^>" $DBCUT.uniq.fasta | sed "s/^\(>[^ ]*\) .*taxo={\([^}]*\)}.*$/\1 \2/;s/'//g;s/: *[0-9][0-9]*//g;s/,* /\n/g" > taxo.list
 	
 	declare -A MAX_RANKS
@@ -139,9 +157,9 @@ then
 	# split based on sequences sharing same taxonomic path (full path if less than 7 ranks and less than x ranks, x being the maximum number of ranks inside a phylum, else last rank (~ species level) removed from full path)
 	mkdir $DBCUT.preclust
 	cd  $DBCUT.preclust
-	obigrep -p 'size>1' ../$DBCUT.uniq_ck.fasta | obiannotate --length | obisplit -t cksum
+	obigrep --without-progress-bar -p 'size>1' ../$DBCUT.uniq_ck.fasta | obiannotate --length | obisplit -t cksum
 	cd ..
-	obigrep -p 'size==1' $DBCUT.uniq_ck.fasta > $DBCUT.end.fasta
+	obigrep --without-progress-bar -p 'size==1' $DBCUT.uniq_ck.fasta > $DBCUT.end.fasta
 	
 	# precluster sequences with same taxonomic path (99 % similarity, longest read as reference)
 	get_preclust() {
@@ -158,7 +176,7 @@ then
 	# compute LCA for preclustered reads when needed
 	awk '{len=split($2,a,",");if(len>1){for(i in a){print $1,">"a[i]}}}' $DBCUT.preclust/[0-9]*.precluster.names | sort -k 2,2 | join -1 2 - <(sort -k 1,1 taxo.ck.list) | sed 's/>[^ ]* \([^ ]*\) .*taxo=\([^;]*\);.*$/>\1 \2/' | sort -k1,1 | awk '{if(NR==1){prev=$1;print $1"\n"$2} else {if($1==prev){print $2} else {prev=$1;print $1"\n"$2}}}' > preclust.list
 	cat preclust.list | parallel -j $NCPUS --block 100k --recstart '>' --pipe -k lca_ck {} | sed 's/$/ preclust=yes;/' > preclust.ck.list 
-	cat <(cat $DBCUT.preclust/[0-9]*.precluster.sort | obigrep --id-list=<(cat preclust/[0-9]*.precluster.names | awk '{len=split($2,a,",");if(len==1) print $1}') | obiannotate -S preclust:no) <(cat $DBCUT.preclust/[0-9]*.precluster.sort | obigrep --id-list=<(awk '{sub(">","",$1);print $1}' preclust.ck.list) | awk '{if(NR==1){printf "%s ",$1} else {if($1~"^>"){printf "\n%s ",$1} else printf "%s",$1}}END{printf "\n"}' | sort -k 1,1 | paste - preclust.ck.list | awk '{printf "%s",$1;for(i=4;i<=NF;i++){printf " %s",$i};printf "\n%s\n",$2}') >> $DBCUT.end.fasta
+	cat <(cat $DBCUT.preclust/[0-9]*.precluster.sort | obigrep --without-progress-bar --id-list=<(cat preclust/[0-9]*.precluster.names | awk '{len=split($2,a,",");if(len==1) print $1}') | obiannotate --without-progress-bar -S preclust:no) <(cat $DBCUT.preclust/[0-9]*.precluster.sort | obigrep --without-progress-bar --id-list=<(awk '{sub(">","",$1);print $1}' preclust.ck.list) | awk '{if(NR==1){printf "%s ",$1} else {if($1~"^>"){printf "\n%s ",$1} else printf "%s",$1}}END{printf "\n"}' | sort -k 1,1 | paste - preclust.ck.list | awk '{printf "%s",$1;for(i=4;i<=NF;i++){printf " %s",$i};printf "\n%s\n",$2}') >> $DBCUT.end.fasta
 	rm -r $DBCUT.preclust
 	
 	# final DB
@@ -187,7 +205,7 @@ else
 	twofasta ../$DB.fasta | cutadapt -g ${FWD} -e ${FWD_E} --no-indels --trimmed-only - | cutadapt -a ${RVS_RC} -e ${RVS_E} --no-indels --trimmed-only - > $DBCUT.cut.fasta
 	# clean: remove sequences with n's, longer than 800 nt, smaller than MINLEN, with a taxonomic path with less than 3 ranks and containing the primer sequence internaly
 	PRIMER_REG=$(for i in $FWD $RVS_RC; do TMP=$(awk -v I=$i 'BEGIN{print tolower(I)}') ; while read A B; do TMP=`echo $TMP | sed "s/$A/$B/g"` ; done < $BIN/IUPAC.txt ; echo $TMP ; done)
-	paste - - < $DBCUT.cut.fasta | sort -k 1,1 | join <(sort -k 1,1 $DBFOLD/$DB.taxonomy | sed 's/^/>/;s/;$//;s/;/|/g') - | awk '{rank=split($2,a,"|");print $1,"ranks="rank"; taxo="$2";\n"$3}' | obigrep -p 'ranks>2' -l $MINLEN -L 800 -s '^[atcg]*$' | obigrep -v -s $(echo $PRIMER_REG | sed 's/ /|/g') | sed 's/ .*taxo=/ /;s/; *$//' | twofasta | sed '$!N;/>/s/\n/ /' | sort -k 2,2 | awk '{if($2==prev){print $1"\n"$3} else {print "#"$1"\n"$3;prev=$2}}' > $DBCUT.taxo.fasth
+	paste - - < $DBCUT.cut.fasta | sort -k 1,1 | join <(sort -k 1,1 $DBFOLD/$DB.taxonomy | sed 's/^/>/;s/;$//;s/;/|/g') - | awk '{rank=split($2,a,"|");print $1,"ranks="rank"; taxo="$2";\n"$3}' | obigrep --without-progress-bar -p 'ranks>2' -l $MINLEN -L 800 -s '^[atcg]*$' | obigrep -v -s $(echo $PRIMER_REG | sed 's/ /|/g') | sed 's/ .*taxo=/ /;s/; *$//' | twofasta | sed '$!N;/>/s/\n/ /' | sort -k 2,2 | awk '{if($2==prev){print $1"\n"$3} else {print "#"$1"\n"$3;prev=$2}}' > $DBCUT.taxo.fasth
 	# For each taxonomic path with more than a sequence, dereplicate then cluster with swarm and keep only the seed
 	clust() {
 		cat /dev/stdin | parallel --recstart "#" --remove-rec-sep --pipe -N1 "cat | vsearch --derep_fulllength - --sizeout --quiet --output - | swarm -n -z -w seed.$1.{#} -o swarm.$1.{#} -l /dev/null"
@@ -204,7 +222,7 @@ else
 fi
 
 # Initialize mothur database
-obihead -n 10 $DBFOLD/$DBCUT.fasta > tmp.$DBCUT.fasta
+obihead --without-progress-bar -n 10 $DBFOLD/$DBCUT.fasta > tmp.$DBCUT.fasta
 mothur "#set.dir(output=$DBFOLD, tempdefault=$DBFOLD);
 set.logfile(name=mothur.initialize.logfile, append=T);
 classify.seqs(fasta=tmp.$DBCUT.fasta, template=$DBCUT.fasta, taxonomy=$DBCUT.taxonomy, cutoff=80, method=wang)"

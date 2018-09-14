@@ -1,5 +1,23 @@
 #!/bin/bash
 
+# 
+# DeltaMP, a flexible, reproducible and resource efficient metabarcoding amplicon pipeline for HPC
+# Copyright (C) 2018 Guillaume Lentendu, Christina Weißbecker, Anna Heintz-Buschart, Tesfaye Wubet
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# 
+
 ## Documentation
 declare -a TITLE=("Input data" "Pipeline execution" "Benchmarking" "Demultiplexing" "Quality check" "High quality reads processing" "Outputs" "References" "Raw reads extraction")
 
@@ -87,7 +105,7 @@ then
 	FWDSIM=`awk -v F=${#FWD} -v D=$PDIFFS 'BEGIN{printf "%.2g\n", 1-D/F}'`
 	RVSSIM=`awk -v R=${#RVS} -v D=$PDIFFS 'BEGIN{printf "%.2g\n", 1-D/R}'`
 	echo "Read pairs were extracted from raw libraries if at least one of the two reads hold the expected primer (forward primer for forward library, reverse primer for reverse library) at its 5' end, with a similarity threshold of $FWDSIM and $RVSSIM for the forward and reverse primer, respectively."
-	CUTAVG=`grep -m 1 "Total read pairs processed:" libraries/fastq/log.cutadapt.* | awk '{sub(",","",$NF);sum+=$NF}END{printf "%.0f\n", sum/NR}'`
+	CUTAVG=`grep -m 1 "Total read pairs processed:" libraries/fastq/log.cutadapt.* | awk '{gsub(",","",$NF);sum+=$NF}END{printf "%.0f\n", sum/NR}'`
 	echo "An average of $CUTAVG reads was extracted per pair of libraries."
 	echo ""
 fi
