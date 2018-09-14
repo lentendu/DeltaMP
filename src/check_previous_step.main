@@ -42,13 +42,13 @@ do
 			TEST2=`for j in log/$step.[0-9]*.out; do if [ -z "$(tail -1 $j | grep "END")" ] ; then echo $j | cut -d "." -f 2 ; fi ; done | sort -n | tr "\n" "," | sed 's/,$/\n/'`
 			if [ ! -z $TEST1 ]
 			then
-				echo "MOTHUR issued and ERROR in the previous step $i for the task(s) $TEST1."
+				echo "MOTHUR issued an ERROR in the previous step $i for the task(s) $TEST1."
 				echo "Check log at $EXEC/log/$step.xx.out and job report with job name $DELTAMP_VER.$step.$SUBPROJECT and TASK_ID $TEST1."
 				echo ""
 				WRONG=1
 			elif [ ! -z $TEST2 ]
 			then
-				echo "The task(s) $TEST2 of the previous step $i does not terminate normaly."
+				echo "The task(s) $TEST2 of the previous step $i did not terminate correctly."
 				echo "Check log at $EXEC/log/$step.xx.out and job report with job name $DELTAMP_VER.$step.$SUBPROJECT and TASK_ID $TEST2."
 				echo ""
 				WRONG=1
@@ -56,13 +56,13 @@ do
 		else
 			if [ ! -z "$(grep "\[ERROR\]" log/$step.out)" ]
 			then
-				echo "MOTHUR issued and ERROR in the previous step $i."
+				echo "MOTHUR issued an ERROR in the previous step $i."
 				echo "Check log at $EXEC/log/$step.out and job report with job name $DELTAMP_VER.$step.$SUBPROJECT ."
 				echo ""
 				WRONG=1
 			elif [ -z $(tail -1 log/$step.out | grep "END") ]
 			then
-				echo "The previous step $i does not terminate normaly."
+				echo "The previous step $i did not terminate correctly."
 				echo "Check log at $EXEC/log/$step.out and job report with job name $DELTAMP_VER.$step.$SUBPROJECT ."
 				echo ""
 				WRONG=1
@@ -72,7 +72,7 @@ do
 done
 if [ $WRONG -eq 1 ]
 then
-	echo "additionnal environment"
+	echo "additional environment"
 	comm -23 <(set -o posix; set | sort) <(sort $RAND.set) | grep -v "^i=\|^j=\|^WRONG="
 	rm $RAND.set
 	exit 100
