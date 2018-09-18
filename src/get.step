@@ -60,12 +60,12 @@ then
 		done
 	done
 else
-	wget -O $LIB_DIR.txt "http://www.ebi.ac.uk/ena/data/warehouse/filereport?accession=$LIB_DIR&result=read_run&download=text"
+	wget -nv -O $LIB_DIR.txt "http://www.ebi.ac.uk/ena/data/warehouse/filereport?accession=$LIB_DIR&result=read_run&download=text"
 	if [ "$(sed -n '$=' $LIB_DIR.txt)" -gt 1 ]
 	then
 		for i in $(seq 0 $(( ${#ARCH[@]} - 1 )) ) 
 		do
-			wget -O - ${ARCH[$i]} | dd of=${ARCH[$i]##*/} bs=1M && ARCH[$i]=${ARCH[$i]##*/}
+			wget -nv -O - ${ARCH[$i]} | dd of=${ARCH[$i]##*/} bs=1M && ARCH[$i]=${ARCH[$i]##*/}
 		done
 	else
 		echo "The accession $LIB_DIR was not found at the European Nucleotide Archive (http://www.ebi.ac.uk/ena/data)"

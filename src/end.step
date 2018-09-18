@@ -62,7 +62,7 @@ then
 	awk 'BEGIN{FS="\t"} {if(NR==1){for(i=1;i<=NF;i++){if($i=="sample_alias"){s=i};if($i=="sample_accession"){a=i}}} else {print $s,$a}}' $EXEC/libraries/$LIB_DIR.txt | sort -u > $LIB_DIR.samples.txt
 	while read sample accession
 	do
-		wget -O $sample.xml http://www.ebi.ac.uk/ena/data/view/$accession\&display=xml
+		wget -nv -O $sample.xml http://www.ebi.ac.uk/ena/data/view/$accession\&display=xml
 	done < $LIB_DIR.samples.txt
 	grep "<TAG>" *.xml | sed 's/^.*<TAG>\([^<]*\)<\/TAG>.*$/\1/;s/\//\\\\\\\//g' | sort -u > tags.txt
 	while read sample accession
