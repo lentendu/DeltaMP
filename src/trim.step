@@ -91,11 +91,11 @@ do
 				else
 					awk '{print $1}' ${k}.denoised.fasta >> $i.temp.fasta
 				fi
-				mothur "#set.logfile(name=$LOG, append=T);
-				trim.seqs(fasta=$i.temp.fasta, maxambig=$MAXAMBIG)"
-				rm ${k}.denoised* ${k}.flow ${k}.temp.scrap.fasta ${k}.temp*.qual
+				rm ${k}.denoised* ${k}.flow
 			done
-			rm $i.txt
+			mothur "#set.logfile(name=$LOG, append=T);
+			trim.seqs(fasta=$i.temp.fasta, maxambig=$MAXAMBIG)"
+			rm $i.txt  $i.temp.scrap.fasta $i.temp*.qual $i.temp.fasta
 			
 		else
 			if [ $TARG == "ITS" ] && [ $ITSX != "no" ]
