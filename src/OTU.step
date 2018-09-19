@@ -130,7 +130,7 @@ then
 	NAMES_OTUS=$NAMES.mcl
 	FASTA_OTUS=$FASTA.mcl
 	LIST=$NAMES.mcl
-	obigrep --without-progress-bar --id-list=<(cut -f 1 $NAMES_OTUS.names) $FASTA.fasta > $FASTA_OTUS.fasta
+	obigrep --without-progress-bar --uppercase --id-list=<(cut -f 1 $NAMES_OTUS.names) $FASTA.fasta | twofasta > $FASTA_OTUS.fasta
 	rm $FASTA.mcl.dico $FASTA.mcl.load $FASTA.mcl.clust
 elif [ $CLUST == "vsearch" ]
 then
