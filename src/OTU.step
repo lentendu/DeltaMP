@@ -90,7 +90,7 @@ DISIM=`awk -v S=$SIM 'BEGIN{print 1-S}'`
 
 if [ $CLUST == "cd-hit-est" ]
 then
-	sed 's/,/ /g' $NAMES.names | awk '{print "count="NF-1";"}' | sed G | paste -d " " <(twofasta $FASTA.fasta) -  | sed '/>/!s/-//g' | obisort --without-progress-bar -r -k count | twofasta | sed '/>/s/ count.*$//' > $FASTA.sort.fasta
+	paste - - < $FASTA.fasta | sed 's/>//' | sort -k 1,1 | join - <(awk '{print $1,split($2,a,",")}' $NAMES.names | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1"\n"$2}' > $FASTA.sort.fasta
 	if [ $PREV_PATH == "no" ]
 	then
 		cd-hit-est -T $NCPUS -M 0 -c $SIM -r 0 -g 1 -d 0 -i $FASTA.sort.fasta -o $FASTA.cdhit.fasta
@@ -114,8 +114,8 @@ then
 	LIST=$NAMES.cdhit
 elif [ $CLUST == "sumaclust" ]
 then
-	sed 's/,/ /g' $NAMES.names | awk '{print "count="NF-1";"}' | sed G | paste -d " " <(twofasta $FASTA.fasta) -  | sed '/>/!s/-//g' | obisort --without-progress-bar -r -k count | twofasta > $FASTA.sort.fasta
-	sumaclust -t $SIM -s count -p $NCPUS -e -O $FASTA.suma.map $FASTA.sort.fasta | obigrep --without-progress-bar -a cluster_center:True | obisort -k cluster_weight -r | obiannotate -C > $FASTA.suma.fasta
+	paste - - < $FASTA.fasta | sed 's/>//' | sort -k 1,1 | join - <(awk '{print $1,split($2,a,",")}' $NAMES.names | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1"\n"$2}' > $FASTA.sort.fasta
+	sumaclust -t $SIM -p $NCPUS -e -O $FASTA.suma.map $FASTA.sort.fasta | obigrep --without-progress-bar -a cluster_center:True | obisort -k cluster_weight -r | obiannotate -C > $FASTA.suma.fasta
 	suma2mothur $FASTA.suma.map $NAMES.names $DISIM
 	NAMES_OTUS=$NAMES.suma
 	FASTA_OTUS=$FASTA.suma
@@ -134,7 +134,7 @@ then
 	rm $FASTA.mcl.dico $FASTA.mcl.load $FASTA.mcl.clust
 elif [ $CLUST == "vsearch" ]
 then
-	sed 's/,/ /g' $NAMES.names | awk '{print "count="NF-1";"}' | sed G | paste -d " " <(twofasta $FASTA.fasta) -  | sed '/>/!s/-//g' | obisort --without-progress-bar -r -k count | twofasta | sed '/>/s/  */;/;s/count/size/' > $FASTA.sort.fasta
+	paste - - < $FASTA.fasta | sed 's/>//' | sort -k 1,1 | join - <(awk '{print $1,split($2,a,",")}' $NAMES.names | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1,";size="$3"\n"$2}' > $FASTA.sort.fasta
 	vsearch --quiet --cluster_smallmem $FASTA.sort.fasta --usersort --id $SIM --centroids $FASTA.vsearch.fasta --xsize -uc $FASTA.uc
 	vsearch2mothur $FASTA.uc $NAMES.names $DISIM
 	NAMES_OTUS=$NAMES.vsearch
@@ -143,7 +143,7 @@ then
 	LIST=$NAMES.vsearch
 elif [ $CLUST == "swarm" ]
 then
-	sed 's/,/ /g' $NAMES.names | awk '{print "size="NF-1";"}' | sed G | paste -d " " <(twofasta $FASTA.fasta) -  | sed '/>/!s/-//g' | obisort --without-progress-bar -r -k size | twofasta | sed '/>/s/ /;/' > $FASTA.sort.fasta
+	paste - - < $FASTA.fasta | sed 's/>//' | sort -k 1,1 | join - <(awk '{print $1,split($2,a,",")}' $NAMES.names | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1,";size="$3"\n"$2}' > $FASTA.sort.fasta
 	MEM=`awk -v N=$NCPUS 'BEGIN{print 6000*N}'`
 	swarm -f -z -c $MEM -t $NCPUS -w $FASTA.tmp.fasta -o $FASTA.swarm $FASTA.sort.fasta
 	sed '/>/s/;.*//' $FASTA.tmp.fasta > $FASTA.swarm.fasta && rm $FASTA.tmp.fasta
