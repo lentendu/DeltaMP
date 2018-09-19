@@ -115,7 +115,7 @@ then
 elif [ $CLUST == "sumaclust" ]
 then
 	sed 's/,/ /g' $NAMES.names | awk '{print "count="NF-1";"}' | sed G | paste -d " " <(twofasta $FASTA.fasta) -  | sed '/>/!s/-//g' | obisort --without-progress-bar -r -k count | twofasta > $FASTA.sort.fasta
-	sumaclust -t $SIM -s size -p $NCPUS -e -O $FASTA.suma.map $FASTA.sort.fasta | obigrep --without-progress-bar -a cluster_center:True | obisort -k cluster_weight -r | obiannotate -C > $FASTA.suma.fasta
+	sumaclust -t $SIM -s count -p $NCPUS -e -O $FASTA.suma.map $FASTA.sort.fasta | obigrep --without-progress-bar -a cluster_center:True | obisort -k cluster_weight -r | obiannotate -C > $FASTA.suma.fasta
 	suma2mothur $FASTA.suma.map $NAMES.names $DISIM
 	NAMES_OTUS=$NAMES.suma
 	FASTA_OTUS=$FASTA.suma
