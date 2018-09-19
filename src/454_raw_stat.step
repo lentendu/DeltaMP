@@ -27,13 +27,13 @@ module load DeltaMP/${VERSION[DELTAMP]}
 LIB_NAME=`head -$ARRAY_TASK config/lib2.list | tail -1 | sed 's/\.sff//'`
 cd libraries/raw_stat
 
-# Mean length and quality statistics for the library
+# cat length and quality statistics of all samples from a library
 for j in length meanqual meanposqual
 do
 	for i in $(ls *$LIB_NAME.$j)
 	do
 		cat <(echo $i | cut -d "." -f 1) $i | tr "\n" "\t" | sed 's/$/\n/'
-	done > $LIB_NAME.$j
+	done > $LIB_NAME.$j.tmp && mv $LIB_NAME.$j.tmp $LIB_NAME.$j
 done
 
 # Figures
