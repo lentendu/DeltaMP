@@ -168,7 +168,7 @@ then
 	if [ $PRECDIFF -ge 1 ]
 	then
 		mothur "#set.logfile(name=$LOG, append=T);
-		set.dir(tempdefault=/data/ecogen/databases/mothur);
+		set.dir(tempdefault=$DBFOLD);
 		align.seqs(candidate=$FASTA.fasta, template=$DBCHOP.fasta, align=needleman);
 		screen.seqs(fasta=current, name=$NAMES.names, optimize=start-end, criteria=95);
 		filter.seqs(fasta=current, vertical=T, trump=.);
