@@ -257,6 +257,7 @@ then
 	fi
 fi
 
+DBALIGN=$DB.align
 if ( [ $TARG == "18S" ] || [ $TARG == "16S" ] ) && [ $CUT_DB == "yes" ]
 then
 	if [ $TECH == "454" ] && [ $FLIP == "true" ]
@@ -265,11 +266,6 @@ then
 	else
 		DBCUT=$FWD_NAME.$RVS_NAME.$DB
 	fi
-fi
-
-DBALIGN=$DB.align
-if [ -f $DBFOLD/$DBALIGN.fasta ] && [ $CUT_DB == "yes" ]
-then
 	DBCHOP=$DBCUT.align
 fi
 
@@ -287,7 +283,7 @@ fi
 
 if [ $PRECLUST == "mothur" ]
 then
-	if [ ! -f $DBFOLD/$DBALIGN.fasta ]
+	if [ ! -f $DBFOLD/$DBCHOP.fasta ] && [ ! -f $DBFOLD/$DBALIGN.fasta ] 
 	then
 		error_doc "the mothur pre-clustering method could only be used if an aligned version of the reference database is available." 1
 	fi
