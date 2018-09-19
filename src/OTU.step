@@ -59,9 +59,9 @@ suma2mothur () {
 }
 
 mcl2mothur () {
-	mcl=$1 ; repseq=$2 ; names=$3 ; disim=$4
+	mcl=$1 ; names=$2 ; disim=$3
 	size=`sed -n '$=' $repseq`
-	awk '{for(i=2;i<=NF;i++){print $i,NR}}' $mcl | sort -k 1,1 | join - <(sort -k 1,1 $names) | awk -v S=$size 'BEGIN{i=S+1};{if(NF==2){print $1,i,$2;i=i+1} else print $0}' | sort -k 2,2n | awk '{if(NR==1){prev=$2;printf "%s",$3} else { if($2==prev) {printf ",%s", $3} else {prev=$2;printf "\n%s",$3}}}END{printf "\n"}' | cat - <(join -2 2 -o 1.2 -v 1 <(sort -k 1,1 $names) <(sort -k 2,2 $mcl.dico)) | paste $repseq - > ${names%.*}.mcl.names
+	awk '{for(i=2;i<=NF;i++){print $i,NR}}' $mcl | sort -k 1,1 | join -a 2 - <(sort -k 1,1 $names) | awk -v S=$size 'BEGIN{i=S+1}{if(NF==2){print $1,i,split($2,a,","),$2;i=i+1} else print $1,$2,split($3,a,","),$3}' | sort -k 2,2n -k 3,3nr | awk '{if(NR==1){printf "%s\t%s" ,$1,$4;prev=$2;sum=$3} else {if($2!=prev){printf "\t%s\n%s\t%s" ,sum,$1,$4;prev=$2;sum=$3} else {sum+=$3;printf ",%s" ,$4}}}END{printf "\t%s\n",sum}' | sort -k 3,3nr | cut -f 1,2 > ${names%.*}.mcl.names
 	awk -v L=${#size} -v D=$disim -v S=$size 'BEGIN{printf "%s\t%s","label","numOtus";for(i=1;i<=S;i++){printf "\t%s%0"L"d", "Otu",i};printf "\n%s\t%s", D,S} {printf "\t%s",$2} END{printf "\n"}' ${names%.*}.mcl.names > ${names%.*}.mcl.list
 	echo "mcl2mothur output files:#${names%.*}.mcl.list#${names%.*}.mcl.names" | tr "#" "\n"
 }
@@ -126,13 +126,12 @@ then
 	mcxload -abc $FASTA.simil -write-tab $FASTA.mcl.dico -o $FASTA.mcl.load
 	mcl $FASTA.mcl.load -I 1.2 -te $NCPUS -o $FASTA.mcl.clust
 	mcxdump -imx $FASTA.mcl.clust --dump-lines -tabr $FASTA.mcl.dico --lazy-tab --no-values -o $FASTA.mcl
-	clm info --node-self-measures $FASTA.mcl.load $FASTA.mcl.clust | perl -ne '/ni=(\d+).*ci=(\d+).*mf=(\S+).*ns=(\d+)/; local $, = " "; print $1, $2, $3 * $4, "\n";' | sort -k 1,1n | join - $FASTA.mcl.dico | sort -k 4,4 | join -1 4 - <(sort -k 1,1 $NAMES.names) | awk '{S=split($5,a,",");print $1,$2,$3,$4,S}' | sort -k 3,3n -k 4,4nr -k 5,5nr | awk '{if(NR==1){prev=$3;print $1} else {if($3!=prev){prev=$3;print $1}}}' | cat - <(join -2 2 -o 1.1 -v 1 <(sort -k 1,1 $FASTA.names) <(sort -k 2,2 $FASTA.mcl.dico)) > $FASTA.mcl.repseq.list
-	obigrep --without-progress-bar --id-list=$FASTA.mcl.repseq.list $FASTA.fasta > $FASTA.mcl.fasta
-	mcl2mothur $FASTA.mcl $FASTA.mcl.repseq.list $NAMES.names $DISIM
-	rm $FASTA.mcl.dico $FASTA.mcl.load $FASTA.mcl.clust $FASTA.mcl.repseq.list
+	mcl2mothur $FASTA.mcl $NAMES.names $DISIM
 	NAMES_OTUS=$NAMES.mcl
 	FASTA_OTUS=$FASTA.mcl
 	LIST=$NAMES.mcl
+	obigrep --without-progress-bar --id-list=<(cut -f 1 $NAMES_OTUS.names) $FASTA.fasta > $FASTA_OTUS.fasta
+	rm $FASTA.mcl.dico $FASTA.mcl.load $FASTA.mcl.clust
 elif [ $CLUST == "vsearch" ]
 then
 	sed 's/,/ /g' $NAMES.names | awk '{print "count="NF-1";"}' | sed G | paste -d " " <(twofasta $FASTA.fasta) -  | sed '/>/!s/-//g' | obisort --without-progress-bar -r -k count | twofasta | sed '/>/s/  */;/;s/count/size/' > $FASTA.sort.fasta
