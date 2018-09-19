@@ -87,11 +87,13 @@ do
 				awk '{if($2~","){sub(",*"$1"$","",$2);print $1"\t"$1","$2} else print}' ${k}.denoised.names >> $i.names
 				if [ $FLIP == "yes" ]
 				then
-					obicomplement --without-progress-bar --uppercase ${k}.denoised.fasta | sed 's/_CMP.*$//' | twofasta >> $i.trim.fasta
+					obicomplement --without-progress-bar --uppercase ${k}.denoised.fasta | sed 's/_CMP.*$//' | twofasta >> $i.temp.fasta
 				else
-					awk '{print $1}' ${k}.denoised.fasta >> $i.trim.fasta
+					awk '{print $1}' ${k}.denoised.fasta >> $i.temp.fasta
 				fi
-				rm ${k}.denoised* ${k}.flow
+				mothur "#set.logfile(name=$LOG, append=T);
+				trim.seqs(fasta=$i.temp.fasta, maxambig=$MAXAMBIG)"
+				rm ${k}.denoised* ${k}.flow ${k}.temp.scrap.fasta ${k}.temp*.qual
 			done
 			rm $i.txt
 			

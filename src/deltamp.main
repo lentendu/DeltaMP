@@ -78,6 +78,18 @@ done | sed '1d;$d'
 echo ""
 }
 
+error_help(){
+	echo "#Error: $1"
+	show_help | fmt -s -w $(tput cols)
+	exit $2
+} >&2
+
+error_doc(){
+	echo -e "#Error: $1"
+	show_doc | fmt -s -w $(tput cols)
+	exit $2
+} >&2
+
 # record all variables set
 STIME=`date +%s`
 (set -o posix; set > /tmp/amp.$STIME.set)
@@ -100,19 +112,6 @@ QUAL_ONLY=no
 DEMULTI_ONLY=no
 CHECKP=yes
 REF_SUBPROJECT=no
-
-error_help(){
-	echo "#Error: $1"
-	show_help | fmt -s -w $(tput cols)
-	exit $2
-} >&2
-
-error_doc(){
-echo "#Error: $1"
-	show_doc | fmt -s -w $(tput cols)
-	exit $2
-} >&2
-
 
 # get options
 while getopts ":a:cdfhm:nqsr:" opt
@@ -143,7 +142,7 @@ shift "$((OPTIND-1))" # Shift off the options and optional --.
 
 if [ -z "$1" ]
 then 
-	error "Configuration file is missing." 1 
+	error_help "the configuration file is missing." 1 
 else
 	METAD=`readlink -f $1` ; shift
 fi
@@ -158,7 +157,7 @@ do
 	then
 		if [ $std == "#" ]
 		then
-			error_doc "# Configuration file error: the parameter '$def' is missing and is compulsory." 1
+			error_doc " in the configuration file, the parameter '$def' is missing and is compulsory." 1
 		else
 			declare $var="$std"
 		fi
@@ -181,8 +180,7 @@ do
 				IFS=$'\t' read -r -a $var <<< "$val"
 			fi
 		else
-			echo "# Configuration file error: the value of parameter '$def' is not accepted (currently set to $val)." >&2
-			error_doc "The accepted values $(if [[ $acc == *"^"* ]] ; then echo 'should match the regex(s)' ; else echo 'are' ; fi): $acc (default value is $std)." 1
+			error_doc "in the configuration file, the value of parameter '$def' is not accepted (currently set to $val).\nThe accepted values $(if [[ $acc == *"^"* ]] ; then echo 'should match the regex(s)' ; else echo 'are' ; fi): $acc (default value is $std)." 1
 		fi		
 	else
 		declare $var="$val"
@@ -210,8 +208,7 @@ do
 		then
 			declare $var="$val"
 		else
-			echo "# Configuration file error: the value of parameter '$def' is not accepted (currently set to $val)." >&2
-			error_doc "The accepted values $(if [[ $acc == *"^"* ]] ; then echo 'should match the regex(s)' ; else echo 'are' ; fi): $acc (default value is $std)." 1
+			error_doc "in the configuration file, the value of parameter '$def' is not accepted (currently set to $val).\nThe accepted values $(if [[ $acc == *"^"* ]] ; then echo 'should match the regex(s)' ; else echo 'are' ; fi): $acc (default value is $std)." 1
 		fi
 	fi
 done < $BIN/variables_definition_$TECH.tsv
@@ -229,7 +226,7 @@ then
 		read FWD RVS <<<"$RVS $FWD"
 		read FWD_NAME RVS_NAME <<<"$RVS_NAME $FWD_NAME"
 	else
-		error_doc "# Configuration file error: wrong sequence direction $SEQ_DIR" 1
+		error_doc "in the configuration file, the sequence direction $SEQ_DIR is wrong." 1
 	fi
 elif [ $TECH == "Illumina" ]
 then
@@ -237,10 +234,10 @@ then
 	DEMULTI=yes
 	if [ DEMULTI_ONLY == "yes" ]
 	then
-	error_doc "# Demultiplexing is not available for $TECH libraries." 1
+	error_doc "demultiplexing is not available for $TECH libraries." 1
 	fi
 else
-	error_doc "# Configuration file error: wrong sequence technology $TECH" 1
+	error_doc "in the configuration file, the sequence technology $TECH is wrong." 1
 fi
 
 	
@@ -277,16 +274,22 @@ then
 fi
 
 # Pre-clustering
-if [ $CLUST == "swarm" ] && [ $PRECLUST != "no" ]
+if [ $CLUST == "swarm" ]
 then
-	error_doc "# Configuration file error: pre-clustering is not allowed for swarm based OTU clustering. Turn off the 'Pre-clustering' argument with 'no' or use another clustering algorithm." 1
+	if [ $PRECLUST != "no" ]
+	then
+		error_doc "pre-clustering is not allowed for swarm based OTU clustering.\nIn the configuration file, turn off the 'Pre-clustering' argument with 'no' or use another clustering algorithm." 1
+	elif [ $MAXAMBIG -gt 0 ]
+	then
+		error_doc "swarm clustering do not allow ambiguous nucleotide.\nIn the configuration file, set 'Maximum number of ambiguities allowed in the sequence' to 0 or use another clustering algorithm." 1
+	fi
 fi
 
 if [ $PRECLUST == "mothur" ]
 then
 	if [ ! -f $DBFOLD/$DBALIGN.fasta ]
 	then
-		error_doc "# Configuration file error: the mothur pre-clustering method could only be used if an aligned version of the reference database is available." 1
+		error_doc "the mothur pre-clustering method could only be used if an aligned version of the reference database is available." 1
 	fi
 fi
 
@@ -429,8 +432,7 @@ then
 		then
 			cd .. && rm -r $SUBPROJECT
 			if [ ! "$(ls -A)" ] ; then cd .. && rmdir $PROJECT ; fi
-			echo "# There is more samples than libraries, it seems that the libraries are not demultiplexed" >&2
-			error_doc "# Set 'Libraries already demultiplexed' to 'no' in the configuration file to allow deltamp execution." 1
+			error_doc "there is more samples than libraries, it seems that the libraries are not demultiplexed\nSet 'Libraries already demultiplexed' to 'no' in the configuration file to allow deltamp execution." 1
 		else
 			while read head bar samp lib; do echo $samp ${lib%.*} ; done < config/barcodes.txt | sed 's/-/_/g;s/ftp\.sra.*\///' | sort | uniq > config/lib3.list
 		fi
@@ -467,7 +469,7 @@ then
 	else
 		cd .. && rm -r $SUBPROJECT
 		if [ ! "$(ls -A)" ] ; then cd .. && rmdir $PROJECT ; fi
-		error_doc "# The -s option can only be used for non demultiplexed libraries and demultiplexing is only supported for 454 libraries." 1
+		error_doc "the -s option can only be used for non demultiplexed libraries and demultiplexing is only supported for 454 libraries." 1
 	fi
 else
 	if [ $QUAL_ONLY == "yes" ]
@@ -511,13 +513,11 @@ then
 			if [ -z "${TMP_DIF[$i]}" ] && [ -z "${BAR_DIF[$i]}" ]
 			then
 				rm -r $SUBPROJECT
-				echo "# Previous subproject $i is identical." >&2
-				error_doc "# At least one parameter need to differ with previous subproject to allow deltamp execution." 1
+				error_doc "the previous subproject $i is identical.\nAt least one parameter need to differ with previous subproject to allow deltamp execution." 1
 			elif [ ! -z "${BAR_DIF[$i]}" ]
 			then
 				rm -r $SUBPROJECT
-				echo "# Previous subproject $i have a different barcode and/or library list." >&2
-				error_doc "# To avoid using $i as reference subproject, you can for example change the output directory (currently $OUT_PATH) in the configuration file." 1
+				error_doc "the previous subproject $i have a different barcode and/or library list.\nTo avoid using $i as reference subproject, you can for example change the output directory (currently $OUT_PATH) in the configuration file." 1
 			fi
 			# in which step script(s) the differing variable(s) are found
 			unset MATCH_REGEX
@@ -652,8 +652,7 @@ else
 		then
 			rm -r $SUBPROJECT
 			if [ ! "$(ls -A)" ] ; then cd .. && rmdir $PROJECT ; fi
-			echo "# Previous subproject $REF_SUBPROJECT was a DRY RUN only." >&2
-			error_doc "# Remove $REF_SUBPROJECT from $OUT_PATH/$PROJECT or provide another output directory in the configuration file." 1
+			error_doc "the previous subproject $REF_SUBPROJECT was a DRY RUN only.\nRemove $REF_SUBPROJECT from $OUT_PATH/$PROJECT or provide another output directory in the configuration file." 1
 			exit 1
 		fi
 	fi
