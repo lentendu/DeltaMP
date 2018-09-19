@@ -62,7 +62,8 @@ mcl2mothur () {
 	mcl=$1 ; names=$2 ; disim=$3
 	size=`sed -n '$=' $mcl`
 	awk '{for(i=2;i<=NF;i++){print $i,NR}}' $mcl | sort -k 1,1 | join -a 2 - <(sort -k 1,1 $names) | awk -v S=$size 'BEGIN{i=S+1}{if(NF==2){print $1,i,split($2,a,","),$2;i=i+1} else print $1,$2,split($3,a,","),$3}' | sort -k 2,2n -k 3,3nr | awk '{if(NR==1){printf "%s\t%s" ,$1,$4;prev=$2;sum=$3} else {if($2!=prev){printf "\t%s\n%s\t%s" ,sum,$1,$4;prev=$2;sum=$3} else {sum+=$3;printf ",%s" ,$4}}}END{printf "\t%s\n",sum}' | sort -k 3,3nr | cut -f 1,2 > ${names%.*}.mcl.names
-	awk -v L=${#size} -v D=$disim -v S=$size 'BEGIN{printf "%s\t%s","label","numOtus";for(i=1;i<=S;i++){printf "\t%s%0"L"d", "Otu",i};printf "\n%s\t%s", D,S} {printf "\t%s",$2} END{printf "\n"}' ${names%.*}.mcl.names > ${names%.*}.mcl.list
+	size2=`sed -n '$=' ${names%.*}.mcl.names`
+	awk -v L=${#size} -v D=$disim -v S=$size2 'BEGIN{printf "%s\t%s","label","numOtus";for(i=1;i<=S;i++){printf "\t%s%0"L"d", "Otu",i};printf "\n%s\t%s", D,S} {printf "\t%s",$2} END{printf "\n"}' ${names%.*}.mcl.names > ${names%.*}.mcl.list
 	echo "mcl2mothur output files:#${names%.*}.mcl.list#${names%.*}.mcl.names" | tr "#" "\n"
 }
 
