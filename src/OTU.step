@@ -135,7 +135,7 @@ then
 	rm $FASTA.mcl.dico $FASTA.mcl.load $FASTA.mcl.clust
 elif [ $CLUST == "vsearch" ]
 then
-	paste - - < $FASTA.fasta | sed 's/>//' | sort -k 1,1 | join - <(awk '{print $1,split($2,a,",")}' $NAMES.names | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1,";size="$3"\n"$2}' > $FASTA.sort.fasta
+	paste - - < $FASTA.fasta | sed 's/>//' | sort -k 1,1 | join - <(awk '{print $1,split($2,a,",")}' $NAMES.names | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1";size="$3"\n"$2}' > $FASTA.sort.fasta
 	vsearch --quiet --cluster_smallmem $FASTA.sort.fasta --usersort --id $SIM --centroids $FASTA.vsearch.fasta --xsize -uc $FASTA.uc
 	vsearch2mothur $FASTA.uc $NAMES.names $DISIM
 	NAMES_OTUS=$NAMES.vsearch
@@ -144,7 +144,7 @@ then
 	LIST=$NAMES.vsearch
 elif [ $CLUST == "swarm" ]
 then
-	paste - - < $FASTA.fasta | sed 's/>//' | sort -k 1,1 | join - <(awk '{print $1,split($2,a,",")}' $NAMES.names | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1,";size="$3"\n"$2}' > $FASTA.sort.fasta
+	paste - - < $FASTA.fasta | sed 's/>//' | sort -k 1,1 | join - <(awk '{print $1,split($2,a,",")}' $NAMES.names | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1";size="$3"\n"$2}' > $FASTA.sort.fasta
 	MEM=`awk -v N=$NCPUS 'BEGIN{print 6000*N}'`
 	swarm -f -z -c $MEM -t $NCPUS -w $FASTA.tmp.fasta -o $FASTA.swarm $FASTA.sort.fasta
 	sed '/>/s/;.*//' $FASTA.tmp.fasta > $FASTA.swarm.fasta && rm $FASTA.tmp.fasta
