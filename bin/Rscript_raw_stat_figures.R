@@ -44,7 +44,7 @@ axis(1,seq(0,1000,200),lwd=0.5,lwd.ticks=1)
 ## Nucleotide content
 dev.off()
 
-if (length(len)>1)) {
+if (length(len)>1) {
 	# For each samples
 	pdf(paste(subp,lib,"sample_based_raw_reads_statistics.pdf",sep="."),paper="a4",width=0,height=0,title=paste(subp,lib,"sample based raw reads statistics"))
 	layout(matrix(c(1,1,2,5,3,5,4,5),ncol=2,byrow=T),widths=c(4,1),heights=c(1,4,4,4))
