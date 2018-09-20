@@ -89,7 +89,7 @@ do
 				rm ${k}.denoised* ${k}.flow
 			done
 			mothur "#set.logfile(name=$LOG, append=T);
-			trim.seqs(fasta=$i.temp.fasta, names=$i.temp.names, maxambig=$MAXAMBIG)"
+			trim.seqs(fasta=$i.temp.fasta, name=$i.temp.names, maxambig=$MAXAMBIG)"
 			rm $i.txt $i.temp.scrap.fasta $i.temp*.qual $i.temp.fasta $i.temp.names
 			
 		else
