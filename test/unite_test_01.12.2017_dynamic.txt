@@ -1,0 +1,3 @@
+VERSION 01.12.2017
+CITATION        UNITE Community, 2017
+FULLCITATION    UNITE Community (2017): UNITE mothur release. Version 01.12.2017. UNITE Community. https://doi.org/10.15156/BIO/587478
