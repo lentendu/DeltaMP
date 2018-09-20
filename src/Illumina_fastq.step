@@ -42,12 +42,12 @@ then
 		cutadapt -a $RVS...$FWD_RC -A $FWD...$RVS_RC -e $DISS --no-indels --trimmed-only -o fastq/$FWD_LIB.rvs.fastq -p fastq/$RVS_LIB.rvs.fastq fastq/$FWD_LIB.fwd_unt.fastq fastq/$RVS_LIB.fwd_unt.fastq > fastq/log.cutadapt.$LIB_NAME.rvs.txt
 	elif [ $CLIPPING == "5prime" ]
 	then
-		cutadapt -g $RVS_RC -G $FWD_RC -e $DISS --no-indels --untrimmed-output=fastq/$FWD_LIB.fwd_unt.fastq --untrimmed-paired-output=fastq/$RVS_LIB.fwd_unt.fastq -o fastq/$FWD_LIB.fwd.fastq -p fastq/$RVS_LIB.fwd.fastq $FWD_LIB.fastq $RVS_LIB.fastq > fastq/log.cutadapt.$LIB_NAME.fwd.txt
-		cutadapt -g $FWD_RC -G $RVS_RC -e $DISS --no-indels --trimmed-only -o fastq/$FWD_LIB.rvs.fastq -p fastq/$RVS_LIB.rvs.fastq fastq/$FWD_LIB.fwd_unt.fastq fastq/$RVS_LIB.fwd_unt.fastq > fastq/log.cutadapt.$LIB_NAME.rvs.txt
+		cutadapt -g $FWD -G $RVS -e $DISS --no-indels --untrimmed-output=fastq/$FWD_LIB.fwd_unt.fastq --untrimmed-paired-output=fastq/$RVS_LIB.fwd_unt.fastq -o fastq/$FWD_LIB.fwd.fastq -p fastq/$RVS_LIB.fwd.fastq $FWD_LIB.fastq $RVS_LIB.fastq > fastq/log.cutadapt.$LIB_NAME.fwd.txt
+		cutadapt -g $RVS -G $FWD -e $DISS --no-indels --trimmed-only -o fastq/$FWD_LIB.rvs.fastq -p fastq/$RVS_LIB.rvs.fastq fastq/$FWD_LIB.fwd_unt.fastq fastq/$RVS_LIB.fwd_unt.fastq > fastq/log.cutadapt.$LIB_NAME.rvs.txt
 	elif [ $CLIPPING == "3prime" ]
 	then
-		cutadapt -a $FWD -A $RVS -e $DISS --no-indels --untrimmed-output=fastq/$FWD_LIB.fwd_unt.fastq --untrimmed-paired-output=fastq/$RVS_LIB.fwd_unt.fastq -o fastq/$FWD_LIB.fwd.fastq -p fastq/$RVS_LIB.fwd.fastq $FWD_LIB.fastq $RVS_LIB.fastq > fastq/log.cutadapt.$LIB_NAME.fwd.txt
-		cutadapt -a $RVS -A $FWD -e $DISS --no-indels --trimmed-only -o fastq/$FWD_LIB.rvs.fastq -p fastq/$RVS_LIB.rvs.fastq fastq/$FWD_LIB.fwd_unt.fastq fastq/$RVS_LIB.fwd_unt.fastq > fastq/log.cutadapt.$LIB_NAME.rvs.txt
+		cutadapt -a $RVS_RC -A $FWD_RC -e $DISS --no-indels --untrimmed-output=fastq/$FWD_LIB.fwd_unt.fastq --untrimmed-paired-output=fastq/$RVS_LIB.fwd_unt.fastq -o fastq/$FWD_LIB.fwd.fastq -p fastq/$RVS_LIB.fwd.fastq $FWD_LIB.fastq $RVS_LIB.fastq > fastq/log.cutadapt.$LIB_NAME.fwd.txt
+		cutadapt -a $FWD_RC -A $RVS_RC -e $DISS --no-indels --trimmed-only -o fastq/$FWD_LIB.rvs.fastq -p fastq/$RVS_LIB.rvs.fastq fastq/$FWD_LIB.fwd_unt.fastq fastq/$RVS_LIB.fwd_unt.fastq > fastq/log.cutadapt.$LIB_NAME.rvs.txt
 	fi
 	# reverse complement (if not empty)
 	if [ -s fastq/$FWD_LIB.rvs.fastq ]
