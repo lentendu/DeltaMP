@@ -217,17 +217,6 @@ done < $BIN/variables_definition_$TECH.tsv
 if [ $TECH == "454" ]
 then
 	RAW_EXT=sff
-	if [ $SEQ_DIR == "forward" ]
-	then
-		FLIP=false
-	elif [ $SEQ_DIR == "reverse" ]
-	then
-		FLIP=true
-		read FWD RVS <<<"$RVS $FWD"
-		read FWD_NAME RVS_NAME <<<"$RVS_NAME $FWD_NAME"
-	else
-		error_doc "in the configuration file, the sequence direction $SEQ_DIR is wrong." 1
-	fi
 elif [ $TECH == "Illumina" ]
 then
 	RAW_EXT=fastq
@@ -236,8 +225,15 @@ then
 	then
 	error_doc "demultiplexing is not available for $TECH libraries." 1
 	fi
-else
-	error_doc "in the configuration file, the sequence technology $TECH is wrong." 1
+fi
+if [ $SEQ_DIR == "forward" ]
+then
+	FLIP=false
+elif [ $SEQ_DIR == "reverse" ]
+then
+	FLIP=true
+	read FWD RVS <<<"$RVS $FWD"
+	read FWD_NAME RVS_NAME <<<"$RVS_NAME $FWD_NAME"
 fi
 
 	
@@ -255,18 +251,19 @@ then
 		FULLCITATION[FUN]="Nguyen, N. H., Song, Z., Bates, S. T., Branco, S., Tedersoo, L., Menke, J., … Kennedy, P. G. (2016). FUNGuild: An open annotation tool for parsing fungal community datasets by ecological guild. Fungal Ecology, 20, 241–248."
 		VERSION[FUN]=1.1
 	fi
-fi
-
-DBALIGN=$DB.align
-if ( [ $TARG == "18S" ] || [ $TARG == "16S" ] ) && [ $CUT_DB == "yes" ]
+elif [ $TARG == "18S" ] || [ $TARG == "16S" ]
 then
-	if [ $TECH == "454" ] && [ $FLIP == "true" ]
+	DBALIGN=$DB.align
+	if [ $CUT_DB == "yes" ]
 	then
-		DBCUT=$RVS_NAME.$FWD_NAME.$DB
-	else
-		DBCUT=$FWD_NAME.$RVS_NAME.$DB
+		if [ $FLIP == "true" ]
+		then
+			DBCUT=$RVS_NAME.$FWD_NAME.$DB
+		else
+			DBCUT=$FWD_NAME.$RVS_NAME.$DB
+		fi
+		DBCHOP=$DBCUT.align
 	fi
-	DBCHOP=$DBCUT.align
 fi
 
 # Pre-clustering

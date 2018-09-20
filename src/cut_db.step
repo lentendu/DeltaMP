@@ -68,13 +68,10 @@ then
 	# Primers
 	unset PRIMER
 	declare -A PRIMER
-	if [ $TECH == "454" ]
+	if [ $FLIP == "true" ]
 	then
-		if [ $FLIP == "true" ]
-		then
-			read FWD RVS <<<"$RVS $FWD"
-			read FWD_NAME RVS_NAME <<<"$RVS_NAME $FWD_NAME"
-		fi
+		read FWD RVS <<<"$RVS $FWD"
+		read FWD_NAME RVS_NAME <<<"$RVS_NAME $FWD_NAME"
 	fi
 	PRIMER[$FWD_NAME]=${FWD,,}
 	PRIMER[$RVS_NAME]=${RVS,,}
