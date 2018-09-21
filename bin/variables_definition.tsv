@@ -19,7 +19,7 @@ MINLEN	50	Minimum sequence length	^[0-9]+$
 MAXLEN	600	Maximum sequence length	^[0-9]+$
 MINQUAL	20	Minimum average quality on the trimmed sequence length	^[0-9]+$
 MIN_DEPTH	2000	Minimum number of trimmed reads per sample	^[0-9]+$
-ITSX	no	ITSx region to extract	^ITS[12]$
+ITSX	no	ITSx region to extract	no ^ITS[12]$
 SUBSAMPLE	no	Subsampling	no yes
 PRECLUST	cdhit454	Pre-clustering	no cdhit454 mothur
 CHIMERA	after	Chimera removal 	before after both
