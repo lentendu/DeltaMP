@@ -18,7 +18,6 @@
 
 # Define Variables
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
-. $BIN/check_previous_step
 
 # load modules
 module load DeltaMP/${VERSION[DELTAMP]}
@@ -60,8 +59,8 @@ then
 	rm tmp.${DB}_s*
 	
 	# Format to vsearch udb database for singleton including version
-	sed '$!N;/>/s/\n/ /;s/>//' $DBFOLD/${DB}_s.$ITSX.fasta | sort -k 1,1 | join - <(sort -k 1,1 $DBFOLD/${DB}_s.$ITSX.taxonomy) | sed 's/;$//;s/;/,/g' | awk '{print ">"$1";tax="$3";\n"$2}' > vsearch.${DB}_s.$ITSX.fasta
-	vsearch --makeudb_usearch vsearch.${DB}_s.$ITSX.fasta --output $DBFOLD/${DB}_s.$ITSX.udb
+	sed '$!N;/>/s/\n/ /;s/>//' ${DB}_s.$ITSX.fasta | sort -k 1,1 | join - <(sort -k 1,1 ${DB}_s.$ITSX.taxonomy) | sed 's/;$//;s/;/,/g' | awk '{print ">"$1";tax="$3";\n"$2}' > vsearch.${DB}_s.$ITSX.fasta
+	vsearch --makeudb_usearch vsearch.${DB}_s.$ITSX.fasta --output ${DB}_s.$ITSX.udb
 	rm vsearch.${DB}_s.$ITSX.fasta
 elif [[ $DB =~ [Ss][Ii][Ll][Vv][Aa] ]]
 then
@@ -219,15 +218,16 @@ else
 fi
 
 # Initialize mothur database
-obihead --without-progress-bar -n 10 $DBFOLD/$DBCUT.fasta > tmp.$DBCUT.fasta
+cd $DBFOLD
+obihead --without-progress-bar -n 10 $DBCUT.fasta > tmp.$DBCUT.fasta
 mothur "#set.dir(output=$DBFOLD, tempdefault=$DBFOLD);
 set.logfile(name=mothur.initialize.logfile, append=T);
 classify.seqs(fasta=tmp.$DBCUT.fasta, template=$DBCUT.fasta, taxonomy=$DBCUT.taxonomy, cutoff=80, method=wang)"
 rm tmp.$DBCUT*
 
 # Format to vsearch udb database
-sed '$!N;/>/s/\n/ /;s/>//' $DBFOLD/$DBCUT.fasta | sort -k 1,1 | join - <(sort -k 1,1 $DBFOLD/$DBCUT.taxonomy) | sed 's/;$//;s/;/,/g' | awk '{print ">"$1";tax="$3";\n"$2}' > vsearch.$DBCUT.fasta
-vsearch --makeudb_usearch vsearch.$DBCUT.fasta --output $DBFOLD/$DBCUT.udb
+sed '$!N;/>/s/\n/ /;s/>//' $DBCUT.fasta | sort -k 1,1 | join - <(sort -k 1,1 $DBCUT.taxonomy) | sed 's/;$//;s/;/,/g' | awk '{print ">"$1";tax="$3";\n"$2}' > vsearch.$DBCUT.fasta
+vsearch --makeudb_usearch vsearch.$DBCUT.fasta --output $DBCUT.udb
 rm vsearch.$DBCUT.fasta
 
 # change permissions

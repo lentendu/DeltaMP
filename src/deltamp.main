@@ -265,6 +265,15 @@ then
 		DBCHOP=$DBCUT.align
 	fi
 fi
+if [ ! -f $DBFOLD/$DB.fasta ] && [ ! -f $DBFOLD/$DB.udb ] && [ ! -f $DBFOLD/$DBCHOP.fasta ] && [ ! -f $DBCHOP/$DBCHOP.udb ]
+then
+	if [ ! -f $DBFOLD/$DB.txt ]
+	then
+		error_doc "the database description file $DB.txt is present in the database directory ${DBFOLD},\nbut not database sequence files ($DB.fasta or $DB.udb),\nneither the cutted version of the database ($DBCHOP.fasta or $DBCHOP.udb)."
+	else
+		error_doc "the database files ($DB.txt, $DB.fasta, $DB.udb) were not found in the database directory ${DBFOLD},\nneither the cutted version of the database ($DBCHOP.fasta or $DBCHOP.udb)."
+	fi
+fi
 
 # Pre-clustering
 if [ $CLUST == "swarm" ]
