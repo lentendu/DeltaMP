@@ -491,12 +491,14 @@ then
 elif [ $QUAL_ONLY == "yes" ]
 then
 	if [ $DEMULTI == "no" ]
+	then
 		. $BIN/pipeline_master | sed '/^trim/,${s/^/#/};/^#output/,/^#raw_arch/{s/^#//}' > config/steps
 	else
 		. $BIN/pipeline_master | sed '/^trim/,${s/^/#/};/^#output/s/^#//' > config/steps
 	fi
 else
 	if [ $DEMULTI == "no" ]
+	then
 		. $BIN/pipeline_master > config/steps
 	else
 		. $BIN/pipeline_master | sed '/^raw_arch/{s/^/#/}' > config/steps
