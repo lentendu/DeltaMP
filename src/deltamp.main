@@ -244,6 +244,7 @@ then
 	if [ $CUT_DB == "yes" ]
 	then
 		DBCUT=$DB.$ITSX
+		error_cut=", neither the cutted version of the database ($DBCUT.fasta)"
 	fi
 	if [ $ASSIGN_FUNCT == "yes" ]
 	then
@@ -263,15 +264,31 @@ then
 			DBCUT=$FWD_NAME.$RVS_NAME.$DB
 		fi
 		DBCHOP=$DBCUT.align
+		error_cut=", neither the cutted version of the database ($DBCUT.fasta)"
 	fi
 fi
-if [ ! -f $DBFOLD/$DB.fasta ] && [ ! -f $DBFOLD/$DB.udb ] && [ ! -f $DBFOLD/$DBCHOP.fasta ] && [ ! -f $DBCHOP/$DBCHOP.udb ]
+
+if [ $CLASSIF == "bayesian" ]
 then
-	if [ ! -f $DBFOLD/$DB.txt ]
+	if [ ! -f $DBFOLD/$DB.fasta ] && [ ! -f $DBFOLD/$DBCHOP.fasta ]
 	then
-		error_doc "the database description file $DB.txt is present in the database directory ${DBFOLD},\nbut not database sequence files ($DB.fasta or $DB.udb),\nneither the cutted version of the database ($DBCHOP.fasta or $DBCHOP.udb)."
-	else
-		error_doc "the database files ($DB.txt, $DB.fasta, $DB.udb) were not found in the database directory ${DBFOLD},\nneither the cutted version of the database ($DBCHOP.fasta or $DBCHOP.udb)."
+		if [ ! -f $DBFOLD/$DB.txt ]
+		then
+			error_doc "the database description file $DB.txt is present in the database directory ${DBFOLD}, but not the database sequence files ($DB.fasta)${error_cut}."
+		else
+			error_doc "the database files ($DB.txt, $DB.fasta) were not found in the database directory ${DBFOLD}${error_cut}."
+		fi
+	fi
+elif [ $CLASSIF == "vsearch" ]
+then
+	if [ ! -f $DBFOLD/$DB.udb ] && [ ! -f $DBCHOP/$DBCHOP.udb ]
+	then
+		if [ ! -f $DBFOLD/$DB.txt ]
+		then
+			error_doc "the database description file $DB.txt is present in the database directory ${DBFOLD},\nbut not the database sequence files ($DB.udb)${error_cut}."
+		else
+			error_doc "the database files ($DB.txt, $DB.udb) were not found in the database directory ${DBFOLD}${error_cut}."
+		fi
 	fi
 fi
 
