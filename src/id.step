@@ -65,18 +65,16 @@ then
 		# First identification with UNITE dynamic DB
 		mothur "#set.dir(tempdefault=$DBFOLD);
 		classify.seqs(fasta=$CAND.fasta, template=${TEMPLATE[0]}.fasta, taxonomy=${TEMPLATE[0]}.taxonomy, cutoff=60, method=wang, processors=$NCPUS)"
-		
-		# Alternative classification of Fungi only or non-fungus identified sequences against the UNITE dynamic DB including singletons
+		# Alternative classification of Fungi only or non-fungus identified sequences against the UNITE dynamic DB including reps singletons
 		awk -F";" '$2=="unclassified" || $1!~"Fungi" || $2=="unidentified"{print $1}' $CAND.${TEMPLATE[0]##*.}.wang.taxonomy | cut -f 1 > $CAND.${TEMPLATE[0]##*.}.nofungi.accnos
 		if [ -s $CAND.${TEMPLATE[0]##*.}.nofungi.accnos ]
 		then
 			obigrep --without-progress-bar --id-list=$CAND.${TEMPLATE[0]##*.}.nofungi.accnos $CAND.fasta > $CAND.${TEMPLATE[0]##*.}.nofungi.fasta
 			mothur "#set.dir(tempdefault=$DBFOLD);
 			classify.seqs(fasta=$CAND.${TEMPLATE[0]##*.}.nofungi.fasta, template=${TEMPLATE[1]}.fasta, taxonomy=${TEMPLATE[1]}.taxonomy, cutoff=60, method=wang, processors=$NCPUS)"
-	
-		# Merge and consensus
+		# merge
 			TAXO=$CAND.unite.wang
-			sort $CAND.${TEMPLATE[0]##*.}.wang.taxonomy | join -v 1 - <(sort $CAND.${TEMPLATE[0]##*.}.nofungi.accnos) | cat - $CAND.${TEMPLATE[0]##*.}.nofungi.${TEMPLATE[1]##*.}.wang.taxonomy > $TAXO.taxonomy
+			sort -k 1,1 $CAND.${TEMPLATE[0]##*.}.wang.taxonomy | join -v 1 - <(sort $CAND.${TEMPLATE[0]##*.}.nofungi.accnos) | cat - $CAND.${TEMPLATE[0]##*.}.nofungi.${TEMPLATE[1]##*.}.wang.taxonomy > $TAXO.taxonomy
 		else
 			TAXO=$CAND.unite.wang
 			cp $CAND.${TEMPLATE[0]##*.}.wang.taxonomy $TAXO.taxonomy
