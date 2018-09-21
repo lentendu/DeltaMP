@@ -241,14 +241,14 @@ fi
 declare -A CITATION FULLCITATION
 if [ $TARG == "ITS" ]
 then
-	if [ $ITSX != "no" ]
+	if [ $CUT_DB == "yes" ]
 	then
-		if [ $CUT_DB == "yes" ]
+		if [ $ITSX == "no" ]
 		then
+			error_doc "no ITS region was provided to cut the database."
+		else
 			DBCUT=$DB.$ITSX
 			error_cut=", neither the cutted version of the database ($DBCUT.fasta)"
-		else
-			error_doc "no ITS region was provided to cut the database."
 		fi
 	fi
 	if [ $ASSIGN_FUNCT == "yes" ]
@@ -275,7 +275,7 @@ fi
 
 if [ $CLASSIF == "bayesian" ]
 then
-	if [ ! -f $DBFOLD/$DB.fasta ] && [ ! -f $DBFOLD/$DBCHOP.fasta ]
+	if [ ! -f $DBFOLD/$DB.fasta ] && [ ! -f $DBFOLD/$DBCUT.fasta ]
 	then
 		if [ ! -f $DBFOLD/$DB.txt ]
 		then
@@ -286,7 +286,7 @@ then
 	fi
 elif [ $CLASSIF == "vsearch" ]
 then
-	if [ ! -f $DBFOLD/$DB.udb ] && [ ! -f $DBCHOP/$DBCHOP.udb ]
+	if [ ! -f $DBFOLD/$DB.udb ] && [ ! -f $DBCHOP/$DBCUT.udb ]
 	then
 		if [ ! -f $DBFOLD/$DB.txt ]
 		then
