@@ -57,7 +57,7 @@ show_doc() {
 cat << EOF
 
 # Refer to the manual at $DELTAMP_BUILD/README and be sure to use the correct configuration file format.
-# Template configuration files can be found at $DELTAMP_BUILD/test/configuration_test_$TARG_$TECH.tsv
+# Template configuration files can be found at $DELTAMP_BUILD/test/configuration_test_${TARG}_$TECH.tsv
 
 # Aborting
 EOF
