@@ -221,7 +221,7 @@ elif [ $TECH == "Illumina" ]
 then
 	RAW_EXT=fastq
 	DEMULTI=yes
-	if [ DEMULTI_ONLY == "yes" ]
+	if [ DEMULTI_ONLY == "yes" ] || [ $DEMULTI =="no" ]
 	then
 	error_doc "demultiplexing is not available for $TECH libraries."
 	fi
@@ -484,33 +484,22 @@ join -v 1 <(set -o posix; set | tr "=" "\t" | sort -k 1,1 ) <(cat /tmp/amp.$STIM
 rm -f /tmp/amp.$STIME.set
 (set -o posix; set > /tmp/amp.$STIME.set)
 
-# Steps to queue (no archiving for already demultiplexed sff)
+# Steps to queue (avoid archiving for already demultiplexed libraries)
 if [ $DEMULTI_ONLY == "yes" ]
 then
-	if [ $TECH == "454" ] && [ $DEMULTI == "no" ]
-	then
-		. <(sed '/^## Quality/,/^## Archive raw/d;/^## Document/,$d' $BIN/pipeline_master) config/configuration.$SUBPROJECT.tsv > config/steps
+	. $BIN/pipeline_master | sed '/^raw_jobid/,{s/^/#/};/^#raw_arch/s/^#//}' > config/steps
+elif [ $QUAL_ONLY == "yes" ]
+then
+	if [ $DEMULTI == "no" ]
+		. $BIN/pipeline_master | sed '/^trim/,${s/^/#/};/^#output/,/^#raw_arch/{s/^#//}' > config/steps
 	else
-		cd .. && rm -r $SUBPROJECT
-		if [ ! "$(ls -A)" ] ; then cd .. && rmdir $PROJECT ; fi
-		error_doc "the -s option can only be used for non demultiplexed libraries and demultiplexing is only supported for 454 libraries."
+		. $BIN/pipeline_master | sed '/^trim/,${s/^/#/};/^#output/s/^#//' > config/steps
 	fi
 else
-	if [ $QUAL_ONLY == "yes" ]
-	then
-		if [ $TECH == "454" ] && [ $DEMULTI == "yes" ]
-		then
-			. <(sed '/^## Trim/,/^## Archive outputs/d;/^## ## Archive raw/,$d' $BIN/pipeline_master) config/configuration.$SUBPROJECT.tsv > config/steps
-		else
-			. <(sed '/^## Trim/,/^## Archive outputs/d;/^## Document/,$d' $BIN/pipeline_master) config/configuration.$SUBPROJECT.tsv > config/steps
-		fi
+	if [ $DEMULTI == "no" ]
+		. $BIN/pipeline_master > config/steps
 	else
-		if [ $TECH == "454" ] && [ $DEMULTI == "yes" ]
-		then
-			. <(sed '/^## Archive raw/,/^## Document/d' $BIN/pipeline_master) config/configuration.$SUBPROJECT.tsv > config/steps
-		else
-			. $BIN/pipeline_master config/configuration.$SUBPROJECT.tsv > config/steps
-		fi
+		. $BIN/pipeline_master | sed '/^raw_arch/{s/^/#/}' > config/steps
 	fi
 fi
 
