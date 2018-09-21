@@ -59,7 +59,7 @@ grep -P "[\t;_]$TARG_ORG;" $SUBPROJECT.${LABELS[1]}_OTUs.tsv | cat <(sed -n '1p'
 if [[ $LIB_DIR != "/"* ]]
 then
 	mkdir metadata && cd metadata
-	awk 'BEGIN{FS="\t"} {if(NR==1){for(i=1;i<=NF;i++){if($i=="sample_alias"){s=i};if($i=="sample_accession"){a=i}}} else {print $s,$a}}' $EXEC/libraries/$LIB_DIR.txt | sort -u > $LIB_DIR.samples.txt
+	awk 'BEGIN{FS="\t"} {if(NR==1){for(i=1;i<=NF;i++){if($i=="sample_alias"){s=i};if($i=="sample_accession"){a=i}}} else {print $s,$a}}' $EXEC/libraries/$LIB_DIR.txt | sort -u | join - <(sed 's/\([^\t]*\)\tftp.*$/\1/;s/.*\t//' ../config/barcodes.txt | sort) > $LIB_DIR.samples.txt
 	while read sample accession
 	do
 		wget -nv -O $sample.xml http://www.ebi.ac.uk/ena/data/view/$accession\&display=xml
@@ -73,7 +73,7 @@ then
 		do
 			if grep -q ">$tag<" $sample.xml
 			then
-				sed -n '/>'"$tag"'</{n;s/^.*>\([^<]*\)<.*$/\1/p;}' $sample.xml | sed 's/^\([0-9]*\),\([0-9]*\)$/\1.\2/'
+				sed -n '/>'"$tag"'</{n;s/^.*>\([^<]*\)<.*$/\1/p;}' $sample.xml | sed 's/^\([0-9]*\),\([0-9]*\)$/\1.\2/' | sed -e :a -e '$!N;s/\n/ | /;ta' -e 'P;D'
 			else
 				echo "NA"
 			fi
