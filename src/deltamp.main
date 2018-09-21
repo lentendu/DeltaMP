@@ -56,8 +56,8 @@ EOF
 show_doc() {
 cat << EOF
 
-# Refer to the manual at $DELTAMP_BUILD/documentation/deltamp_${VERSION[DELTAMP]}_documentation.pdf and be sure to use the correct configuration file format.
-# A template configuration file can be found at $DELTAMP_BUILD/documentation/configuration_file_template.tsv
+# Refer to the manual at $DELTAMP_BUILD/README and be sure to use the correct configuration file format.
+# Template configuration files can be found at $DELTAMP_BUILD/test/configuration_test_$TARG_$TECH.tsv
 
 # Aborting
 EOF
@@ -81,13 +81,13 @@ echo ""
 error_help(){
 	echo "#Error: $1"
 	show_help | fmt -s -w $(tput cols)
-	exit $2
+	exit 1
 } >&2
 
 error_doc(){
 	echo -e "#Error: $1"
 	show_doc | fmt -s -w $(tput cols)
-	exit $2
+	exit 1
 } >&2
 
 # record all variables set
@@ -124,17 +124,17 @@ do
 		d)	DRY=yes;;
 		f)	show_default | fmt -s -w $(tput cols)
 			exit 0;;
-		m)	[[ ${OPTARG} =~ ^[0-9]+$ ]] || error_help " ${OPTARG} is not a number" 1
+		m)	[[ ${OPTARG} =~ ^[0-9]+$ ]] || error_help " ${OPTARG} is not a number"
 			MAX_TASK=${OPTARG};;
 		n)	CHECKP=no;;
 		q)	QUAL_ONLY=yes;;
 		s)	DEMULTI_ONLY=yes;;
-		r)	[[ -d ${OPTARG} ]] || error_help "Directory ${OPTARG} does not exist" 1
-			[[ -w ${OPTARG} ]] || error_help "Directory ${OPTARG} is not writable" 1
+		r)	[[ -d ${OPTARG} ]] || error_help "Directory ${OPTARG} does not exist"
+			[[ -w ${OPTARG} ]] || error_help "Directory ${OPTARG} is not writable"
 			REF_SUBPROJECT=${OPTARG};;
-		\?)	error_help "# Invalid option: -${OPTARG}" 1
+		\?)	error_help "# Invalid option: -${OPTARG}"
 			;;
-		:)	error_help "# Option -${OPTARG} requires an argument." 1
+		:)	error_help "# Option -${OPTARG} requires an argument."
 			;;
 	esac
 done
@@ -157,7 +157,7 @@ do
 	then
 		if [ $std == "#" ]
 		then
-			error_doc " in the configuration file, the parameter '$def' is missing and is compulsory." 1
+			error_doc " in the configuration file, the parameter '$def' is missing and is compulsory."
 		else
 			declare $var="$std"
 		fi
@@ -180,7 +180,7 @@ do
 				IFS=$'\t' read -r -a $var <<< "$val"
 			fi
 		else
-			error_doc "in the configuration file, the value of parameter '$def' is not accepted (currently set to $val).\nThe accepted values $(if [[ $acc == *"^"* ]] ; then echo 'should match the regex(s)' ; else echo 'are' ; fi): $acc (default value is $std)." 1
+			error_doc "in the configuration file, the value of parameter '$def' is not accepted (currently set to $val).\nThe accepted values $(if [[ $acc == *"^"* ]] ; then echo 'should match the regex(s)' ; else echo 'are' ; fi): $acc (default value is $std)."
 		fi		
 	else
 		declare $var="$val"
@@ -208,7 +208,7 @@ do
 		then
 			declare $var="$val"
 		else
-			error_doc "in the configuration file, the value of parameter '$def' is not accepted (currently set to $val).\nThe accepted values $(if [[ $acc == *"^"* ]] ; then echo 'should match the regex(s)' ; else echo 'are' ; fi): $acc (default value is $std)." 1
+			error_doc "in the configuration file, the value of parameter '$def' is not accepted (currently set to $val).\nThe accepted values $(if [[ $acc == *"^"* ]] ; then echo 'should match the regex(s)' ; else echo 'are' ; fi): $acc (default value is $std)."
 		fi
 	fi
 done < $BIN/variables_definition_$TECH.tsv
@@ -223,7 +223,7 @@ then
 	DEMULTI=yes
 	if [ DEMULTI_ONLY == "yes" ]
 	then
-	error_doc "demultiplexing is not available for $TECH libraries." 1
+	error_doc "demultiplexing is not available for $TECH libraries."
 	fi
 fi
 if [ $SEQ_DIR == "forward" ]
@@ -241,10 +241,15 @@ fi
 declare -A CITATION FULLCITATION
 if [ $TARG == "ITS" ]
 then
-	if [ $CUT_DB == "yes" ]
+	if [ $ITSX != "no" ]
 	then
-		DBCUT=$DB.$ITSX
-		error_cut=", neither the cutted version of the database ($DBCUT.fasta)"
+		if [ $CUT_DB == "yes" ]
+		then
+			DBCUT=$DB.$ITSX
+			error_cut=", neither the cutted version of the database ($DBCUT.fasta)"
+		else
+			error_doc "no ITS region was provided to cut the database."
+		fi
 	fi
 	if [ $ASSIGN_FUNCT == "yes" ]
 	then
@@ -297,10 +302,10 @@ if [ $CLUST == "swarm" ]
 then
 	if [ $PRECLUST != "no" ]
 	then
-		error_doc "pre-clustering is not allowed for swarm based OTU clustering.\nIn the configuration file, turn off the 'Pre-clustering' argument with 'no' or use another clustering algorithm." 1
+		error_doc "pre-clustering is not allowed for swarm based OTU clustering.\nIn the configuration file, turn off the 'Pre-clustering' argument with 'no' or use another clustering algorithm."
 	elif [ $MAXAMBIG -gt 0 ]
 	then
-		error_doc "swarm clustering do not allow ambiguous nucleotide.\nIn the configuration file, set 'Maximum number of ambiguities allowed in the sequence' to 0 or use another clustering algorithm." 1
+		error_doc "swarm clustering do not allow ambiguous nucleotide.\nIn the configuration file, set 'Maximum number of ambiguities allowed in the sequence' to 0 or use another clustering algorithm."
 	fi
 fi
 
@@ -308,7 +313,7 @@ if [ $PRECLUST == "mothur" ]
 then
 	if [ ! -f $DBFOLD/$DBCHOP.fasta ] && [ ! -f $DBFOLD/$DBALIGN.fasta ] 
 	then
-		error_doc "the mothur pre-clustering method could only be used if an aligned version of the reference database is available." 1
+		error_doc "the mothur pre-clustering method could only be used if an aligned version of the reference database is available."
 	fi
 fi
 
@@ -451,7 +456,7 @@ then
 		then
 			cd .. && rm -r $SUBPROJECT
 			if [ ! "$(ls -A)" ] ; then cd .. && rmdir $PROJECT ; fi
-			error_doc "there is more samples than libraries, it seems that the libraries are not demultiplexed\nSet 'Libraries already demultiplexed' to 'no' in the configuration file to allow deltamp execution." 1
+			error_doc "there is more samples than libraries, it seems that the libraries are not demultiplexed\nSet 'Libraries already demultiplexed' to 'no' in the configuration file to allow deltamp execution."
 		else
 			while read head bar samp lib; do echo $samp ${lib%.*} ; done < config/barcodes.txt | sed 's/-/_/g;s/ftp\.sra.*\///' | sort | uniq > config/lib3.list
 		fi
@@ -488,7 +493,7 @@ then
 	else
 		cd .. && rm -r $SUBPROJECT
 		if [ ! "$(ls -A)" ] ; then cd .. && rmdir $PROJECT ; fi
-		error_doc "the -s option can only be used for non demultiplexed libraries and demultiplexing is only supported for 454 libraries." 1
+		error_doc "the -s option can only be used for non demultiplexed libraries and demultiplexing is only supported for 454 libraries."
 	fi
 else
 	if [ $QUAL_ONLY == "yes" ]
@@ -532,11 +537,11 @@ then
 			if [ -z "${TMP_DIF[$i]}" ] && [ -z "${BAR_DIF[$i]}" ]
 			then
 				rm -r $SUBPROJECT
-				error_doc "the previous subproject $i is identical.\nAt least one parameter need to differ with previous subproject to allow deltamp execution." 1
+				error_doc "the previous subproject $i is identical.\nAt least one parameter need to differ with previous subproject to allow deltamp execution."
 			elif [ ! -z "${BAR_DIF[$i]}" ]
 			then
 				rm -r $SUBPROJECT
-				error_doc "the previous subproject $i have a different barcode and/or library list.\nTo avoid using $i as reference subproject, you can for example change the output directory (currently $OUT_PATH) in the configuration file." 1
+				error_doc "the previous subproject $i have a different barcode and/or library list.\nTo avoid using $i as reference subproject, you can for example change the output directory (currently $OUT_PATH) in the configuration file."
 			fi
 			# in which step script(s) the differing variable(s) are found
 			unset MATCH_REGEX
@@ -663,7 +668,7 @@ then
 		rm -r $SUBPROJECT
 		if [ ! "$(ls -A)" ] ; then cd .. && rmdir $PROJECT ; fi
 	fi
-	exit 1
+	exit 0
 else
 	if [ $REF_SUBPROJECT != "no" ]
 	then
@@ -671,8 +676,7 @@ else
 		then
 			rm -r $SUBPROJECT
 			if [ ! "$(ls -A)" ] ; then cd .. && rmdir $PROJECT ; fi
-			error_doc "the previous subproject $REF_SUBPROJECT was a DRY RUN only.\nRemove $REF_SUBPROJECT from $OUT_PATH/$PROJECT or provide another output directory in the configuration file." 1
-			exit 1
+			error_doc "the previous subproject $REF_SUBPROJECT was a DRY RUN only.\nRemove $REF_SUBPROJECT from $OUT_PATH/$PROJECT or provide another output directory in the configuration file."
 		fi
 	fi
 	cd $EXEC_PATH
