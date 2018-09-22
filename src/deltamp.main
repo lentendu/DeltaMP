@@ -225,22 +225,26 @@ done < $BIN/variables_definition_$TECH.tsv
 if [ $DELETE == "yes" ]
 then
 	OPTION_OUT$(. $BIN/delete_subproject)
+	OPTION_EC=$?
 elif [ $RESTART != "no" ]
 then
 	OPTION_OUT=$(. $BIN/restart_from_step)
+	OPTION_EC=$?
 fi
-OPTION_EC=$?
-if [ OPTION_EC -eq 0 ]
+if [ $DELETE == "yes" ] || [ $RESTART != "no" ]
 then
-	echo -e "$OPTION_OUT" >&2
-	exit 0
-elif [ OPTION_EC -eq 1 ]
-then
-	error_doc "$OPTION_OUT"
-elif [ OPTION_EC -eq 2 ]
-then
-	echo -e "$OPTION_OUT" | sed 's/@/ /g' >&2 
-	exit 0
+	if [ OPTION_EC -eq 0 ]
+	then
+		echo -e "$OPTION_OUT" >&2
+		exit 0
+	elif [ OPTION_EC -eq 1 ]
+	then
+		error_doc "$OPTION_OUT"
+	elif [ OPTION_EC -eq 2 ]
+	then
+		echo -e "$OPTION_OUT" | sed 's/@/ /g' >&2 
+		exit 0
+	fi
 fi
 
 # check configuration consistency
@@ -714,5 +718,5 @@ else
 	echo "###"
 	echo "execution of deltamp version ${VERSION[DELTAMP]} for the SUBPROJECT $SUBPROJECT"
 	echo "###"
-	bash <(sed '/^#/!{p;s/^\([^=]*\)=\$(.*-J \([^ ]*\) .*$/echo $\1 \2/'} config/steps.final) 2> log/deltamp.log > config/jobid
+	bash <(sed '/^#/!{p;s/^\([^=]*\)=\$(.*QUEUE_JOBNAME \([^ ]*\) .*$/echo $\1 \2/'} config/steps.final) 2> log/deltamp.log > config/jobid
 fi
