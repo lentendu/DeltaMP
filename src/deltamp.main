@@ -580,25 +580,28 @@ else
 	sed '/^init_jobid/s/^/#/;/get.sh)$/s/ QUEUE_HOLD[^ ]* / /' $SUBPROJECT/config/steps > $SUBPROJECT/config/steps.final
 fi
 
+# Save variables related to previous SUBPROJECT
+comm -23 <(set -o posix; set | sort) <(sort /tmp/amp.$STIME.set) | tr "=" "\t" | grep -v "^[a-z]" | grep -P -v "^PWD\t" | sed "s/'//g" > $SUBPROJECT/config/prev.txt
+rm -f /tmp/amp.$STIME.set
+
 # fix job dependencies
-if [ $DEMULTI != "no" ]
-then
-	sed 's/QUEUE_SEP\${demulti_jobid%\.\*}//' $SUBPROJECT/config/steps.final > $SUBPROJECT/config/steps.final.tmp && mv $SUBPROJECT/config/steps.final.tmp $SUBPROJECT/config/steps.final
-fi
-if [ $TECH != "Illumina" ]
-then
-	sed 's/QUEUE_SEP\${pair_end_jobid%\.\*}//' $SUBPROJECT/config/steps.final > $SUBPROJECT/config/steps.final.tmp && mv $SUBPROJECT/config/steps.final.tmp $SUBPROJECT/config/steps.final
-fi
+cd $SUBPROJECT
+while read reg; do sed 's/:${'$reg'[^}]*}//' config/steps.final > config/steps.final.tmp && mv config/steps.final.tmp config/steps.final ; done < <(sed -n '/^#/!s/^.*afterok:\([^ ]*\).*$/\1/p' config/steps.final | sed 's/:/\n/' | sed 's/^[^a-z]*\([a-z_]*\)[^a-z]*$/\1/' | sort -u | join -v 1 - <(sed -n '/^#/!s/=.*$//p' config/steps.final | sort))
+#if [ $DEMULTI == "yes" ]
+#then
+	#sed 's/QUEUE_SEP\${demulti_jobid%\.\*}//' $SUBPROJECT/config/steps.final > $SUBPROJECT/config/steps.final.tmp && mv $SUBPROJECT/config/steps.final.tmp $SUBPROJECT/config/steps.final
+#fi
+#if [ $TECH != "Illumina" ]
+#then
+	#sed 's/QUEUE_SEP\${pair_end_jobid%\.\*}//' $SUBPROJECT/config/steps.final > $SUBPROJECT/config/steps.final.tmp && mv $SUBPROJECT/config/steps.final.tmp $SUBPROJECT/config/steps.final
+#fi
 
 # Add account/project name to queuing commands
 if [ ! -z $DELTAMP_ACCOUNT ]
 then
-	sed "s/QUEUE_SUB/QUEUE_SUB QUEUE_ACCOUNT $DELTAMP_ACCOUNT/" $SUBPROJECT/config/steps.final > $SUBPROJECT/config/steps.final.tmp && mv $SUBPROJECT/config/steps.final.tmp $SUBPROJECT/config/steps.final
+	sed "s/QUEUE_SUB/QUEUE_SUB QUEUE_ACCOUNT $DELTAMP_ACCOUNT/" config/steps.final > config/steps.final.tmp && mv config/steps.final.tmp config/steps.final
 fi
-
-# Save variables about previous SUBPROJECT
-comm -23 <(set -o posix; set | sort) <(sort /tmp/amp.$STIME.set) | tr "=" "\t" | grep -v "^[a-z]" | grep -P -v "^PWD\t" | sed "s/'//g" > $SUBPROJECT/config/prev.txt
-rm -f /tmp/amp.$STIME.set
+cd $OUT_PATH/$PROJECT
 
 # Tree 
 grep -v "^#" $SUBPROJECT/config/steps.final | awk '$0~"QUEUE_SUB"{if($1~"archiver"){print $1} else print $NF"\tx"}' | sed 's/.*\///;s/\.sh)\t/\t/;s/_jobid.*$/\tx/' | sort | join -a 2 -2 2 -o 2.1,0,1.2 -e "." -t $'\t' - <(nl $BIN/ref.steps.$TECH | sort -k 2,2) | sort -k 1,1n | cut -f 2- > $SUBPROJECT/config/steps.summary
