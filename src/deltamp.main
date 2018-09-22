@@ -17,23 +17,28 @@ DESCRIPTION
 	
 	-a	account or project name for the job queuing system
 	
-	-c	at the end of a dry run (-d option), avoid the deletion of the SUBPROJECT and PROJECT (if empty) directories from output directory
+	-c	check dry run (-d option) by preserving the SUBPROJECT and PROJECT directories in the output directory
 		
-	-d	avoid submission to queuing system and only display pipeline submission informations (aka. dry run)
+	-d	dry run avoid any submission to the queuing system and only output submission informations
 	
 	-f	display default values for optional configuration parameters
 		
 	-n	avoid checkpointing (i.e. searching for previous SUBPROJECT) and run the pipeline from the beginning
 	
 	-m max_running_tasks
-		impose a limit on the maximum number of concurrently running tasks per array jobs, default is 400
+		fix a maximum number of concurrently running tasks per array jobs, default is 400
+		
+	-p SUBRPOJECT
+		only execute additional jobs or with different input variables compared to SUBPROJECT. This will only work if both configuration files have the same input libraries and output directory.
 		
 	-q	proceed until quality step only
-		 
-	-s	proceed until demultiplexing step only
+	
+	-r STEP
+		restart pipeline computation from STEP. Replace STEP by 'list' to list all available STEP of the subproject associated with the provided configuration file
 		
-	-r SUBRPOJECT
-		only execute additional jobs or with different input variables compared to SUBPROJECT. This will only work if both configuration files have the same input libraries and output directory.
+	-t	proceed until demultiplexing step only
+	
+	-x	delete the subproject associated with the provided configuration file
 
 AUTHOR
 	Guillaume Lentendu, Christina Weißbecker, Anna Heintz-Buschart and Tesfaye Wubet
@@ -108,13 +113,15 @@ ARGUMENTS="$@"
 CLEAN=yes
 DRY=no
 MAX_TASK=400
-QUAL_ONLY=no
-DEMULTI_ONLY=no
 CHECKP=yes
 REF_SUBPROJECT=no
+QUAL_ONLY=no
+RESTART=no
+DEMULTI_ONLY=no
+DELETE=no
 
 # get options
-while getopts ":a:cdfhm:nqsr:" opt
+while getopts ":a:cdfhm:np:qr:tx" opt
 do
 	case $opt in
 		h)	show_help | fmt -s -w $(tput cols)
@@ -124,14 +131,16 @@ do
 		d)	DRY=yes;;
 		f)	show_default | fmt -s -w $(tput cols)
 			exit 0;;
-		m)	[[ ${OPTARG} =~ ^[0-9]+$ ]] || error_help " ${OPTARG} is not a number"
+		m)	[[ ${OPTARG} =~ ^[0-9]+$ ]] || error_help " ${OPTARG} is not an integer"
 			MAX_TASK=${OPTARG};;
 		n)	CHECKP=no;;
-		q)	QUAL_ONLY=yes;;
-		s)	DEMULTI_ONLY=yes;;
-		r)	[[ -d ${OPTARG} ]] || error_help "Directory ${OPTARG} does not exist"
+		p)	[[ -d ${OPTARG} ]] || error_help "Directory ${OPTARG} does not exist"
 			[[ -w ${OPTARG} ]] || error_help "Directory ${OPTARG} is not writable"
 			REF_SUBPROJECT=${OPTARG};;
+		q)	QUAL_ONLY=yes;;
+		r)	RESTART=${OPTARG};;
+		t)	DEMULTI_ONLY=yes;;
+		x)	DELETE=yes;;
 		\?)	error_help "# Invalid option: -${OPTARG}"
 			;;
 		:)	error_help "# Option -${OPTARG} requires an argument."
@@ -147,8 +156,7 @@ else
 	METAD=`readlink -f $1` ; shift
 fi
 
-# Additionnal variables definition
-	# mandatory variables from configuration file
+# set general variables from configuration file
 while IFS=$'\t' read var std def acc
 do
 	unset $var
@@ -187,7 +195,7 @@ do
 	fi
 done < $BIN/variables_definition.tsv
 
-	# optional variables from configuration file
+# set plateform specific variables from configuration file
 while IFS=$'\t' read var std def acc
 do
 	unset $var
@@ -213,7 +221,29 @@ do
 	fi
 done < $BIN/variables_definition_$TECH.tsv
 
-	# few checks
+# switch to special options
+if [ $DELETE == "yes" ]
+then
+	OPTION_OUT$(. $BIN/delete_subproject)
+elif [ $RESTART != "no" ]
+then
+	OPTION_OUT=$(. $BIN/restart_from_step)
+fi
+OPTION_EC=$?
+if [ OPTION_EC -eq 0 ]
+then
+	echo -e "$OPTION_OUT" >&2
+	exit 0
+elif [ OPTION_EC -eq 1 ]
+then
+	error_doc "$OPTION_OUT"
+elif [ OPTION_EC -eq 2 ]
+then
+	echo -e "$OPTION_OUT" | sed 's/@/ /g' >&2 
+	exit 0
+fi
+
+# check configuration consistency
 if [ $TECH == "454" ]
 then
 	RAW_EXT=sff
@@ -221,7 +251,7 @@ elif [ $TECH == "Illumina" ]
 then
 	RAW_EXT=fastq
 	DEMULTI=yes
-	if [ DEMULTI_ONLY == "yes" ] || [ $DEMULTI =="no" ]
+	if [ DEMULTI_ONLY == "yes" ] || [ $DEMULTI == "no" ]
 	then
 	error_doc "demultiplexing is not available for $TECH libraries."
 	fi
@@ -236,7 +266,6 @@ then
 	read FWD_NAME RVS_NAME <<<"$RVS_NAME $FWD_NAME"
 fi
 
-	
 # Databases
 declare -A CITATION FULLCITATION
 if [ $TARG == "ITS" ]
@@ -356,7 +385,6 @@ then
 	VERSION[ITSX]=`ITSx --license 2>&1 | sed -n 's/^Version: //p'`
 fi
 
-
 if [ $TECH == "454" ]
 then
 	# 454 SOP
@@ -369,7 +397,6 @@ then
 	CITATION[CUT]="Martin, 2011"
 	FULLCITATION[CUT]="Martin, M. (2011). Cutadapt removes adapter sequences from high-throughput sequencing reads. EMBnet.Journal, 17(1), 10–12."
 	VERSION[CUT]=`cutadapt --version`
-	
 elif [ $TECH == "Illumina" ]
 then
 	# MiSeq SOP
@@ -687,5 +714,5 @@ else
 	echo "###"
 	echo "execution of deltamp version ${VERSION[DELTAMP]} for the SUBPROJECT $SUBPROJECT"
 	echo "###"
-	bash config/steps.final 2> log/deltamp.log
+	bash <(sed '/^#/!{p;s/^\([^=]*\)=\$(.*-J \([^ ]*\) .*$/echo $\1 \2/'} config/steps.final) 2> log/deltamp.log > config/jobid
 fi
