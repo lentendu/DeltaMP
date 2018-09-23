@@ -26,7 +26,7 @@
 
 # determine SUBPROJECT from configuration file and check
 PROUT=$OUT_PATH/$PROJECT
-CHECK_SUB=$( . $BIN/check_subproject.sh)
+CHECK_SUB=$(. $BIN/check_subproject.sh)
 if [ $? -ne 0 ]
 then
 	echo "deleting $SUBPROJECT failed, $CHECK_SUB"
@@ -45,7 +45,7 @@ while true; do
 done
 
 # delete job in the queue
-QUEUED_JOBS=$(QUEUE_STAT | join - <(cut -f 1 $EXEC/config/jobid))
+QUEUED_JOBS=$(QUEUE_STAT | join - <(cut -f 1 $EXEC_PATH/$SUBPROJECT/config/jobid))
 if [ ! -z "$QUEUED_JOBS" ]
 then
 	QUEUE_DEL $QUEUED_JOBS
@@ -53,8 +53,8 @@ fi
 
 # delete files and directories
 cd $OUT_PATH
-rm -r $EXEC/$SUBPROJECT
-rm -r $OUT/$SUBPROJECT
+rm -r $EXEC_PATH/$SUBPROJECT
+rm -r $PROUT/$SUBPROJECT
 if [ -z "$(ls -A $PROUT)" ]
 then
 	rmdir $PROJECT

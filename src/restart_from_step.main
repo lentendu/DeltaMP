@@ -27,13 +27,14 @@
 
 # determine SUBPROJECT from configuration file and check
 PROUT=$OUT_PATH/$PROJECT
-CHECK_SUB=$( . $BIN/check_subproject.sh)
+CHECK_SUB=$(. $BIN/check_subproject.sh)
 if [ $? -ne 0 ]
 then
 	echo "restart $SUBPROJECT at $STEP step failed, $CHECK_SUB"
 	exit 1
 fi
 SUBPROJECT=$CHECK_SUB
+EXEC=$EXEC_PATH/$SUBPROJECT
 
 # List available steps for SUBPROJECT or check
 cd $PROUT/$SUBPROJECT
