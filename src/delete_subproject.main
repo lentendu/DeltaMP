@@ -45,7 +45,7 @@ while true; do
 done
 
 # delete job in the queue
-QUEUED_JOBS=$(QUEUE_STAT | awk '{print $1}' | sort | join - <(cut -f 1 $EXEC_PATH/$SUBPROJECT/config/jobid))
+QUEUED_JOBS=$(QUEUE_STAT | awk '{print $1}' | sort | join - <(cut -f 1 -d " " $EXEC_PATH/$SUBPROJECT/config/jobid))
 if [ ! -z "$QUEUED_JOBS" ]
 then
 	QUEUE_DEL $QUEUED_JOBS
