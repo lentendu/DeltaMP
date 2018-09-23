@@ -1,5 +1,5 @@
 # object variables
-version := 0.1
+version := 0.2
 config := config.txt
 batch := $(shell grep BATCH $(config) | cut -f 2)
 module := modulefiles/DeltaMP/$(version)
