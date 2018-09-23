@@ -31,7 +31,7 @@ else
 		exit 1
 	elif [ ${#SUB_LIST[@]} -eq 1 ]
 	then
-		echo $SUB_LIST
+		echo ${SUB_LIST##*/}
 	else
 		LAST_SUB=$(for i in ${SUB_LIST[@]} ; do tree=$i/config/tree.summary; if [ -f $tree ] ; then stat -c "%s %n" $tree ; fi ; done | sort -k 1,1nr | cut -f 2 -d " ")
 		echo -e "# The same configuration file was found in ${#SUB_LIST[@]} subproject with the following checkpointing relationship:\n" >&2
