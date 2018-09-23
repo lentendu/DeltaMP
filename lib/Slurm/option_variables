@@ -7,3 +7,5 @@ QUEUE_HOLD	-d afterok:
 QUEUE_SEP	:
 QUEUE_ARRAYS	-a
 QUEUE_THREADMAX	%
+QUEUE_DEL	scancel
+QUEUE_STAT	squeue

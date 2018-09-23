@@ -1,0 +1,103 @@
+#!/bin/bash
+
+# 
+# DeltaMP, a flexible, reproducible and resource efficient metabarcoding amplicon pipeline for HPC
+# Copyright (C) 2018 Guillaume Lentendu, Christina Weißbecker, Anna Heintz-Buschart, Tesfaye Wubet
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# 
+
+#if [ -z "$1" ]; then
+	#echo "usage: ${0##*/} SUBPROJECT PROJECT_output_directory [step_name]"
+	#echo "Delete every files created by the provided step_name and all following steps, and resubmit steps of SUBPROJECT starting from the provided step_name."
+	#echo "Alternatively, avoiding the step_name argument will output all available step names for the SUBPROJECT."
+	#exit
+#fi
+
+# determine SUBPROJECT from configuration file and check
+PROUT=$OUT_PATH/$PROJECT
+CHECK_SUB=$(. $BIN/check_subproject.sh)
+if [ $? -ne 0 ]
+then
+	echo "restart $SUBPROJECT at $RESTART step failed, $CHECK_SUB"
+	exit 1
+fi
+SUBPROJECT=$CHECK_SUB
+EXEC=$EXEC_PATH/$SUBPROJECT
+
+# List available steps for SUBPROJECT or check
+cd $PROUT/$SUBPROJECT
+STEP_LIST=$(awk '$2=="x"{printf "%s","\\n\\t"$1}' config/steps.summary)
+if [ $RESTART == "list" ]
+then
+	echo "# Available step script names for $SUBPROJECT are:$STEP_LIST"
+	exit 2
+elif [ -z "$(grep $RESTART config/steps.summary)" ]
+then
+	echo "# The script name $RESTART do not match with any $SUBPROJECT executed steps.\n# The available step script names for $SUBPROJECT are:$STEP_LIST"
+	exit 2
+fi
+UNTIL=`awk -v S=$RESTART '{if($1==S && $2=="x"){print prev;exit};if($2=="x"){prev=$1}}' config/steps.summary`
+TREE_SUMMARY=$(column -t -s $'\t' config/tree.summary | tr "\n" "#" | sed 's/#/\\n/g;s/ /@/g')
+if [ -z $UNTIL ]
+then
+	echo "# The step $RESTART was not executed for the chosen subproject $SUBPROJECT.\n# Have a look at the checkpointing tree below and switch to the correct ${SUBPROJECT%_*}_xxx subproject:\n\n$TREE_SUMMARY"
+	exit 2
+elif [ -z "$(grep $UNTIL config/steps.summary | grep "x")" ]
+then
+	echo "# The previous step of $RESTART is $UNTIL and was not executed for the chosen subproject $SUBPROJECT.\n# Have a look at the checkpointing tree below and switch to the correct ${SUBPROJECT%_*}_xxx subproject, or use option -x to delete $SUBPROJECT and restart a fresh analysis with deltamp:\n\n$TREE_SUMMARY"
+	exit 2
+fi
+
+# Delete jobs from the queue
+declare -a TO_DEL
+while read jobid step
+do
+	TO_DEL+=($step:$jobid)
+done < <(sed "s/$DELTAMP_VER\.//;s/\.$SUBPROJECT//;1,/$UNTIL/d" $EXEC/config/jobid)
+
+if [ ! -z "$TO_DEL" ]
+then
+	QUEUE_DEL ${TO_DEL[@]#*:}
+fi
+
+# Clean archives from output directory
+for i in "${TO_DEL[@]%:*}"
+do
+	if [ $i == "output_archiver" ] && [ -f $SUBPROJECT.outputs.tar.gz ]
+	then
+		rm $SUBPROJECT.outputs.tar.gz*
+	elif [ $i == "processing_archiver" ] && [ -f $SUBPROJECT.processing.files.tar.gz ]
+	then
+		rm $SUBPROJECT.processing.files.tar.gz*
+	elif [ $i == "${RAW_EXT}_archiver" ] && [ -f $SUBPROJECT.$RAW_EXT.tar.gz ]
+	then
+		rm $SUBPROJECT.$RAW_EXT.tar.gz*
+	fi
+done
+
+# Clean files and directories of STEP and following ones
+cd $EXEC
+echo "Cleaned steps: ${TO_DEL[@]%:*}"
+TO_DEL_F=`comm -13 <(sort config/$UNTIL.files) <(find $EXEC ! -type d | sort)`
+TO_DEL_D=`comm -13 <(sort config/$UNTIL.dir) <(find $EXEC/* -type d | sort)`
+if [ ! -z "$TO_DEL_F" ] ; then rm $TO_DEL_F ; fi
+if [ ! -z "$TO_DEL_D" ] ; then rmdir $TO_DEL_D ; fi
+
+# Remove unnecessary dependencies and re-queue from STEP
+sed -n '\@ '$BIN/$RESTART'\.sh)$@,$p' config/steps.final > steps.tmp
+AVOID=$(sed -n '1,/'$UNTIL'\.sh)$/p' config/steps.final | awk 'BEGIN{FS="="}$0!~"^#"{if($0~" QUEUE_ARRAYS "){print "${"$1"%.*}"} else print "${"$1"}"}')
+for i in $AVOID; do sed 's/QUEUE_SEP'$i'//' steps.tmp > steps.tmp2 && mv steps.tmp2 steps.tmp  ; done
+. <(sed 's/ QUEUE_HOLD* / /' steps.tmp)
+rm steps.tmp

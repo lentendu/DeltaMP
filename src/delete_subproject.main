@@ -1,0 +1,62 @@
+#!/bin/bash
+
+# 
+# DeltaMP, a flexible, reproducible and resource efficient metabarcoding amplicon pipeline for HPC
+# Copyright (C) 2018 Guillaume Lentendu, Christina Weißbecker, Anna Heintz-Buschart, Tesfaye Wubet
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# 
+
+#if [ -z "$1" ]; then 
+	#echo usage: ${0##*/} SUBPROJECT PROJECT_output_directory
+	#echo "Delete deltamp SUBPROJECT output and working directories as well as running and queued jobs related to it."
+	#exit 1
+#fi
+
+# determine SUBPROJECT from configuration file and check
+PROUT=$OUT_PATH/$PROJECT
+CHECK_SUB=$(. $BIN/check_subproject.sh)
+if [ $? -ne 0 ]
+then
+	echo "deleting $SUBPROJECT failed, $CHECK_SUB"
+	exit 1
+fi
+SUBPROJECT=$CHECK_SUB
+
+# ask user
+while true; do
+    read -p "Do you wish to delete jobs and directories associated to $PROUT/$SUBPROJECT ?" yn
+    case $yn in
+        [Yy]* ) break;;
+        [Nn]* ) echo "deleting $SUBPROJECT canceled." ; exit 1 ;;
+        * ) echo "Please answer yes or no.";;
+    esac
+done
+
+# delete job in the queue
+QUEUED_JOBS=$(QUEUE_STAT | awk '{print $1}' | sort | join - <(cut -f 1 -d " " $EXEC_PATH/$SUBPROJECT/config/jobid))
+if [ ! -z "$QUEUED_JOBS" ]
+then
+	QUEUE_DEL $QUEUED_JOBS
+fi
+
+# delete files and directories
+cd $OUT_PATH
+rm -r $EXEC_PATH/$SUBPROJECT
+rm -r $PROUT/$SUBPROJECT
+if [ -z "$(ls -A $PROUT)" ]
+then
+	rmdir $PROJECT
+fi
+

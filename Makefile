@@ -23,7 +23,7 @@ vpath %.config src
 .PHONY: all clean
 all: $(deltamp) $(module) $(steps) $(batch_spec) $(test_config)
 
-# rule to build deltamp, pipeline_master and check_previous_step
+# rule to build deltamp, pipeline_master, restart_from_step, delete_subproject and check_previous_step
 $(deltamp): bin/% : %.main | lib/$(batch)/option_variables
 	SED=$$(sed 's/^/s\//;s/\t/\//;s/$$/\/g/' $| |  tr "\n" ";" | sed 's/^/sed "/;s/;$$/"/'); \
 	eval $$SED $< | sed 's#^\(VERSION\[DELTAMP\]=\)$$#\1$(version)#;s#^\(DELTAMP_BUILD=\)$$#\1$(CURDIR)#' > $@ && chmod +x $@
