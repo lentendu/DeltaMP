@@ -29,7 +29,7 @@ PREV_PATH	no	Cluster with previous subproject reference sequences	no ^/.+(/.+)*$
 DEL_SING	no	Remove singletons before chimera re-check	no yes
 CLASSIF	bayesian	Taxonomic classifier	bayesian vsearch
 DBFOLD	/home/$USER	Directory path to database	^/.+(/.+)*$
-DB	pr2_test.gb203	Database prefix name	^.+$
+DB	pr2_4.10.0	Database prefix name	^.+$
 CUT_DB	no	Reduce database to amplified fragment	no yes
 ASSIGN_ALL	no	Assign all reads	no yes
 ASSIGN_FUNCT	no	Assign putative function	no yes
