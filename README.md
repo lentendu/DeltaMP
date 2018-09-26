@@ -1,5 +1,5 @@
 # DeltaMP
-     **A flexible, reproducible and resource efficient metabarcoding amplicon pipeline for HPC**
+ **A flexible, reproducible and resource efficient metabarcoding amplicon pipeline for HPC**
 
 DeltaMP is a command line tool for high performance computer taking advantage of queueing systems to parallelize and speed-up bioinformatic processing of metabarcoding raw read libraries.
 
@@ -38,7 +38,7 @@ Last but not least, DeltaMP produces version controlled, reproducible and fully 
 
 DeltaMP is intend to be used on a HPC with a job scheduler (i.e. batch-queuing system).
 
-### Job schedulers:
+### supported job schedulers:
 
 **[SLURM](https://slurm.schedmd.com)**
 
@@ -137,7 +137,7 @@ AUTHOR
 	Guillaume Lentendu, Christina Weißbecker, Anna Heintz-Buschart and Tesfaye Wubet
 
 REPORTING BUGS
-	Submit suggestions and bug-reports at <https://github.com/lentendu/issues>, send a pull request on <https://github.com/lentendu>, or compose an e-mail to Guillaume Lentendu <lentendu@rhrk.uni-kl.de>.
+	Submit suggestions and bug-reports at <https://github.com/lentendu/DeltaMP/issues>, send a pull request on <https://github.com/lentendu/DeltaMP>, or compose an e-mail to Guillaume Lentendu <lentendu@rhrk.uni-kl.de>.
 
 COPYRIGHT
 	Copyright (C) 2018 Guillaume Lentendu, Christina Weißbecker, Anna Heintz-Buschart and Tesfaye Wubet
@@ -153,11 +153,9 @@ COPYRIGHT
 
 ## Configuration file
 
-To run, DeltaMP always required a configuration file and optionnaly local copies of raw sequence libraries.
+To run, DeltaMP always required a configuration file and, optionaly, local copies of raw sequence libraries.
 
-The fields in the configuration file are tab separated.
-
-The file encoding is UTF8.
+The configuration is encoded in UTF8 and the fields are TAB-separated.
 
 If the file is edited under Windows, pay attention to use Unix compliant end of line (\n).
 
@@ -297,22 +295,22 @@ deltamp [path/]configuration_file
 ```
 replacing [path/] by the path to your configuration file, and “configuration_file” by its filename. Avoid “path/” if you are already in the right directory.
 
-For each DeltaMP execution, a “PROJECT” directory labeled with the project name will be created into the "Path to output location" (nothing done if this directory already exist). A “SUBPROJECT” directory will be created inside the "PROJECT" directory and will be labeled as follow: “Project name”_”Sequencing technology”_”Target region”_”unique identifier”. The unique identifier (cksum of date, time and configuration file) enables differentiation between each instances of the pipeline execution for the same project. 
+For each DeltaMP execution, a "PROJECT” directory labeled with the project name will be created into the "Path to output location" (nothing done if this directory already exist). A “SUBPROJECT” directory will be created inside the PROJECT directory and will be labeled as follow: “Project name”\_”Sequencing technology”\_”Target region”\_”unique identifier”. The unique identifier (cksum of date, time and configuration file) enables differentiation between each instance of the pipeline execution for the same project. 
 
-The "SUBPROJECT" directory is copied into the "Path to execution location" and all necessary jobs are submited to the queue.
+The SUBPROJECT directory is copied into the "Path to execution location" and all necessary jobs are submited to the queue.
 
-Once all step's jobs are completed, the outputs are copied back into the "Path to output location/PROJECT/SUBPROJECT" directory.
+Once all step's jobs are completed, the outputs are copied back into the "Path to output location"/PROJECT/SUBPROJECT directory.
 
 
 ### Directories structure
 
-+ output "SUBPROJECT" directory:
-   * from stratup: directory config/ containing the initial configuration file renamed "configuration.SUBPROJECT.tsv" and internal configuration test files
-   * at execution end: files "SUBPROJECT".documentation.txt and archives "SUBPROJECT".outputs.tar.gz and "SUBPROJECT".processing.files.tar.gz (and respective md5sum)
++ output SUBPROJECT directory:
+   * from stratup: directory config/ containing the initial configuration file renamed configuration.SUBPROJECT.tsv and internal configuration text files
+   * at execution end: files SUBPROJECT.documentation.txt and archives SUBPROJECT.outputs.tar.gz and SUBPROJECT.processing.files.tar.gz (and respective md5sum)
    
-+ execute "SUBPROJECT" directory:
-   * archives/: store outputs befor copying them back to output directory
-   * config/: same as in output directory with additionnaly "jobid" list of jobid and jobname of queued jobs and lists of files ("xxx.files") and directories "xxx.dir" in the execution directory after each job step "xxx"
++ execution SUBPROJECT directory:
+   * archives/: store outputs before copying them back to output directory
+   * config/: same as in output directory with additionnaly "jobid" list of jobids and jobnames of queued jobs and lists of files ("xxx.files") and directories ("xxx.dir") in the execution directory after each job step "xxx"
    * libraries/: for raw libraries and reads filtering until quality step
    * log/: output "xxx.out" and error "xxx.err" logfiles of each job step "xxx", split among tasks for array job (e.g. "xxx.1.out")
    * processing/: contains files and directories produced from trim step to the end
@@ -334,29 +332,29 @@ The output statistics will be then useful to check the proper handling of raw re
 
 + test DeltaMP behaviors for checkpointing with multiple dry run on a continuously modified configuration files, avoiding the cleaning of the dry run directories:
 ```
-deltamp -d [path/]configuration_file
+deltamp -cd [path/]configuration_file
 ```
-To run the pipeline normally after such a dry checkpointing check, first delete all directories created for dry runs from the output directory, or change the output directory in the configuration file. 
+To run the pipeline normally after such a dry checkpointing, first delete all directories created for dry runs from the output directory, or change the output directory in the configuration file. 
 
 
 ### Checkpointing
 
 In order to avoid to run the pipeline from the beginning if only one parameter is modified in the configuration file (e.g. clustering algorithm), DeltaMP allow re-use of previously produced files in the execution directory by [checkpointing](https://en.wikipedia.org/wiki/Application_checkpointing).
 
-Checkpointing is turn on by default, which means that if any "SUBPROJECT" with the same target, same sequencing technology and the same list of samples is found in the "Path to output location/PROJECT" directory, all configuration parameters and option values will be compared.
+Checkpointing is turn on by default, which means that if any SUBPROJECT with the same target, same sequencing technology and the same list of samples is found in the "Path to output location/PROJECT" directory, all configuration parameters and option values will be compared.
 
-Then come multiple situations:
-+ if a previous "SUBPROJECT" have the same set of configuration parameters and option values than for the current deltamp call, and error message is issued and nothing appends to avoid any useless re-calculation. If the users really want to re-compute, he/she will have to first delete the previous "SUBPROJECT" or to change the "Path to output location"
+Then come different situations:
++ if a previous SUBPROJECT have the same set of configuration parameters and option values than for the current deltamp call, and error message is issued and nothing appends to avoid any useless re-calculation. If the users really want to re-compute, he/she will have to first delete the previous SUBPROJECT, to change the "Path to output location" or to disable checkpointing with option -n.
 
-+ if a previous "SUBPROJECT" have the same set of configuration parameters and option values than for the current deltamp call, but the SAMPLES section differs, and error message is issued and nothing appends to avoid checkpointing for different sets of samples/libraries. If the users really want to re-compute, he/she will have to first delete the previous "SUBPROJECT" or to change the "Path to output location"
++ if a previous SUBPROJECT have the same set of configuration parameters and option values than for the current deltamp call, but the SAMPLES section differs, and error message is issued and nothing appends to avoid checkpointing for different sets of samples/libraries. If the users really want to re-compute, he/she will have to first delete the previous SUBPROJECT, to change the "Path to output location" or to disable checkpointing with option -n.
 
-+ if at least one configuration parameter or option value differs with any previous "SUBPROJECT", a new "SUBPROJECT" will be created and the computation will start directly after the last common step, while all files and directories produced during the common steps of the previous "SUBPROJECT" are symlinked to the execution directory or hard copied to the output directory of the new "SUBPROJECT". If multiple previous "SUBPROJECT" exist, the previous "SUBPROJECT" is the one with the highest amount of common steps (then the oldest if still multiple previous "SUBPROJECT"). 
++ if at least one configuration parameter or option value differs with any previous SUBPROJECT, a new SUBPROJECT will be created and the computation will start directly after the last common step, while all files and directories produced during the common steps of the previous SUBPROJECT are symlinked to the execution directory or hard copied to the output directory of the new SUBPROJECT. If multiple previous SUBPROJECT exist, the previous SUBPROJECT is the one with the highest amount of common steps (then the oldest if still multiple previous SUBPROJECT). 
 
-Relationship tree among successive checkpointed "SUBPROJECT"s are documented in the output directory of "SUBPROJECT"s with at least one previous "SUBPROJECT" at config/tree.summary.
+Relationship tree among successive checkpointed SUBPROJECTs are documented in the output directory of SUBPROJECTs with at least one previous SUBPROJECT at config/tree.summary.
 
-Checkpointing could be repeated multiple times, so long at least one parameter differ with any of the previous "SUBPROJECT"s.
+Checkpointing could be repeated multiple times, so long at least one parameter differ with any of the previous SUBPROJECTs.
 
-The previous "SUBPROJECT" could be hard set with the -p option, otherwise the previous SUBPROJECT with highest number of common steps will be taken as reference.
+The previous SUBPROJECT could be hard set with the -p option, otherwise the previous SUBPROJECT with highest number of common steps will be taken as reference.
 
 Checkpointing can be turn off by using the -n option.
 
@@ -365,11 +363,11 @@ Checkpointing can be turn off by using the -n option.
 
 Running the DeltaMP command will generate the directories and configuration files necessary to conduct the pipeline analysis as well as submitting the required steps to the queuing system.
 
-The following steps are bash scripts available in the bin directory of the DeltaMP installation directory and are named following the scheme “xxx.sh”, xxx being the name of the step.
+The following steps are bash scripts available in the bin directory after build and are named following the scheme “xxx.sh”, xxx being the name of the step.
 
 For 454 or Illumina specific steps, step script filenames follow “454_xxx.sh” and “Illumina_xxx.sh” schemes, respectively.
 
-+ init: create symlink to files of previous "SUBPROJECT" if checkpointing; one serial job
++ init: create symlink to files of previous SUBPROJECT if checkpointing; one serial job
 + get: raw data copy/download and oligo file(s) creation; one serial job
 + 454 libraries specific steps
    * demulti: demultiplex sff based on barcodes; target raw sequences in libraries containing multiple target primers are identified when holding the expected forward sequencing primer with a maximum number of mismatches equal to one third of the primer length; one parallel array job per library
@@ -392,10 +390,11 @@ For 454 or Illumina specific steps, step script filenames follow “454_xxx.sh�
 + archiving: compress raw demultiplexed (454)s, pipeline outputs and processing file in separated tar.gz archives; copy to the output directory
 + doc: create the complete documentation of the pipeline processes; one serial job
 
+Each step job is waiting in the queue so long its preceeding step job is not completed, except for the cut_db step which do not have to wait on any job completion. For checkpointing, the init step job will wait on the completion of the last common step job from the previous SUBPROJECT.
 
 ## Outputs
 
-### files in "SUBPROJECT".outputs.tar.gz at the end of a full analyses :
+### files in SUBPROJECT.outputs.tar.gz at the end of a full analyses :
 
 + TAB-separated OTU matrices ("_OTUS.tsv") and representative sequences ("_repseq.fasta") in four different flavors:
    * “SUBPROJECT.all” for all OTUs
@@ -405,11 +404,11 @@ For 454 or Illumina specific steps, step script filenames follow “454_xxx.sh�
 
 The TAB-separated OTU matrices each contains a dense matrix of read counts per OTUs in each sample, each row corresponding to an OTU and each column to a sample, the second to last column containing the consensus taxonomic assignment (labeled as “taxonomy”), and the last column listing the representative sequence identifiers (labeled as “repseq”). Taxonomic rank with no consensus assignment are labeled with “unidentified”.
 
-+ "SUBPROJECT.json.biom": biom sparse OTU matrix for all OTUs, JSON encoded, with BioProject metadata annotation for samples and taxonomy, assignment bootstraps and function annotations for observations
-+ "SUBPROJECT.read_counts.tsv": tab separated table of read counts in each sample for each step of the pipeline
-+ "SUBPROJECT.log": contains the compilation of all logs (standard output and standard error normally printed in the terminal) outputted by the different steps in their called order
-+ "SUBPROJECT.raw_and_pair-end_reads_statistics.pdf": contains graphical representations of length and quality distributions as well as the average quality over the raw sequences for each sequence library, for both the full library and for each sample in the library.
-+ "configuration.SUBPROJECT.tsv": the original configuration file
++ SUBPROJECT.json.biom: biom sparse OTU matrix for all OTUs, JSON encoded, with BioProject metadata annotation for samples and taxonomy, assignment bootstraps and function annotations for observations
++ SUBPROJECT.read_counts.tsv: tab separated table of read counts in each sample for each step of the pipeline
++ SUBPROJECT.log: contains the compilation of all logs (standard output and standard error normally printed in the terminal) outputted by the different steps in their called order
++ SUBPROJECT.raw_and_pair-end_reads_statistics.pdf: contains graphical representations of length and quality distributions as well as the average quality over the raw sequences for each sequence library, for both the full library and for each sample in the library.
++ configuration.SUBPROJECT.tsv: the original configuration file
 
 ### documentation:
 
@@ -430,24 +429,24 @@ If it concerns the quality step, the most common error is a number of reads belo
 
 For any other jobs, it means that the previous step unexpectedly terminate before its end or that an error was issued by mothur in the previous step.
 
-In all those cases, check the standard output (.out) and standard error (.err) log files of the respective step(s) and array(s), which are situated in the "Path to execution location/SUBPROJECT/log" directory.
+In all those cases, check the standard output (.out) and standard error (.err) log files of the respective step(s) and array(s), which are situated in the "Path to execution location"/SUBPROJECT/log directory.
 
 To detect job terminated due to overpassing requested memory and/or time, compare the requested memory/time in the problematic step's script with the maximum used memory/runtime during job execution. To print job's record after execution, use `qacct` (grid Engine) or `sacct` (SLURM).
 
 For unsolved issues, send an email to lentendu@rhrk.uni-kl.de, including the .out and .err log files as well as the output of the qacct command for the problematic job.
 
 ## References
-+ Bengtsson‐Palme Johan, Ryberg Martin, Hartmann Martin, Branco Sara, Wang Zheng, Godhe Anna, Wit Pierre, Sánchez‐García Marisol, Ebersberger Ingo, Sousa Filipe, Amend Anthony, Jumpponen Ari, Unterseher Martin, Kristiansson Erik, Abarenkov Kessy, Bertrand Yann J. K., Sanli Kemal, Eriksson K. Martin, Vik Unni, Veldre Vilmar, Nilsson R. Henrik, Bunce Michael, 2013. Improved software detection and extraction of ITS1 and ITS2 from ribosomal ITS sequences of fungi and other eukaryotes for analysis of environmental sequencing data. Methods in Ecology and Evolution 4, 914–919. doi:10.1111/2041-210X.12073
-+ Boyer, F., Mercier, C., Bonin, A., Le Bras, Y., Taberlet, P., Coissac, E., 2016. obitools: a unix-inspired software package for DNA metabarcoding. Molecular Ecology Resources 16, 176–182. doi:10.1111/1755-0998.12428
-+ Edgar, R.C., 2010. Search and clustering orders of magnitude faster than BLAST. Bioinformatics 26, 2460–2461. doi:10.1093/bioinformatics/btq461
-+ Fu, L., Niu, B., Zhu, Z., Wu, S., Li, W., 2012. CD-HIT: accelerated for clustering the next-generation sequencing data. Bioinformatics 28, 3150–3152. doi:10.1093/bioinformatics/bts565
-+ Gaspar, J.M., Thomas, W.K., 2015. FlowClus: efficiently filtering and denoising pyrosequenced amplicons. BMC Bioinformatics 16. doi:10.1186/s12859-015-0532-1
-+ Mahé, F., Rognes, T., Quince, C., de Vargas, C., Dunthorn, M., 2015. Swarm v2: highly-scalable and high-resolution amplicon clustering. PeerJ 3, e1420. doi:10.7717/peerj.1420
-+ Martin, M., 2011. Cutadapt removes adapter sequences from high-throughput sequencing reads. EMBnet.Journal 17, 10–12. doi:10.14806/ej.17.1.200
-+ Masella, A.P., Bartram, A.K., Truszkowski, J.M., Brown, D.G., Neufeld, J.D., 2012. PANDAseq: paired-end assembler for illumina sequences. BMC Bioinformatics 13, 31. doi:10.1186/1471-2105-13-31
-+ McDonald, D., Clemente, J.C., Kuczynski, J., Rideout, J.R., Stombaugh, J., Wendel, D., Wilke, A., Huse, S., Hufnagle, J., Meyer, F., Knight, R., Caporaso, J.G., 2012. The Biological Observation Matrix (BIOM) format or: how I learned to stop worrying and love the ome-ome. GigaScience 1. doi:10.1186/2047-217X-1-7
++ Bengtsson‐Palme Johan, Ryberg Martin, Hartmann Martin, Branco Sara, Wang Zheng, Godhe Anna, Wit Pierre, Sánchez‐García Marisol, Ebersberger Ingo, Sousa Filipe, Amend Anthony, Jumpponen Ari, Unterseher Martin, Kristiansson Erik, Abarenkov Kessy, Bertrand Yann J. K., Sanli Kemal, Eriksson K. Martin, Vik Unni, Veldre Vilmar, Nilsson R. Henrik, Bunce Michael, 2013. Improved software detection and extraction of ITS1 and ITS2 from ribosomal ITS sequences of fungi and other eukaryotes for analysis of environmental sequencing data. Methods in Ecology and Evolution 4, 914–919. doi:[10.1111/2041-210X.12073](http://dx.doi.org/10.1111/2041-210X.12073)
++ Boyer, F., Mercier, C., Bonin, A., Le Bras, Y., Taberlet, P., Coissac, E., 2016. obitools: a unix-inspired software package for DNA metabarcoding. Molecular Ecology Resources 16, 176–182. doi:[10.1111/1755-0998.12428](http://dx.doi.org/10.1111/1755-0998.12428)
++ Edgar, R.C., 2010. Search and clustering orders of magnitude faster than BLAST. Bioinformatics 26, 2460–2461. doi:[10.1093/bioinformatics/btq461](http://dx.doi.org/10.1093/bioinformatics/btq461)
++ Fu, L., Niu, B., Zhu, Z., Wu, S., Li, W., 2012. CD-HIT: accelerated for clustering the next-generation sequencing data. Bioinformatics 28, 3150–3152. doi:[10.1093/bioinformatics/bts565](http://dx.doi.org/10.1093/bioinformatics/bts565)
++ Gaspar, J.M., Thomas, W.K., 2015. FlowClus: efficiently filtering and denoising pyrosequenced amplicons. BMC Bioinformatics 16. doi:[10.1186/s12859-015-0532-1](http://dx.doi.org/10.1186/s12859-015-0532-1)
++ Mahé, F., Rognes, T., Quince, C., de Vargas, C., Dunthorn, M., 2015. Swarm v2: highly-scalable and high-resolution amplicon clustering. PeerJ 3, e1420. doi:[10.7717/peerj.1420](http://dx.doi.org/10.7717/peerj.1420)
++ Martin, M., 2011. Cutadapt removes adapter sequences from high-throughput sequencing reads. EMBnet.Journal 17, 10–12. doi:[10.14806/ej.17.1.200](http://dx.doi.org/10.14806/ej.17.1.200)
++ Masella, A.P., Bartram, A.K., Truszkowski, J.M., Brown, D.G., Neufeld, J.D., 2012. PANDAseq: paired-end assembler for illumina sequences. BMC Bioinformatics 13, 31. doi:[10.1186/1471-2105-13-31](http://dx.doi.org/10.1186/1471-2105-13-31)
++ McDonald, D., Clemente, J.C., Kuczynski, J., Rideout, J.R., Stombaugh, J., Wendel, D., Wilke, A., Huse, S., Hufnagle, J., Meyer, F., Knight, R., Caporaso, J.G., 2012. The Biological Observation Matrix (BIOM) format or: how I learned to stop worrying and love the ome-ome. GigaScience 1. doi:[10.1186/2047-217X-1-7](http://dx.doi.org/10.1186/2047-217X-1-7)
 + Mercier, C., Boyer, F., Bonin, A., Coissac, É., 2013. SUMATRA and SUMACLUST: fast and exact comparison and clustering of sequences.
-+ Nguyen, N.H., Song, Z., Bates, S.T., Branco, S., Tedersoo, L., Menke, J., Schilling, J.S., Kennedy, P.G., 2016. FUNGuild: An open annotation tool for parsing fungal community datasets by ecological guild. Fungal Ecology 20, 241–248. doi:10.1016/j.funeco.2015.06.006
-+ Rognes, T., Flouri, T., Nichols, B., Quince, C., Mahé, F., 2016. VSEARCH: a versatile open source tool for metagenomics (No. e2409v1). PeerJ Preprints.
-+ Schloss, P.D., Westcott, S.L., Ryabin, T., Hall, J.R., Hartmann, M., Hollister, E.B., Lesniewski, R.A., Oakley, B.B., Parks, D.H., Robinson, C.J., Sahl, J.W., Stres, B., Thallinger, G.G., Van Horn, D.J., Weber, C.F., 2009. Introducing mothur: Open-Source, Platform-Independent, Community-Supported Software for Describing and Comparing Microbial Communities. Applied and Environmental Microbiology 75, 7537–7541. doi:10.1128/AEM.01541-09
-+ Wang, Q., Garrity, G., Tiedje, J., Cole, J., 2007. Naive Bayesian classifier for rapid assignment of rRNA sequences into the new bacterial taxonomy. Applied and Environmental Microbiology 73, 5261–5267. doi:10.1128/AEM.00062-07
++ Nguyen, N.H., Song, Z., Bates, S.T., Branco, S., Tedersoo, L., Menke, J., Schilling, J.S., Kennedy, P.G., 2016. FUNGuild: An open annotation tool for parsing fungal community datasets by ecological guild. Fungal Ecology 20, 241–248. doi:[10.1016/j.funeco.2015.06.006](http://dx.doi.org/10.1016/j.funeco.2015.06.006)
++ Rognes, T., Flouri, T., Nichols, B., Quince, C., Mahé, F., 2016. VSEARCH: a versatile open source tool for metagenomics. PeerJ. doi:[10.7717/peerj.2584](http://dx.doi.org/10.7717/peerj.2584)
++ Schloss, P.D., Westcott, S.L., Ryabin, T., Hall, J.R., Hartmann, M., Hollister, E.B., Lesniewski, R.A., Oakley, B.B., Parks, D.H., Robinson, C.J., Sahl, J.W., Stres, B., Thallinger, G.G., Van Horn, D.J., Weber, C.F., 2009. Introducing mothur: Open-Source, Platform-Independent, Community-Supported Software for Describing and Comparing Microbial Communities. Applied and Environmental Microbiology 75, 7537–7541. doi:[10.1128/AEM.01541-09](http://dx.doi.org/10.1128/AEM.01541-09)
++ Wang, Q., Garrity, G., Tiedje, J., Cole, J., 2007. Naive Bayesian classifier for rapid assignment of rRNA sequences into the new bacterial taxonomy. Applied and Environmental Microbiology 73, 5261–5267. doi:[10.1128/AEM.00062-07](http://dx.doi.org/10.1128/AEM.00062-07)

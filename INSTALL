@@ -1,74 +1,39 @@
-Dependencies:
-DeltaMP is intend to be used on a HPC with a job scheduler (i.e. batch-queuing system). DeltaMP currently supports two job schedulers:
-*  SLURM (https://slurm.schedmd.com)
-*  Oracle Grid Engine (http://www.oracle.com/technetwork/oem/grid-engine-166852.html) and its derivatives (e.g. Open Grid Scheduler, http://gridscheduler.sourceforge.net ; Univa Grid Engine, http://www.univa.com/products)
-
-DeltaMP require all of the following softwares to be installed:
-*  OBITools (https://git.metabarcoding.org/obitools/obitools)
-*  MOTHUR (http://www.mothur.org)
-*  cutadapt (https://cutadapt.readthedocs.io/en/stable/)
-*  biom-format (http://biom-format.org)
-*  gnu parallel (http://savannah.gnu.org/projects/parallel)
-*  R (https://cran.r-project.org/)
-*  Ghostscript (https://www.ghostscript.com/)
-*  WebLogo (https://github.com/WebLogo/weblogo)
-*  archive-sum (https://github.com/idiv-biodiversity/archive-sum)
-
-Depending on the workflows, DeltaMP could need the following softwares:
-1. for using remote libraries on short read archives:
-*  SRA toolkit (https://github.com/ncbi/sra-tools)
-2. for Illumina pair-ending and pre-clustering:
-*  PANDAseq (https://github.com/neufeld/pandaseq)
-*  cd-hit-454 (as part of cd-hit http://weizhongli-lab.org/cd-hit/)
-3. 454 denoising and demultiplexing:
-*  FlowClus (https://github.com/jsh58/FlowClus)
-*  QIIME (http://qiime.org)
-4. OTU clustering:
-*  CD-HIT (http://weizhongli-lab.org/cd-hit/)
-*  swarm (https://github.com/torognes/swarm)
-*  MCL (http://micans.org/mcl) and sumatra (https://git.metabarcoding.org/obitools/sumatra)
-*  sumaclust (https://git.metabarcoding.org/obitools/sumaclust) and sumatra (https://git.metabarcoding.org/obitools/sumatra)
-*  vsearch (https://github.com/torognes/vsearch)
-
-All this dependencies need to be available through the $PATH variable or need to be loaded by the DeltaMP module file (see below 4.b, 4.c and 6.)
-
-
-Installation informations:
+# DeltaMP installation informations
 
 1. change/dive to installation directory
 
-2. clone git repository with:
-    git clone git@gitlab.com:lentendu/DeltaMP.git
-   
-    or clone only the desired branch with:
-    git clone -b BRANCH-NAME --single-branch git@gitlab.com:lentendu/DeltaMP.git
+2. retrieve DeltaMP
+	a. either by downloading the last release:
+		wget https://github.com/lentendu/DeltaMP/archive/v0.2.tar.gz && tar xzvf DeltaMP-0.2.tar.gz
+	
+	b. alternatively, by cloning the development version:
+		git clone https://github.com/lentendu/DeltaMP.git DeltaMP-0.2
 
-3. cd to the newly created directory DeltaMP
+3. cd to the newly created directory:
+	cd DeltaMP-0.2 
 
-4. edit the configuration file config.txt, showing the respective format VARIABLE_NAME[Tab]VARIABLE_VALUE
-    a. BATCH: batch queuing system, either 'GridEngine' or 'Slurm'
+4. edit the TAB-separated configuration file config.txt, by keeping the unmodified variable name on the first column and by modifying the second column with following values
+    a. BATCH: name of the batch queuing system, either 'GridEngine' or 'Slurm'
     b. MODULES_TO_BE_LOADED: semi-column separated list of dependency modules to be loaded by the DeltaMP module
-    c. MAX_CPU_PER_NODES: maximum number of CPUS/cores on one node for MP parallel jobs
+    c. MAX_CPU_PER_NODES: the number of CPUs on one node for MP parallel jobs
 
 5. to build DeltaMP, a simple make is enough:
     make
+
 If you want to modify the configuration informations from config.txt and re-build, first clean the previously built files and directories with:
     make clean
 
-6. A modulefiles directory will be created inside the DeltaMP directory.
-To load the DeltaMP/VERSION module you have two options:
+6. A modulefiles directory will be created inside the DeltaMP directory. To load the DeltaMP/0.2 module you have two options:
 	a. either add the DeltaMP/modulefiles directory to your MODULEPATH variable by adding at the end of your ~/.bashrc or ~/bash_profile file the following line :
-    export MODULEPATH=/FULL/PATH/TO/DeltaMP/modulefiles:$MODULEPATH
-with /FULL/PATH/TO/ being the full path to your DeltaMP directory
-	b. or copy the DeltaMP/modulefiles/DeltaMP directory to your preferred modulefiles directory which is already in your MODULEPATH 
-	(or copy only the module file named after the current version number if you already have a DeltaMP directory in your preferred modulefiles directory)
+		export MODULEPATH=/FULL/PATH/TO/DeltaMP/modulefiles:$MODULEPATH
+	with /FULL/PATH/TO/ being the full path to your DeltaMP directory
+	
+	b. or copy the DeltaMP/modulefiles/DeltaMP directory to your preferred modulefiles directory which is already in your MODULEPATH (or copy only the modulefile "0.2" if you already have a DeltaMP directory in your preferred modulefiles directory)
 
-7. IF you choose 6.a., you first need to reload your bash configurations to allow the detection of the newly set MODULEPATH variable:
-    source ~/.bashrc
+7. If you choose 6.a., you first need to reload your bash configurations to allow the detection of the newly set MODULEPATH variable:
+	source ~/.bashrc
 or
     source ~/.bash_profile
 
 8. Finally, you can load the DeltaMP module with:
-    module load DeltaMP/VERSION
-with VERSION being the installed version number
-
+    module load DeltaMP/0.2
