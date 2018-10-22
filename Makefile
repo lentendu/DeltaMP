@@ -1,5 +1,6 @@
 # object variables
 version := 0.2
+SHELL := /bin/bash
 config := config.txt
 batch := $(shell grep BATCH $(config) | cut -f 2)
 module := modulefiles/DeltaMP/$(version)
@@ -58,7 +59,7 @@ $(arrays): lib/$(batch)/%_array.head : %.head
 ifeq ($(batch),GridEngine)
 	sed 's/NAME/NAME.$$TASK_ID/' $< > $@
 else ifeq ($(batch),Slurm)
-	sed 's/NAME/NAME.%a/' $< > $@
+	sed 's/NAME/NAME.%a/' $< | cat - <(echo 'sleep $$(( ARRAY_TASK - $$(( ARRAY_TASK / 5 )) * 5 ))') > $@
 endif
 
 # rules to build high memory job headers
