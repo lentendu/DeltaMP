@@ -59,7 +59,7 @@ $(arrays): lib/$(batch)/%_array.head : %.head
 ifeq ($(batch),GridEngine)
 	sed 's/NAME/NAME.$$TASK_ID/' $< > $@
 else ifeq ($(batch),Slurm)
-	sed 's/NAME/NAME.%a/' $< | cat - <(echo 'sleep $$(( ARRAY_TASK - $$(( ARRAY_TASK / 5 )) * 5 ))') > $@
+	sed 's/NAME/NAME.%a/' $< | cat - <(echo 'sleep $$ARRAY_TASK') > $@
 endif
 
 # rules to build high memory job headers
