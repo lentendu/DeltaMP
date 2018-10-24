@@ -205,7 +205,7 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Reverse primer sequence (5' to 3')__: the sequence of the biological reverse primer. The default is “TCCTCCGCTTATTGATATGC”.
 
-+ __Sequencing direction__: “forward” or “reverse” for forward libraries (column 3 of [SAMPLES section](#samples-section)) predominently orientated in the forward or reverse primer direction, respectively. The default is “forward”.
++ __Sequencing direction__: *454 specific parameter*, “forward” or “reverse” for forward libraries (column 3 of [SAMPLES section](#samples-section)) predominently orientated in the forward or reverse primer direction, respectively. The default is “forward”.
 
 
 ### PAIR-END section
@@ -221,6 +221,9 @@ The default values for the optional parameters could be displayed by using the -
 
 
 ### TRIMMING section
++ __Denoising__: *454 specific parameter*, "yes" or "no", whether to perform flowgram denoising using FlowClus or not. The default is "no".
+
++ __Minimum number of flows__: *454 specific parameter*, a number between 300 and 600, minimum length of flowgrams to be kept for denoising. The default is 360.
 
 + __Number of mismatches allowed on the barcode sequence__: *454 specific parameter*, a number between 0 and 2, or 'a' for automatic detection of maximum allowed mismatch on a barcode to avoid mislabeling of sequence inside one library. The default is 1.
 
@@ -230,9 +233,9 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Maximum homopolymer length allowed__: a number between 0 and 20. The default is 10.
 
-+ __Minimum length__: a number between 50 and Maximum length. This parameter is used for pair-end assembled reads only in the case of Illumina libraries. The default is 50.
++ __Minimum sequence length__: a number between 50 and the set Maximum sequence length. This parameter is used for pair-end assembled reads only in the case of Illumina libraries. The default is 50.
 
-+ __Maximum length__: a number between Minimum length and 1000. This parameter is used for pair-end assembled reads only in the case of Illumina libraries. The default is 600.
++ __Maximum sequence length__: a number between the set Minimum sequence length and 1000. This parameter is used for pair-end assembled reads only in the case of Illumina libraries. The default is 600.
 
 + __Minimum average quality on the trimmed sequence length__: a number between 20 and 30 (Phred score). The read quality average is calculated after optimal sequence length trimming. The default is 20.
 
@@ -244,6 +247,8 @@ The default values for the optional parameters could be displayed by using the -
 + __ITSx region to extract__: "no", “ITS1” or “ITS2” to skip or to extract either regions from fungal ITS reads using ITSx. The default is “no”.
 
 + __Pre-clustering__: "no", "cdhit454" or "mothur" to skip, to use [cd-hit-454](http://weizhong-lab.ucsd.edu/public/?q=softwares/cd-hit-454) or [mothur pre.cluster]() algorithms to pre-cluster reads after trimming and before chimera removal. For the mothur based pre-clustering, and aligned version of a reference database is required (see below at + Database prefix name). The default is "no".
+
++ __Chimera removal__: "before", "after" or "both", to check for chimera before OTU clustering only (in each sample separetedly), after OTU clustering only (among OTU representative sequences), or at both moments. *De-novo* chimera are detected with UCHIME and removed. The default is "after".
 
 + __Subsampling__: “yes” or “no”. Activating subsampling will randomly select the same number of reads in all samples according to the read count in the sample with the lowest number of reads, after the trimming step. The default is “no”.
 
@@ -267,9 +272,9 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Assign putative function__: "yes" or "no" to assign putative function to Fungi using the FUNGuild database (Nguyen et al., 2016).
 
-+ __Minimum number of sample for dominant OTUs__: a number between 0 and ∞ (see [Outputs](#outputs)). The default is 1.
++ __Minimum number of sample for abundant OTUs__: a number between 0 and ∞ (see [Outputs](#outputs)). The default is 1.
 
-+ __Minimum number of reads for dominant OTUs__: a number between 0 and ∞ (see [Outputs](#outputs)). The default is 4.
++ __Minimum number of reads for abundant OTUs__: a number between 0 and ∞ (see [Outputs](#outputs)). The default is 4.
 
 
 ### SAMPLES section
