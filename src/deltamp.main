@@ -252,6 +252,15 @@ fi
 if [ $TECH == "454" ]
 then
 	RAW_EXT=sff
+	if [ $SEQ_DIR == "forward" ]
+	then
+		FLIP=false
+	elif [ $SEQ_DIR == "reverse" ]
+	then
+		FLIP=true
+		read FWD RVS <<<"$RVS $FWD"
+		read FWD_NAME RVS_NAME <<<"$RVS_NAME $FWD_NAME"
+	fi
 elif [ $TECH == "Illumina" ]
 then
 	RAW_EXT=fastq
@@ -260,15 +269,6 @@ then
 	then
 	error_doc "demultiplexing is not available for $TECH libraries."
 	fi
-fi
-if [ $SEQ_DIR == "forward" ]
-then
-	FLIP=false
-elif [ $SEQ_DIR == "reverse" ]
-then
-	FLIP=true
-	read FWD RVS <<<"$RVS $FWD"
-	read FWD_NAME RVS_NAME <<<"$RVS_NAME $FWD_NAME"
 fi
 
 # Databases
