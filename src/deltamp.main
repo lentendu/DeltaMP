@@ -320,7 +320,7 @@ then
 	fi
 elif [ $CLASSIF == "vsearch" ]
 then
-	if [ ! -f $DBFOLD/$DB.udb ] && [ ! -f $DBCHOP/$DBCUT.udb ]
+	if [ ! -f $DBFOLD/$DB.udb ] && [ ! -f $DBFOLD/$DBCUT.udb ]
 	then
 		if [ ! -f $DBFOLD/$DB.txt ]
 		then
