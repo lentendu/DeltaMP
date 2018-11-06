@@ -222,6 +222,24 @@ do
 	fi
 done < $BIN/variables_definition_$TECH.tsv
 
+# check output and execution directories
+if [ ! -d $OUT_PATH ]
+then
+	error_doc "the output directory $OUT_PATH does not exist."
+	if [ ! -w $OUT_PATH ]
+	then
+		error_doc "the output directory $OUT_PATH is not writable."
+	fi
+fi
+if [ ! -d $EXEC_PATH ]
+then
+	error_doc "the execution directory $EXEC_PATH does not exist."
+	if [ ! -w $OUT_PATH ]
+	then
+		error_doc "the execution directory $EXEC_PATH is not writable."
+	fi
+fi
+
 # switch to special options
 if [ $DELETE == "yes" ]
 then
@@ -710,7 +728,7 @@ else
 		mkdir archives archives/$SUBPROJECT.outputs archives/$SUBPROJECT.processing processing libraries quality_check
 		cp config/configuration.$SUBPROJECT.tsv archives/$SUBPROJECT.outputs
 	fi
-	paste <(date +%F -d @$START_TIME) <(date +%T -d @$START_TIME) <(echo -e "${VERSION[DELTAMP]}\t$USER\t$INIT_DIR\t$ARGUMENTS\t$SUBPROJECT") >> ${DELTAMP_BUILD%/*}/history
+	#paste <(date +%F -d @$START_TIME) <(date +%T -d @$START_TIME) <(echo -e "${VERSION[DELTAMP]}\t$USER\t$INIT_DIR\t$ARGUMENTS\t$SUBPROJECT") >> ${DELTAMP_BUILD%/*}/history
 	echo "###"
 	echo "execution of deltamp version ${VERSION[DELTAMP]} for the SUBPROJECT $SUBPROJECT"
 	echo "###"
