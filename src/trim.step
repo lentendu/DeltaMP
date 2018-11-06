@@ -118,7 +118,7 @@ cat *.trim.fasta > $SAMP.trim.fasta
 FASTA=$SAMP.trim
 
 # Reverse-complement
-if [ $FLIP == "yes" ]
+if [ $TECH == "454" ] && [ $FLIP == "true" ]
 then
 	mothur "#set.logfile(name=$LOG, append=T);
 	reverse.seqs(fasta=$FASTA.fasta);

@@ -296,7 +296,7 @@ then
 	DBALIGN=$DB.align
 	if [ $CUT_DB == "yes" ]
 	then
-		if [ $FLIP == "true" ]
+		if [ $TECH == "454" ] && [ $FLIP == "true" ]
 		then
 			DBCUT=$RVS_NAME.$FWD_NAME.$DB
 		else
