@@ -32,8 +32,8 @@ cd libraries
 # Primer clipping
 if [ $CLIPPING != "no" ]
 then
-	FWD_RC=$(echo ">fwd#$FWD" | tr "#" "\n" | vsearch --quiet --fastx_revcomp - --fastaout - | grep -v ">")
-	RVS_RC=$(echo ">rvs#$RVS" | tr "#" "\n" | vsearch --quiet --fastx_revcomp - --fastaout - | grep -v ">")
+	FWD_RC=$(echo -e ">fwd\n$FWD" | obicomplement --without-progress-bar --uppercase | tail -1)
+	RVS_RC=$(echo -e ">rvs\n$RVS" | obicomplement --without-progress-bar --uppercase | tail -1)
 	DISS=`awk -v F=${#FWD} -v R=${#RVS} -v D=$PDIFFS 'BEGIN{DISS=D/F;if(D/R>DISS){DISS=D/R};printf "%.2g\n", DISS}'`
 	# cutadapt
 	if [ $CLIPPING == "both" ]
