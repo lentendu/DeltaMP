@@ -35,8 +35,9 @@ fi
 SUBPROJECT=$CHECK_SUB
 
 # ask user
+echo "Do you wish to delete the jobs and directories associated to $PROUT/$SUBPROJECT (y/n)?"
 while true; do
-    read -p "Do you wish to delete jobs and directories associated to $PROUT/$SUBPROJECT ?" yn
+    read yn
     case $yn in
         [Yy]* ) break;;
         [Nn]* ) echo "deleting $SUBPROJECT canceled." ; exit 1 ;;
@@ -45,7 +46,7 @@ while true; do
 done
 
 # delete job in the queue
-QUEUED_JOBS=$(QUEUE_STAT | awk '{print $1}' | sort | join - <(cut -f 1 -d " " $EXEC_PATH/$SUBPROJECT/config/jobid))
+QUEUED_JOBS=$(QUEUE_STAT | awk 'NR>1{print $1}' | cut -d "_" -f 1 | sort -u | join - <(awk '{print $1}' $EXEC_PATH/$SUBPROJECT/config/jobid) | sort)
 if [ ! -z "$QUEUED_JOBS" ]
 then
 	QUEUE_DEL $QUEUED_JOBS
