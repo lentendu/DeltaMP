@@ -52,7 +52,7 @@ then
 	# reverse complement (if not empty)
 	if [ -s fastq/$FWD_LIB.rvs.fastq ]
 	then
-		vsearch --quiet --fastx_revcomp fastq/$FWD_LIB.rvs.fastq --fastqout - | cat fastq/$FWD_LIB.fwd.fastq - > fastq/$LIB_NAME.fwd.fastq
+		obicomplement --without-progress-bar --uppercase fastq/$FWD_LIB.rvs.fastq | sed '/^@/s/_CMP complemented=True;//' | cat fastq/$FWD_LIB.fwd.fastq - > fastq/$LIB_NAME.fwd.fastq
 		rm fastq/$FWD_LIB.rvs.fastq fastq/$FWD_LIB.fwd.fastq fastq/$FWD_LIB.fwd_unt.fastq
 	else
 		mv fastq/$FWD_LIB.fwd.fastq fastq/$LIB_NAME.fwd.fastq
@@ -60,7 +60,7 @@ then
 	fi
 	if [ -s fastq/$RVS_LIB.rvs.fastq ]
 	then
-		vsearch --quiet --fastx_revcomp fastq/$RVS_LIB.rvs.fastq --fastqout - | cat fastq/$RVS_LIB.fwd.fastq - > fastq/$LIB_NAME.rvs.fastq
+		obicomplement --without-progress-bar --uppercase fastq/$RVS_LIB.rvs.fastq | sed '/^@/s/_CMP complemented=True;//' | cat fastq/$RVS_LIB.fwd.fastq - > fastq/$LIB_NAME.rvs.fastq
 		rm fastq/$RVS_LIB.rvs.fastq fastq/$RVS_LIB.fwd.fastq fastq/$RVS_LIB.fwd_unt.fastq
 	else
 		mv fastq/$RVS_LIB.fwd.fastq fastq/$LIB_NAME.rvs.fastq
