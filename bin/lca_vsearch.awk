@@ -57,7 +57,7 @@
 							refall=refall","ref[j]
 						}
 					} else {
-						if(count/FNR>=cons) {
+						if(count/FNR*100>=cons) {
 							rank[i]=prev
 							stat[i]=count/FNR*100
 							break
@@ -68,7 +68,7 @@
 						}
 					}
 				}
-				if(count/FNR>=cons && rank[i]=="NA")
+				if(count/FNR*100>=cons && rank[i]=="NA")
 					rank[i]=prev
 					stat[i]=count/FNR*100
 				if(rank[i]!="NA")
