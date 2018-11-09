@@ -3,7 +3,6 @@
 #$ -S /bin/bash
 #$ -o log/NAME.out
 #$ -e log/NAME.err
-#$ -l h_rt=24:00:00
-#$ -l h_vmem=6G
+#$ -l h_rt=JOB_RUNTIME
+#$ -l h_vmem=MAX_MEMORY_FOR_SERIALG
 #$ -binding linear:1
-

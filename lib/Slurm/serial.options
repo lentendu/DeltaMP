@@ -2,7 +2,7 @@
 
 #SBATCH -o log/NAME.out
 #SBATCH -e log/NAME.err
-#SBATCH -t 24:00:00
-#SBATCH --mem=6G
+#SBATCH -t JOB_RUNTIME
+#SBATCH --mem=MAX_MEMORY_FOR_SERIALG
 #SBATCH -n 1
 

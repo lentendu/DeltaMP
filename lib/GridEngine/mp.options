@@ -1,0 +1,9 @@
+#!/bin/bash
+
+#$ -S /bin/bash
+#$ -o log/NAME.out
+#$ -e log/NAME.err
+#$ -l h_rt=JOB_RUNTIME
+#$ -l h_vmem=MAX_MEMORY_FOR_PARALLELG
+#$ -pe smp 6-MAX_CPU_PER_NODES
+

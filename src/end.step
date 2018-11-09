@@ -16,6 +16,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # 
 
+# load modules
+module load DeltaMP/DELTAMP_VERSION
+
 # Define Variables
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/prev.txt
@@ -39,9 +42,6 @@ list2otu () {
 		BEGIN{b=split(S,sam," "); printf "%s","OTU"; for(i=1;i<=b;i++){printf "\t%s", sam[i]}; printf "\n" }
 		{printf "%s",$1; for(i=1;i<=b;i++){val=0; for(j=2;j<=NF;j+=2){if($j==sam[i]){val=$(j+1)}}; printf "\t%s",val }; printf "\n" }'
 }
-
-# load modules
-module load DeltaMP/${VERSION[DELTAMP]}
 
 # load environment of previous step
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; if [ $REF_SUBPROJECT != "no" ] ; then declare $var=$(eval echo "$"$var | sed 's/'$REF_SUBPROJECT'/'$SUBPROJECT'/') ; fi ; done < config/id_env.txt

@@ -16,6 +16,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # 
 
+# load modules
+module load DeltaMP/DELTAMP_VERSION
+
 # Define Variables
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/prev.txt
@@ -23,9 +26,6 @@ if [ $REF_SUBPROJECT != "no" ]
 then
 	. $BIN/check_previous_step
 fi
-
-# load modules
-module load DeltaMP/${VERSION[DELTAMP]}
 
 # Set archives/libraries array
 if [ -z "$ARCHIVES" ] || [[ "${ARCHIVES[@]}" == "no" ]]
