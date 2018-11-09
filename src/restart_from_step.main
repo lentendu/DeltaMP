@@ -49,10 +49,12 @@ then
 	exit 2
 fi
 
+# last step before restart
+UNTIL=`awk -v S=$RESTART '{if($1==S && $2=="x"){print prev;exit};if($2=="x"){prev=$1}}' config/steps.summary`
+
 # check if step was executed for this SUBPROJECT or for checkpointed SUBPROJECT
 if [ -f config/tree.summary ]
 then
-	UNTIL=`awk -v S=$RESTART '{if($1==S && $2=="x"){print prev;exit};if($2=="x"){prev=$1}}' config/steps.summary`
 	TREE_SUMMARY=$(column -t -s $'\t' config/tree.summary | tr "\n" "#" | sed 's/#/\\n/g;s/ /@/g')
 	if [ -z $UNTIL ]
 	then
