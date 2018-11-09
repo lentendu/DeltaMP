@@ -106,5 +106,15 @@ if [ ! -z "$TO_DEL_D" ] ; then rmdir $TO_DEL_D ; fi
 sed -n '\@ '$BIN/$RESTART'\.sh)$@,$p' config/steps.final > steps.tmp
 AVOID=$(sed -n '1,/'$UNTIL'\.sh)$/p' config/steps.final | awk 'BEGIN{FS="="}$0!~"^#"{if($0~" QUEUE_ARRAYS "){print "${"$1"%.*}"} else print "${"$1"}"}')
 for i in $AVOID; do sed 's/QUEUE_SEP'$i'//' steps.tmp > steps.tmp2 && mv steps.tmp2 steps.tmp  ; done
-. <(sed 's/ QUEUE_HOLD* / /' steps.tmp)
-rm steps.tmp
+echo "###"
+echo "execution of deltamp version ${VERSION[DELTAMP]} for the SUBPROJECT $SUBPROJECT, restarting at step $RESTART"
+echo "###"
+bash <(sed 's/ QUEUE_HOLD* / /;/^#/!{p;s/^\([^=]*\)=\$(.*QUEUE_JOBNAME \([^ ]*\) .*$/echo $\1 \2/}' steps.tmp) > jobid.tmp
+
+# rewrite jobid and store old jobids
+TIME=$(date +"%s")
+sed "1,/^[0-9[0-9]* ${DELTAMP_VER}\.$UNTIL\.$SUBPROJECT$/d" config/jobid > config/old_jobid.$TIME
+sed -n "1,/^[0-9[0-9]* ${DELTAMP_VER}\.$UNTIL\.$SUBPROJECT$/p" config/jobid | cat - jobid.tmp > jobid.tmp2 && mv jobid.tmp2 config/jobid
+rm jobid.tmp steps.tmp
+
+
