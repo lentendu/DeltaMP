@@ -1,12 +1,9 @@
 # object variables
 version := 0.2
 SHELL := /bin/bash
-config := config.txt
-batch := $(shell grep BATCH_QUEUE $(config) | cut -f 2)
+batch := $(shell grep BATCH_QUEUE config.txt | cut -f 2)
 module := modulefiles/DeltaMP/$(version)
-module_load := $(shell grep MODULES_TO_BE_LOADED $(config) | cut -f 2)
-max_cpus := $(shell grep MAX_CPU_PER_NODES $(config) | cut -f 2)
-max_mem := $(shell grep MAX_MEMORY_FOR_HIGH_MEM $(config) | cut -f 2)
+module_load := $(shell grep MODULES_TO_BE_LOADED config.txt | cut -f 2)
 deltamp := $(patsubst src/%,bin/%,$(patsubst %.main,%,$(wildcard $(addsuffix *.main,src/))))
 batch_spec := $(addprefix bin/,$(notdir $(shell ls lib/$(batch)/deltamp.*)))
 steps := $(patsubst src/%,bin/%,$(patsubst %.step,%.sh,$(wildcard $(addsuffix *.step,src/))))
@@ -56,7 +53,7 @@ bin/cut_db.sh bin/id.sh : mp_highmem.head
 
 # rule to set parameters of job headers
 $(heads): lib/$(batch)/%.head :  %.options
-	SEDHEAD=$$(sed 's/^/s@/;s/\t/@/;s/$$/@g/' config.txt |  tr "\n" ";" | sed 's/^/sed "/;s/;$$/"/'); \
+	SEDHEAD=$$(sed '2d;s/^/s@/;s/\t/@/;s/$$/@g/' config.txt |  tr "\n" ";" | sed 's/^/sed "/;s/;$$/"/'); \
 	eval $$SEDHEAD $< > $@
 
 # rules to build array job headers
