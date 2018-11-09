@@ -35,13 +35,13 @@ fi
 SUBPROJECT=$CHECK_SUB
 
 # ask user
-echo "Do you wish to delete the jobs and directories associated to $PROUT/$SUBPROJECT (y/n)?"
+echo "Do you wish to delete the jobs and directories associated to $PROUT/$SUBPROJECT (y/n)?" >&2
 while true; do
     read yn
     case $yn in
         [Yy]* ) break;;
-        [Nn]* ) echo "deleting $SUBPROJECT canceled." ; exit 1 ;;
-        * ) echo "Please answer yes or no.";;
+        [Nn]* ) echo "deleting $SUBPROJECT canceled." >&2 ; exit 1 ;;
+        * ) echo "Please answer yes or no." >&2;;
     esac
 done
 
