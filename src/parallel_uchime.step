@@ -45,7 +45,7 @@ fi
 end5=`date +%s`
 echo "# $nb chimera found in $((end5-start)) secondes"
 
-# parallel check for decreasing abundance steps (2^4, 2^3, 2^2, 2^1 and 2^0)
+# parallel check for decreasing abundance intervals (2^4, 2^3, 2^2, 2^1 and 2^0)
 get_seeded_random() {
   seed="$1"
   openssl enc -aes-256-ctr -pass pass:"$seed" -nosalt </dev/zero 2>/dev/null
@@ -57,7 +57,7 @@ para_chimera() {
 	obigrep --without-progress-bar --uppercase --id-list=<(awk -v S=$split '$2==S{print $1}' $NAMES.low$i.groups) $FASTA.low$i.fasta > $FASTA.low$i.s$split.fasta
 	mothur "#set.logfile(name=mothur.s$split.log);
 	chimera.uchime(fasta=$FASTA.low$i.s$split.fasta, reference=$FASTA.ref$i.fasta, processors=1)"
-	rm $FASTA.low$i.s$split.fasta
+	rm $FASTA.low$i.s$split.fasta $FASTA.low$i.s$split.fasta.uchime_formatted
 }
 export -f para_chimera
 
@@ -79,18 +79,19 @@ do
 	export i FASTA NAMES
 	seq 1 $NCPUS | parallel -j $NCPUS para_chimera
 	cat mothur.s*.log >> mothur.chimera.log && rm mothur.s*.log
-	if [ $(ls $FASTA.low$i.s*.denovo.uchime.accnos 2> /dev/null | wc -l) -gt 0 ]
+	cat $FASTA.low$i.s*.ref.uchime.accnos > $FASTA.low$i.ref.uchime.accnos && rm $FASTA.low$i.s*.ref.uchime.accnos
+	for j in $FASTA.low$i.s*.ref.uchime.chimeras; do sed '1d' $j ; done > $FASTA.low$i.ref.uchime.chimeras && rm $FASTA.low$i.s*.ref.uchime.chimeras
+	if [ -s $FASTA.low$i.ref.uchime.accnos ]
 	then
-		cat $FASTA.low$i.s*.denovo.uchime.accnos > $FASTA.low$i.denovo.uchime.accnos && rm $FASTA.low$i.s*.denovo.uchime.accnos
-		cat $FASTA.low$i.s*.denovo.uchime.chimeras > $FASTA.low$i.denovo.uchime.chimeras && rm $FASTA.low$i.s*.denovo.uchime.chimeras
 		mothur "#set.logfile(name=mothur.chimera.log, append=T);
-		remove.seqs(accnos=$FASTA.low$i.denovo.uchime.accnos, fasta=$FASTA.low$i.fasta)"
-		nb=$(sed -n '$=' $FASTA.lowi.denovo.uchime.accnos)
+		remove.seqs(accnos=$FASTA.low$i.ref.uchime.accnos, fasta=$FASTA.low$i.fasta)"
+		nb=$(sed -n '$=' $FASTA.low$i.ref.uchime.accnos)
+		rm $FASTA.low$i.fasta
 	else
-		ln -s $FASTA.low$i.fasta $FASTA.low$i.pick.fasta
+		mv $FASTA.low$i.fasta $FASTA.low$i.pick.fasta
 		nb=0
 	fi
-	rm $NAMES.low$i.names $FASTA.ref$i.fasta
+	rm $NAMES.low$i.names $FASTA.ref$i.fasta $NAMES.low$i.groups
 	declare end$i=`date +%s`
 	tmp1=end$((i+1))
 	tmp2=end$i
@@ -99,10 +100,10 @@ done
 
 # merge accnos and chimeras
 cat mothur.chimera.log >> ../$LOG
-if [ $(ls $FASTA.*.denovo.uchime.accnos 2> /dev/null | wc -l) -gt 0 ]
+cat $FASTA.ab.denovo.uchime.accnos $FASTA.low{4..0}.ref.uchime.accnos > ../$FASTA.denovo.uchime.accnos
+cat $FASTA.ab.denovo.uchime.chimeras $FASTA.low{4..0}.ref.uchime.chimeras > ../$FASTA.denovo.uchime.chimeras
+if [ -s ../$FASTA.denovo.uchime.accnos ]
 then
-	cat $FASTA.*.denovo.uchime.accnos > ../$FASTA.denovo.uchime.accnos
-	cat $FASTA.ab.denovo.uchime.chimeras > ../$FASTA.denovo.uchime.chimeras
 	echo "# Parrallel self reference UCHIME implementation detected $(sed -n '$=' ../$FASTA.denovo.uchime.accnos) chimeras"
 else
 	echo "# Parrallel self reference UCHIME implementation did not detected chimeras"
