@@ -45,10 +45,10 @@ $(steps): bin/%.sh : | %.step
 
 # header (type of job) specific dependencies
 bin/init.sh bin/get.sh bin/454_quality.sh bin/Illumina_quality.sh bin/doc.sh bin/archiver.sh : serial.head
-bin/Illumina_demulti.sh bin/Illumina_fastq.sh bin/Illumina_pair_end.sh bin/Illumina_opt.sh bin/454_raw_stat.sh bin/Illumina_raw_stat.sh bin/trim.sh : serial_array.head
+bin/Illumina_demulti.sh bin/Illumina_fastq.sh bin/Illumina_pair_end.sh bin/Illumina_opt.sh bin/454_raw_stat.sh bin/Illumina_raw_stat.sh : serial_array.head
 bin/merge.sh bin/end.sh : serial_highmem.head
 bin/OTU.sh : mp.head
-bin/454_demulti.sh bin/454_sff.sh bin/454_opt.sh : mp_array.head
+bin/454_demulti.sh bin/454_sff.sh bin/454_opt.sh bin/trim.sh : mp_array.head
 bin/cut_db.sh bin/id.sh : mp_highmem.head
 
 # rule to set parameters of job headers
@@ -58,10 +58,11 @@ $(heads): lib/$(batch)/%.head :  %.options
 
 # rules to build array job headers
 $(arrays): lib/$(batch)/%_array.options : %.options
+	sed 's/MAX_MEMORY/MAX_ARRAY_MEMORY/;s/MAX_CPU/MAX_ARRAY_CPU/' $< > $@
 ifeq ($(batch),GridEngine)
-	sed 's/NAME/NAME.$$TASK_ID/' $< > $@
+	sed 's/NAME/NAME.$$TASK_ID/' $@ > $@.temp && mv $@.temp $@
 else ifeq ($(batch),Slurm)
-	sed 's/NAME/NAME.%a/' $< | cat - <(echo 'sleep $$SLURM_ARRAY_TASK_ID') > $@
+	sed 's/NAME/NAME.%a/' $@ | cat - <(echo 'sleep $$SLURM_ARRAY_TASK_ID') > $@.temp && mv $@.temp $@
 endif
 
 # rules to build high memory job headers

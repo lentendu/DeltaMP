@@ -23,17 +23,23 @@
 	
 	c. JOB_RUNTIME: job runtime for all jobs (advised minimum: 1 day)
 	
-	d. MAX_MEMORY_FOR_SERIAL: maximum memory request for serial and array jobs (advised minimum: 3-4G)
-	
+	d. MAX_MEMORY_FOR_SERIAL: maximum memory request for serial jobs (advised minimum: 3-4G)
+		
 	e. MAX_MEMORY_FOR_PARALLEL: maximum memory request for MP parallel jobs (advised minimum: 3-4G per CPU); on Slurm this is the per node memory, while on GridEngine this is the per CPU memory request. So, on GridEngine MAX_MEMORY_FOR_PARALLEL * MAX_CPU_PER_NODES should not be higher than the maximum amount of memory available on one standard node.
 	
-	f. MAX_HIGH_MEM_MEMORY_FOR_SERIAL: maximum memory request for serial jobs with high-memory needs (advised minimum: 32G).
+	f. MAX_ARRAY_MEMORY_FOR_SERIAL: maximum memory request for array jobs (advised minimum: 3-4G)
 	
-	g. MAX_HIGH_MEM_MEMORY_FOR_PARALLEL: maximum memory request for MP parallel jobs with high-memory needs (advised minimum: 8G per CPU) ; on Slurm this is the per node memory, while on GridEngine this is the per CPU memory request. So, on GridEngine MAX_HIGH_MEM_MEMORY_FOR_PARALLEL * MAX_HIGH_MEM_CPU_PER_NODES should not be higher than the maximum amount of memory available on one high-memory node.
+	g. MAX_ARRAY_MEMORY_FOR_PARALLEL: maximum memory request for MP parallel jobs (advised minimum: 5-8G per CPU)
 	
-	h. MAX_CPU_PER_NODES: the number of CPUs on one standard node for MP parallel jobs (advised: all CPUS from most abundant type of node)
+	h. MAX_HIGH_MEM_MEMORY_FOR_SERIAL: maximum memory request for serial jobs with high-memory needs (advised minimum: 32G).
 	
-	i. MAX_HIGH_MEM_CPU_PER_NODES: the number of CPUs on one high-memory node for MP parallel jobs (advised maximum: 16)
+	i. MAX_HIGH_MEM_MEMORY_FOR_PARALLEL: maximum memory request for MP parallel jobs with high-memory needs (advised minimum: 8G per CPU) ; on Slurm this is the per node memory, while on GridEngine this is the per CPU memory request. So, on GridEngine MAX_HIGH_MEM_MEMORY_FOR_PARALLEL * MAX_HIGH_MEM_CPU_PER_NODES should not be higher than the maximum amount of memory available on one high-memory node.
+	
+	j. MAX_CPU_PER_NODES: the number of CPUs on one standard node for MP parallel jobs (advised: all CPUs from most abundant type of node)
+	
+	k. MAX_ARRAY_CPU_PER_NODES: the number of CPUs on one standard node for MP parallel array jobs (advised: 25 to 50 % of CPUs from most abundant type of node)
+	
+	l. MAX_HIGH_MEM_CPU_PER_NODES: the number of CPUs on one high-memory node for MP parallel jobs (advised maximum: 16)
 
 
 5. to build DeltaMP, a simple make is enough:
