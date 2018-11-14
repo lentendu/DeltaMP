@@ -205,13 +205,13 @@ then
 	NAMES=`tac $LOG | sed -n '1,/get.current()/p' | grep "^name=" | sed 's/name=//;s/\.names//'`
 elif [ $CHIMERA == "before" ] || [ $CHIMERA == "both" ]
 then
-	mothur "#set.logfile(name=$LOG, append=T);
-	chimera.uchime(fasta=$FASTA.fasta, name=$NAMES.names, reference=self, processors=$NCPUS);
-	get.current()"
-	unset FASTA NAMES ACCNOS
-	FASTA=`tac $LOG | sed -n '1,/get.current()/p' | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
-	NAMES=`tac $LOG | sed -n '1,/get.current()/p' | grep "^name=" | sed 's/name=//;s/\.names//'`
-	ACCNOS=`tac $LOG | sed -n '1,/get.current()/p' | grep "^accnos=" | sed 's/accnos=//;s/\.accnos//'`
+	#mothur "#set.logfile(name=$LOG, append=T);
+	#chimera.uchime(fasta=$FASTA.fasta, name=$NAMES.names, reference=self, processors=$NCPUS);
+	#get.current()"
+	. $BIN/parralel_uchime.sh
+	unset ACCNOS
+	#ACCNOS=`tac $LOG | sed -n '1,/get.current()/p' | grep "^accnos=" | sed 's/accnos=//;s/\.accnos//'`
+	ACCNOS=$FASTA.denovo.uchime.accnos
 	if [ -s $ACCNOS.accnos ]
 	then
 		mothur "#set.logfile(name=$LOG, append=T);

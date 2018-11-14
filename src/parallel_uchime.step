@@ -1,0 +1,108 @@
+#!/bin/bash
+
+# 
+# DeltaMP, a flexible, reproducible and resource efficient metabarcoding amplicon pipeline for HPC
+# Copyright (C) 2018 Guillaume Lentendu, Christina Weißbecker, Anna Heintz-Buschart, Tesfaye Wubet
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# 
+
+## two step parallelization of UCHIME with self reference ##
+mkdir temp_uchime && cd temp_uchime
+ln -s ../$FASTA.fasta ./
+ln -s ../$NAMES.names ./
+
+# serial
+start=`date +%s`
+awk -v N=$NAMES '{s=split($2,a,",");if(s>8){print > N".ab.names"} else {print > N".low.names"}}' $NAMES.names
+
+echo "# Serial chimera removal for reads with abundance above 8 ($(sed -n '$=' $NAMES.ab.names) reads)."
+
+obigrep --without-progress-bar --uppercase --id-list=<(cut -f 1 $NAMES.ab.names) $FASTA.fasta > $FASTA.ab.fasta
+
+mothur "#set.logfile(name=mothur.chimera.log);
+chimera.uchime(fasta=$FASTA.ab.fasta, name=$NAMES.ab.names, reference=self, processors=1)"
+if [ -s $FASTA.ab.denovo.uchime.accnos ]
+then
+	mothur "#set.logfile(name=mothur.chimera.log, append=T);
+	remove.seqs(accnos=$FASTA.ab.denovo.uchime.accnos, fasta=$FASTA.ab.fasta)"
+	nb=$(sed -n '$=' $FASTA.ab.denovo.uchime.accnos)
+else
+	ln -s $FASTA.ab.fasta $FASTA.ab.pick.fasta
+	nb=0
+fi
+end4=`date +%s`
+echo "# $nb chimera found in $((end4-start)) secondes.\n"
+
+# parallel check for decreasing abundance steps (2^3, 2^2, 2^1 and 2^0)
+get_seeded_random() {
+  seed="$1"
+  openssl enc -aes-256-ctr -pass pass:"$seed" -nosalt </dev/zero 2>/dev/null
+}
+export -f get_seeded_random
+
+para_mothur() {
+	split=$1
+	obigrep --without-progress-bar --uppercase --id-list=<(awk -v S=$split '$2==S{print $1}' $NAMES.low$i.groups) $FASTA.low$i.fasta > $FASTA.low$i.s$split.fasta
+	mothur "#set.logfile(name=mothur.s$split.log);
+	chimera.uchime(fasta=$FASTA.low$i.s$split.fasta, reference=$FASTA.ref$i.fasta, processors=1)"
+	rm $FASTA.low$i.s$split.fasta
+}
+export -f para_mothur
+
+for i in $(seq 3 -1 0)
+do
+	awk -v P=$i '{s=split($2,a,",");if(P>0){if(s>2^(P-1) && s<=2^P){print} else {if(s==2^P){print}}}}' $NAMES.low.names > $NAMES.low$i.names
+	obigrep --without-progress-bar --uppercase --id-list=<(cut -f 1 $NAMES.low$i.names) $FASTA.fasta > $FASTA.low$i.fasta
+	SIZE=$(sed -n '$=' $NAMES.low$i.names)
+	if [ $i -eq 0 ]
+	then
+		echo "# Parallel chimera removal for reads with abundance of 1 ($SIZE reads)."
+	else
+		echo "# Parallel chimera removal for reads with abundance between $(echo 2^$((1-1))+1 | bc) and $(echo 2^$i | bc) ($SIZE reads)."
+	fi
+	seq 1 $SIZE | awk -v S=$SIZE -v N=$NCPUS '{x=$1/(S/N); if(x == int(x)){print x} else print int(x)+1}' | shuf --random-source=<(get_seeded_random 4) | paste <(cut -f 1 $NAMES.low$i.names) - > $NAMES.low$i.groups
+	cat $FASTA.*.pick.fasta > $FASTA.ref$i.fasta
+	export i FASTA NAMES
+	seq 1 $NCPUS | parallel -j $NCPUS para_mothur
+	cat mothur.s*.log >> mothur.chimera.log && rm cat mothur.s*.log
+	if [ $(ls $FASTA.low$i.s*.denovo.uchime.accnos 2> /dev/null | wc -l) -gt 0 ]
+	then
+		cat $FASTA.low$i.s*.denovo.uchime.accnos > $FASTA.low$i.denovo.uchime.accnos && rm $FASTA.low$i.s*.denovo.uchime.accnos
+		cat $FASTA.low$i.s*.denovo.uchime.chimeras > $FASTA.low$i.denovo.uchime.chimeras && rm $FASTA.low$i.s*.denovo.uchime.chimeras
+		mothur "#set.logfile(name=mothur.chimera.log, append=T);
+		remove.seqs(accnos=$FASTA.low$i.denovo.uchime.accnos, fasta=$FASTA.low$i.fasta)"
+		nb=$(sed -n '$=' $FASTA.lowi.denovo.uchime.accnos)
+	else
+		ln -s $FASTA.low$i.fasta $FASTA.low$i.pick.fasta
+		nb=0
+	fi
+	rm $NAMES.low$i.names $FASTA.low$i.fasta $FASTA.ref$i.fasta
+	declare end$i=`date +%s`
+	tmp1=end$((i+1))
+	tmp2=end$i
+	echo "# done in $((${!tmp2}-${!tmp1})) secondes.\n"
+fi
+
+# merge accnos and chimeras
+cat mothur.chimera.log >> ../$LOG
+if [ $(ls $FASTA.*.denovo.uchime.accnos 2> /dev/null | wc -l) -gt 0 ]
+then
+	cat $FASTA.ab.denovo.uchime.accnos $FASTA.low{0..3}.denovo.uchime.accnos > ../$FASTA.denovo.uchime.accnos
+	cat $FASTA.ab.denovo.uchime.chimeras $FASTA.low{0..3}.denovo.uchime.chimeras > ../$FASTA.denovo.uchime.chimeras
+	echo "# Parrallel self reference UCHIME implementation detected $(sed -n '$=' ../$FASTA.denovo.uchime.accnos) chimeras."
+else
+	echo "# Parrallel self reference UCHIME implementation did not detected chimeras."
+fi
+cd ..
