@@ -211,7 +211,7 @@ then
 	. $BIN/parallel_uchime.sh
 	unset ACCNOS
 	#ACCNOS=`tac $LOG | sed -n '1,/get.current()/p' | grep "^accnos=" | sed 's/accnos=//;s/\.accnos//'`
-	ACCNOS=$FASTA.denovo.uchime.accnos
+	ACCNOS=$FASTA.denovo.uchime
 	if [ -s $ACCNOS.accnos ]
 	then
 		mothur "#set.logfile(name=$LOG, append=T);

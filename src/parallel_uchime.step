@@ -27,7 +27,7 @@ ln -s ../$NAMES.names ./
 start=`date +%s`
 awk -v N=$NAMES '{s=split($2,a,",");if(s>16){print > N".ab.names"} else {print > N".low.names"}}' $NAMES.names
 
-echo "# Serial chimera removal for reads with abundance above 8 ($(sed -n '$=' $NAMES.ab.names) reads)"
+echo "# Serial chimera removal for reads with abundance above 16 ($(sed -n '$=' $NAMES.ab.names) reads)"
 
 obigrep --without-progress-bar --uppercase --id-list=<(cut -f 1 $NAMES.ab.names) $FASTA.fasta > $FASTA.ab.fasta
 
@@ -104,8 +104,8 @@ cat $FASTA.ab.denovo.uchime.accnos $FASTA.low{4..0}.ref.uchime.accnos > ../$FAST
 cat $FASTA.ab.denovo.uchime.chimeras $FASTA.low{4..0}.ref.uchime.chimeras > ../$FASTA.denovo.uchime.chimeras
 if [ -s ../$FASTA.denovo.uchime.accnos ]
 then
-	echo "# Parrallel self reference UCHIME implementation detected $(sed -n '$=' ../$FASTA.denovo.uchime.accnos) chimeras"
+	echo "# The parrallel self reference UCHIME implementation detected a total of $(sed -n '$=' ../$FASTA.denovo.uchime.accnos) chimeras."
 else
-	echo "# Parrallel self reference UCHIME implementation did not detected chimeras"
+	echo "# The parrallel self reference UCHIME implementation did not detected any chimera."
 fi
 cd ..
