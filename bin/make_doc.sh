@@ -196,7 +196,7 @@ then
 	echo "The $ITSX fragment was detected and extracted from $ITSXMEAN % of chimera free reads using ITSx (version ${VERSION[ITSX]}, ${CITATION[ITSX]}). "
 	CIT+=(ITSX)
 	echo ""
-elif [ $CHIMERA == "before" ] || [ $CHIMERA == "both" ]
+elif [ $CHIMERA1 == "yes" ]
 then
 	CHIMMEAN=$(grep "Removed [0-9]* sequences from your name file" log/trim.[0-9]*.out | cut -d " " -f 2 | awk '{c+=$1}END{printf "%.0d\n", c/NR}')
 	echo "An average of $CHIMMEAN chimeric reads were detected and removed from each sample using the UCHIME algorithm as implemented in MOTHUR (${CITATION[UCHIME]})."

@@ -349,6 +349,20 @@ then
 	fi
 fi
 
+# Chimera
+if [ $CHIMERA == "before" ] || [ $CHIMERA == "both" ]
+then
+	CHIMERA1="yes"
+else
+	CHIMERA1="no"
+fi
+if [ $CHIMERA == "after" ] || [ $CHIMERA == "both" ]
+then
+	CHIMERA2="yes"
+else
+	CHIMERA2="no"
+fi
+
 # Pre-clustering
 if [ $CLUST == "swarm" ]
 then

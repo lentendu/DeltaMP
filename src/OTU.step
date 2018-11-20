@@ -178,7 +178,7 @@ fi
 
 
 # Chimera recheck
-if [ $CHIMERA == "after" ] || [ $CHIMERA == "both" ]
+if [ $CHIMERA2 == "yes" ]
 then
 	NSLOTS2=$(( $NCPUS / 2 ))
 	mothur "#chimera.uchime(fasta=$FASTA_OTUS.fasta, name=$NAMES_OTUS.names, group=$GROUP.groups, reference=self, processors=$NSLOTS2);

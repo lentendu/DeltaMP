@@ -203,7 +203,7 @@ then
 	unset FASTA NAMES
 	FASTA=`tac $LOG | sed -n '1,/get.current()/p' | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
 	NAMES=`tac $LOG | sed -n '1,/get.current()/p' | grep "^name=" | sed 's/name=//;s/\.names//'`
-elif [ $CHIMERA == "before" ] || [ $CHIMERA == "both" ]
+elif [ $CHIMERA1 == "yes" ]
 then
 	#mothur "#set.logfile(name=$LOG, append=T);
 	#chimera.uchime(fasta=$FASTA.fasta, name=$NAMES.names, reference=self, processors=$NCPUS);
