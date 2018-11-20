@@ -587,7 +587,7 @@ then
 		for i in ${PREV_LIST[@]}
 		do
 			# which environmental variable(s) differ between the two SUBPROJECTs
-			TMP_DIF[$i]=$(comm -13 <(sort $i/config/env.txt) <(sort $SUBPROJECT/config/env.txt) | grep -v "$HASH\|TIME\|CLEAN\|REF_SUBPROJECT\|CITATION\|VERSION\|ARGUMENTS\|DRY" | awk '{print $1}' | tr "\n" "#" |  sed 's/#$//')
+			TMP_DIF[$i]=$(comm -13 <(sort $i/config/env.txt) <(sort $SUBPROJECT/config/env.txt) | grep -v "$HASH\|TIME\|CLEAN\|REF_SUBPROJECT\|CITATION\|VERSION\|ARGUMENTS\|DRY\|CHIMERA " | awk '{print $1}' | tr "\n" "#" |  sed 's/#$//')
 			BAR_DIF[$i]=$(comm -3 <(sort $i/config/barcodes.txt) <(sort $SUBPROJECT/config/barcodes.txt) | head -1 | tr "\t" "#")
 			if [ -z "${TMP_DIF[$i]}" ] && [ -z "${BAR_DIF[$i]}" ]
 			then
