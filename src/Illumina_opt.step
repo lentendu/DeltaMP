@@ -16,12 +16,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # 
 
+# load modules
+module load DeltaMP/DELTAMP_VERSION
+
 # Define Variables
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
 . $BIN/check_previous_step
-
-# load modules
-module load DeltaMP/${VERSION[DELTAMP]}
 
 # Library to analyse
 read SAMPLE FWD_LIB RVS_LIB <<<`sed -n ${ARRAY_TASK}'{s/\.fastq//g;p}' config/lib3.list`
@@ -30,7 +30,7 @@ LIB_NAME=`printf "%s\n%s\n" $FWD_LIB $RVS_LIB | sed -e 'N;s/^\(.*\).*\n\1.*$/\1/
 # Trim for optimization of sequence quality
 cd libraries/fasta
 mothur "#set.logfile(name=mothur.$LIB_NAME.logfile, append=T);
-trim.seqs(fasta=$LIB_NAME.pairend.fasta, qfile=$LIB_NAME.pairend.qual, qaverage=$MINQUAL, minlength=$MINLEN, maxlength=$MAXLEN, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP)"
+trim.seqs(fasta=$LIB_NAME.pairend.fasta, qfile=$LIB_NAME.pairend.qual, qaverage=$MINQUAL, minlength=$MINLEN, maxlength=$MAXLEN, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, processors=1)"
 #make.fastq(fasta=current, qfile=current)"
 
 awk '$1!~">"{sum=0;for(i=1;i<=NF;i++){sum+=$i};print sum/NF}' $LIB_NAME.pairend.trim.qual > $LIB_NAME.pairend.trim.qual.stat

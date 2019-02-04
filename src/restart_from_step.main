@@ -48,16 +48,23 @@ then
 	echo "# The script name $RESTART do not match with any $SUBPROJECT executed steps.\n# The available step script names for $SUBPROJECT are:$STEP_LIST"
 	exit 2
 fi
+
+# last step before restart
 UNTIL=`awk -v S=$RESTART '{if($1==S && $2=="x"){print prev;exit};if($2=="x"){prev=$1}}' config/steps.summary`
-TREE_SUMMARY=$(column -t -s $'\t' config/tree.summary | tr "\n" "#" | sed 's/#/\\n/g;s/ /@/g')
-if [ -z $UNTIL ]
+
+# check if step was executed for this SUBPROJECT or for checkpointed SUBPROJECT
+if [ -f config/tree.summary ]
 then
-	echo "# The step $RESTART was not executed for the chosen subproject $SUBPROJECT.\n# Have a look at the checkpointing tree below and switch to the correct ${SUBPROJECT%_*}_xxx subproject:\n\n$TREE_SUMMARY"
-	exit 2
-elif [ -z "$(grep $UNTIL config/steps.summary | grep "x")" ]
-then
-	echo "# The previous step of $RESTART is $UNTIL and was not executed for the chosen subproject $SUBPROJECT.\n# Have a look at the checkpointing tree below and switch to the correct ${SUBPROJECT%_*}_xxx subproject, or use option -x to delete $SUBPROJECT and restart a fresh analysis with deltamp:\n\n$TREE_SUMMARY"
-	exit 2
+	TREE_SUMMARY=$(column -t -s $'\t' config/tree.summary | tr "\n" "#" | sed 's/#/\\n/g;s/ /@/g')
+	if [ -z $UNTIL ]
+	then
+		echo "# The step $RESTART was not executed for the chosen subproject $SUBPROJECT.\n# Have a look at the checkpointing tree below and switch to the correct ${SUBPROJECT%_*}_xxx subproject:\n\n$TREE_SUMMARY"
+		exit 2
+	elif [ -z "$(grep $UNTIL config/steps.summary | grep "x")" ]
+	then
+		echo "# The previous step of $RESTART is $UNTIL and was not executed for the chosen subproject $SUBPROJECT.\n# Have a look at the checkpointing tree below and switch to the correct ${SUBPROJECT%_*}_xxx subproject, or use option -x to delete $SUBPROJECT and restart a fresh analysis with deltamp:\n\n$TREE_SUMMARY"
+		exit 2
+	fi
 fi
 
 # Delete jobs from the queue
@@ -99,5 +106,15 @@ if [ ! -z "$TO_DEL_D" ] ; then rmdir $TO_DEL_D ; fi
 sed -n '\@ '$BIN/$RESTART'\.sh)$@,$p' config/steps.final > steps.tmp
 AVOID=$(sed -n '1,/'$UNTIL'\.sh)$/p' config/steps.final | awk 'BEGIN{FS="="}$0!~"^#"{if($0~" QUEUE_ARRAYS "){print "${"$1"%.*}"} else print "${"$1"}"}')
 for i in $AVOID; do sed 's/QUEUE_SEP'$i'//' steps.tmp > steps.tmp2 && mv steps.tmp2 steps.tmp  ; done
-. <(sed 's/ QUEUE_HOLD* / /' steps.tmp)
-rm steps.tmp
+echo "###"
+echo "execution of deltamp version ${VERSION[DELTAMP]} for the SUBPROJECT $SUBPROJECT, restarting at step $RESTART"
+echo "###"
+bash <(sed 's/ QUEUE_HOLD* / /;/^#/!{p;s/^\([^=]*\)=\$(.*QUEUE_JOBNAME \([^ ]*\) .*$/echo $\1 \2/}' steps.tmp) > jobid.tmp
+
+# rewrite jobid and store old jobids
+TIME=$(date +"%s")
+sed "1,/^[0-9[0-9]* ${DELTAMP_VER}\.$UNTIL\.$SUBPROJECT$/d" config/jobid > config/old_jobid.$TIME
+sed -n "1,/^[0-9[0-9]* ${DELTAMP_VER}\.$UNTIL\.$SUBPROJECT$/p" config/jobid | cat - jobid.tmp > jobid.tmp2 && mv jobid.tmp2 config/jobid
+rm jobid.tmp steps.tmp
+
+

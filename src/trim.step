@@ -16,12 +16,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # 
 
+# load modules
+module load DeltaMP/DELTAMP_VERSION
+
 # Define Variables
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
 . $BIN/check_previous_step
-
-# load modules
-module load DeltaMP/${VERSION[DELTAMP]}
 
 # Choose a sample
 LIB=(`sed -n "$ARRAY_TASK"'p' config/lib4.list`)
@@ -89,7 +89,7 @@ do
 				rm ${k}.denoised* ${k}.flow
 			done
 			mothur "#set.logfile(name=$LOG, append=T);
-			trim.seqs(fasta=$i.temp.fasta, name=$i.temp.names, maxambig=$MAXAMBIG)"
+			trim.seqs(fasta=$i.temp.fasta, name=$i.temp.names, maxambig=$MAXAMBIG, processors=$NCPUS)"
 			rm $i.txt $i.temp.scrap.fasta $i.temp*.qual $i.temp.fasta $i.temp.names
 			
 		else
@@ -97,11 +97,11 @@ do
 			then
 				mothur "#set.logfile(name=$LOG, append=T);
 				set.dir(input=$EXEC/libraries/fasta, output=$EXEC/processing/$SAMP);
-				trim.seqs(fasta=$i.fasta, oligos=oligos.$i, qfile=$i.qual, qaverage=$QUAL, bdiffs=$BDIFFS, pdiffs=$PDIFFS, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$LENGTH)"
+				trim.seqs(fasta=$i.fasta, oligos=oligos.$i, qfile=$i.qual, qaverage=$QUAL, bdiffs=$BDIFFS, pdiffs=$PDIFFS, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$LENGTH, processors=$NCPUS)"
 			else
 				mothur "#set.logfile(name=$LOG, append=T);
 				set.dir(input=$EXEC/libraries/fasta, output=$EXEC/processing/$SAMP);
-				trim.seqs(fasta=$i.fasta, oligos=oligos.$i, qfile=$i.qual, qaverage=$QUAL, bdiffs=$BDIFFS, pdiffs=$PDIFFS, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$LENGTH, keepfirst=$LENGTH)"
+				trim.seqs(fasta=$i.fasta, oligos=oligos.$i, qfile=$i.qual, qaverage=$QUAL, bdiffs=$BDIFFS, pdiffs=$PDIFFS, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$LENGTH, keepfirst=$LENGTH, processors=$NCPUS)"
 			fi
 		fi
 	elif [ $TECH == "Illumina" ]
@@ -109,7 +109,7 @@ do
 		QUAL=`cat $EXEC/quality_check/optimized.quality.txt`
 		mothur "#set.logfile(name=$LOG, append=T);
 		set.dir(input=$EXEC/libraries/fasta, output=$EXEC/processing/$SAMP);
-		trim.seqs(fasta=$i.pairend.fasta, qfile=$i.pairend.qual, qaverage=$QUAL, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$MINLEN, maxlength=$MAXLEN)"
+		trim.seqs(fasta=$i.pairend.fasta, qfile=$i.pairend.qual, qaverage=$QUAL, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$MINLEN, maxlength=$MAXLEN, processors=$NCPUS)"
 	fi
 done
 
@@ -118,7 +118,7 @@ cat *.trim.fasta > $SAMP.trim.fasta
 FASTA=$SAMP.trim
 
 # Reverse-complement
-if [ $FLIP == "yes" ]
+if [ $TECH == "454" ] && [ $FLIP == "true" ]
 then
 	mothur "#set.logfile(name=$LOG, append=T);
 	reverse.seqs(fasta=$FASTA.fasta);
@@ -166,10 +166,10 @@ then
 	then
 		mothur "#set.logfile(name=$LOG, append=T);
 		set.dir(tempdefault=$DBFOLD);
-		align.seqs(candidate=$FASTA.fasta, template=$DBCHOP.fasta, align=needleman);
-		screen.seqs(fasta=current, name=$NAMES.names, optimize=start-end, criteria=95);
-		filter.seqs(fasta=current, vertical=T, trump=.);
-		pre.cluster(fasta=current, name=current, diffs=$PRECDIFF);
+		align.seqs(candidate=$FASTA.fasta, template=$DBCHOP.fasta, align=needleman, processors=$NCPUS);
+		screen.seqs(fasta=current, name=$NAMES.names, optimize=start-end, criteria=95, processors=$NCPUS);
+		filter.seqs(fasta=current, vertical=T, trump=., processors=$NCPUS);
+		pre.cluster(fasta=current, name=current, diffs=$PRECDIFF, processors=$NCPUS);
 		get.current()"
 		unset FASTA NAMES
 		FASTA=`tac $LOG | sed -n '1,/get.current()/p' | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
@@ -185,7 +185,7 @@ then
 		nl $bak | sed 's/>//;s/\.\.\.//' | awk '{print $4,$1,$2}' | sort -k 1,1 | join - <(sort -k 1,1 $names) | awk '{size=split($4,a,",");print $0,size}' | sort -k 3,3n -k 5,5nr | awk '{if(NR==1){nb=$3;printf "%s\t%s\t%s", $1,$2,$4} else {if($3==nb){printf ",%s", $4} else {nb=$3;printf "\n%s\t%s\t%s",$1,$2,$4}}}END{printf "\n"}' | sort -k 2,2n | cut -f 1,3 > ${names%.*}.precl.names
 		obigrep --without-progress-bar --uppercase --id-list=<(cut -f 1 ${names%.*}.precl.names) $fasta | twofasta > ${fasta%.*}.precl.fasta
 	}
-	cd-hit-454 -B 1 -g 1 -M 6000 -c 0.99 -bak 1 -i $FASTA.fasta -o $FASTA.precl.fasta.temp
+	cd-hit-454 -T $NCPUS -B 1 -g 1 -M 6000 -c 0.99 -bak 1 -i $FASTA.fasta -o $FASTA.precl.fasta.temp
 	cdhit4542mothur $FASTA.precl.fasta.temp.bak.clstr $FASTA.fasta $NAMES.names
 	rm $FASTA.precl.fasta.temp*
 	FASTA=$FASTA.precl
@@ -195,7 +195,7 @@ fi
 # ITSx or Chimera removal
 if [ $TARG == "ITS" ] && [ $ITSX != "no" ]
 then
-	ITSx -i $FASTA.fasta --save_regions $ITSX --preserve T --graphical F -o $FASTA.itsx
+	ITSx --cpu $NCPUS -i $FASTA.fasta --save_regions $ITSX --preserve T --graphical F -o $FASTA.itsx
 	awk '$0~"^>"{sub(">","");print $1}' $FASTA.itsx.$ITSX.fasta | sort | join - <(sort -k 1,1 $NAMES.names) > $NAMES.itsx.$ITSX.names
 	mothur "#set.logfile(name=$LOG, append=T);
 	unique.seqs(fasta=$FASTA.itsx.$ITSX.fasta, name=$NAMES.itsx.$ITSX.names);
@@ -203,15 +203,19 @@ then
 	unset FASTA NAMES
 	FASTA=`tac $LOG | sed -n '1,/get.current()/p' | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
 	NAMES=`tac $LOG | sed -n '1,/get.current()/p' | grep "^name=" | sed 's/name=//;s/\.names//'`
-elif [ $CHIMERA == "before" ] || [ $CHIMERA == "both" ]
+elif [ $CHIMERA1 == "yes" ]
 then
-	mothur "#set.logfile(name=$LOG, append=T);
-	chimera.uchime(fasta=$FASTA.fasta, name=$NAMES.names, reference=self);
-	get.current()"
-	unset FASTA NAMES ACCNOS
-	FASTA=`tac $LOG | sed -n '1,/get.current()/p' | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
-	NAMES=`tac $LOG | sed -n '1,/get.current()/p' | grep "^name=" | sed 's/name=//;s/\.names//'`
-	ACCNOS=`tac $LOG | sed -n '1,/get.current()/p' | grep "^accnos=" | sed 's/accnos=//;s/\.accnos//'`
+	unset ACCNOS
+	if [ $TECH == "454" ]
+	then
+		mothur "#set.logfile(name=$LOG, append=T);
+		chimera.uchime(fasta=$FASTA.fasta, name=$NAMES.names, reference=self, processors=$NCPUS);
+		get.current()"
+		ACCNOS=`tac $LOG | sed -n '1,/get.current()/p' | grep "^accnos=" | sed 's/accnos=//;s/\.accnos//'`
+	else
+		. $BIN/parallel_uchime.sh
+		ACCNOS=$FASTA.denovo.uchime
+	fi
 	if [ -s $ACCNOS.accnos ]
 	then
 		mothur "#set.logfile(name=$LOG, append=T);

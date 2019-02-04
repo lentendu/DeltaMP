@@ -24,7 +24,7 @@ then
 	exit 1
 else
 	MD5CONFIG=$(md5sum $METAD)
-	SUB_LIST=($(for i in $PROUT/${PROJECT}_${TECH}_${TARG}_*/config/conf*; do echo "${MD5CONFIG% *} $i" | md5sum -c | sed -n '/: OK$/s/\/[^\/]*\/[^\/]*: OK$//p' ; done))
+	SUB_LIST=($(for i in $PROUT/${PROJECT}_${TECH}_${TARG}_*/config/conf*; do echo "${MD5CONFIG% *} $i" | md5sum -c 2> /dev/null | sed -n '/OK$/s@/config/.*OK$@@p' ; done))
 	if [ -z $SUB_LIST ]
 	then
 		echo "project directory $PROUT does not contain any subproject ${PROJECT}_${TECH}_${TARG}_xxx with a configuration file identical to $METAD."

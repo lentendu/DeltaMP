@@ -16,15 +16,16 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # 
 
+# load modules
+module load DeltaMP/DELTAMP_VERSION
+
 # Define Variables
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
 . $BIN/check_previous_step
 
-# load modules
-module load DeltaMP/${VERSION[DELTAMP]}
-
 # Library to analyse
-read LIB_NAME FWD_SUF RVS_SUF <<<`sed -n ${ARRAY_TASK}'p' config/lib2.list`
+read SAMP_NAME FWD_LIB RVS_LIB <<<`sed -n ${ARRAY_TASK}'p' config/lib3.list`
+LIB_NAME=$(echo $FWD_LIB $RVS_LIB | sed 's/\(.*\)[^ ]* \1.*$/\1/')
 cd libraries
 
 # Pair end
@@ -40,7 +41,7 @@ sed '/>/s/-/_/g' fasta/$LIB_NAME.pairend.fasta > fasta/$LIB_NAME.pairend.tmp && 
 sed '/>/s/-/_/g' fasta/$LIB_NAME.pairend.qual > fasta/$LIB_NAME.pairend.tmp && mv fasta/$LIB_NAME.pairend.tmp fasta/$LIB_NAME.pairend.qual
 
 # Stat on assembly
-sed -n '/OVERLAPS/p' fastq/log.pandaseq.$LIB_NAME.txt | cut -f 4- | paste -d " " <(echo $LIB_NAME) - >> raw_stat/overlap.txt
+sed -n '/OVERLAPS/p' fastq/log.pandaseq.$LIB_NAME.txt | cut -f 4- | paste -d " " <(echo $LIB_NAME) - > raw_stat/$LIB_NAME.overlap.txt
 awk '$0!~"^>"{print length($1)}' fasta/$LIB_NAME.pairend.fasta > raw_stat/$LIB_NAME.pairend.length
 awk '$0!~"^>"{sum=0;for(i=1;i<=NF;i++){sum+=$i};print int(sum/NF)}' fasta/$LIB_NAME.pairend.qual > raw_stat/$LIB_NAME.pairend.meanqual
 awk '$0!~"^>"{for(i=1;i<=NF;i++){sum[i]+=$i;nb[i]+=1}}END{for(i=1;sum[i];i++){print int(sum[i]/nb[i])}}' fasta/$LIB_NAME.pairend.qual > raw_stat/$LIB_NAME.pairend.meanposqual

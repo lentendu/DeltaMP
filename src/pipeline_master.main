@@ -25,7 +25,7 @@ echo "init_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.init.$SUBP
 echo "get_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.get.$SUBPROJECT QUEUE_HOLD\${init_jobid} $BIN/get.sh)"
 
 ## Demultiplex
-if [ $TECH == "454" ] && [ $DEMULTI == "no" ]
+if [ $DEMULTI == "no" ]
 then
 	echo "demulti_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.${TECH}_demulti.$SUBPROJECT QUEUE_ARRAYS 1-${LIB1_SIZE}QUEUE_THREADMAX$MAX_TASK QUEUE_HOLD\${get_jobid} $BIN/${TECH}_demulti.sh)"
 fi

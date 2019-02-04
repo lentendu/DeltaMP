@@ -5,12 +5,14 @@ EXEC_PATH	/work/$USER	Path to execution location	^/.+(/.+)*$
 TECH	Illumina	Sequencing technology	454 Illumina
 LIB_DIR	/home/$USER	Directory path to archives or libraries OR BioProject accession	^/.+(/.+)*$ [A-Za-z0-9]+
 ARCHIVES	no	Tab separated list of archives	no ^.+$
+DEMULTI	yes	Libraries already demultiplexed	no yes
 TARG_ORG	cellular organisms	Target organisms	^.+$
 TARG	ITS	Target region	16S 18S ITS COI
 FWD_NAME	fITS7	Forward primer name	^.+$
 FWD	GTGARTCATCGAATCTTTG	Forward primer sequence (5' to 3')	^[GATCRYSWKMBDHVNgatcryswkmbdhvn]{10,30}$
 RVS_NAME	ITS4	Reverse primer name	^.+$
 RVS	TCCTCCGCTTATTGATATGC	Reverse primer sequence (5' to 3')	^[GATCRYSWKMBDHVNgatcryswkmbdhvn]{10,30}$
+BDIFFS	1	Number of mismatches allowed on the barcode sequence	^[0-9a]+$
 PDIFFS	6	Number of mismatches allowed on the primer sequence	^[0-9]+$
 MAXAMBIG	0	Maximum number of ambiguities allowed in the sequence	^[0-9]+$
 MAXHOMOP	10	Maximum homopolymer length allowed	^[0-9]+$
@@ -30,6 +32,7 @@ CLASSIF	bayesian	Taxonomic classifier	bayesian vsearch
 DBFOLD	/home/$USER	Directory path to database	^/.+(/.+)*$
 DB	pr2_4.10.0	Database prefix name	^.+$
 CUT_DB	no	Reduce database to amplified fragment	no yes
+CONS	60	Consensus assignment threshold	^[0-9]+$
 ASSIGN_ALL	no	Assign all reads	no yes
 ASSIGN_FUNCT	no	Assign putative function	no yes
 MIN_SAMP	1	Minimum number of sample for abundant OTUs	^[0-9]+$

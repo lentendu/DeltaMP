@@ -1,6 +1,8 @@
 # DeltaMP installation informations
 
+
 1. change/dive to installation directory
+
 
 2. retrieve DeltaMP
 	a. either by downloading the last release:
@@ -9,31 +11,57 @@
 	b. alternatively, by cloning the development version:
 		git clone https://github.com/lentendu/DeltaMP.git DeltaMP-0.2
 
+
 3. cd to the newly created directory:
 	cd DeltaMP-0.2 
 
-4. edit the TAB-separated configuration file config.txt, by keeping the unmodified variable name on the first column and by modifying the second column with following values
-    a. BATCH: name of the batch queuing system, either 'GridEngine' or 'Slurm'
-    b. MODULES_TO_BE_LOADED: semi-column separated list of dependency modules to be loaded by the DeltaMP module
-    c. MAX_CPU_PER_NODES: the number of CPUs on one node for MP parallel jobs
+
+4. edit the TAB-separated configuration file config.txt, by keeping the unmodified variable name on the first column and by modifying the second column values fitting your queueing system and HPC:
+	a. BATCH_QUEUE: name of the batch queuing system, either 'GridEngine' or 'Slurm'
+	
+	b. MODULES_TO_BE_LOADED: semi-column separated list of dependency modules to be loaded by the DeltaMP module.
+	
+	c. JOB_RUNTIME: job runtime for all jobs (advised minimum: 1 day)
+	
+	d. MAX_MEMORY_FOR_SERIAL: maximum memory request for serial jobs (advised minimum: 3-4G)
+		
+	e. MAX_MEMORY_FOR_PARALLEL: maximum memory request for MP parallel jobs (advised minimum: 3-4G per CPU); on Slurm this is the per node memory, while on GridEngine this is the per CPU memory request. So, on GridEngine MAX_MEMORY_FOR_PARALLEL * MAX_CPU_PER_NODES should not be higher than the maximum amount of memory available on one standard node.
+	
+	f. MAX_ARRAY_MEMORY_FOR_SERIAL: maximum memory request for array jobs (advised minimum: 3-4G)
+	
+	g. MAX_ARRAY_MEMORY_FOR_PARALLEL: maximum memory request for MP parallel jobs (advised minimum: 5-8G per CPU)
+	
+	h. MAX_HIGH_MEM_MEMORY_FOR_SERIAL: maximum memory request for serial jobs with high-memory needs (advised minimum: 32G).
+	
+	i. MAX_HIGH_MEM_MEMORY_FOR_PARALLEL: maximum memory request for MP parallel jobs with high-memory needs (advised minimum: 8G per CPU) ; on Slurm this is the per node memory, while on GridEngine this is the per CPU memory request. So, on GridEngine MAX_HIGH_MEM_MEMORY_FOR_PARALLEL * MAX_HIGH_MEM_CPU_PER_NODES should not be higher than the maximum amount of memory available on one high-memory node.
+	
+	j. MAX_CPU_PER_NODES: the number of CPUs on one standard node for MP parallel jobs (advised: all CPUs from most abundant type of node)
+	
+	k. MAX_ARRAY_CPU_PER_NODES: the number of CPUs on one standard node for MP parallel array jobs (advised: 25 to 50 % of CPUs from most abundant type of node)
+	
+	l. MAX_HIGH_MEM_CPU_PER_NODES: the number of CPUs on one high-memory node for MP parallel jobs (advised maximum: 16)
+
 
 5. to build DeltaMP, a simple make is enough:
-    make
+		make
 
-If you want to modify the configuration informations from config.txt and re-build, first clean the previously built files and directories with:
-    make clean
+	If you want to modify the configuration informations from config.txt and re-build, first clean the previously built files and directories with:
+		make clean
+
 
 6. A modulefiles directory will be created inside the DeltaMP directory. To load the DeltaMP/0.2 module you have two options:
-	a. either add the DeltaMP/modulefiles directory to your MODULEPATH variable by adding at the end of your ~/.bashrc or ~/bash_profile file the following line :
+	a. either add the DeltaMP/modulefiles directory to your MODULEPATH variable by adding at the end of your ~/.bashrc or ~/.bash_profile file the following line :
 		export MODULEPATH=/FULL/PATH/TO/DeltaMP/modulefiles:$MODULEPATH
 	with /FULL/PATH/TO/ being the full path to your DeltaMP directory
 	
 	b. or copy the DeltaMP/modulefiles/DeltaMP directory to your preferred modulefiles directory which is already in your MODULEPATH (or copy only the modulefile "0.2" if you already have a DeltaMP directory in your preferred modulefiles directory)
 
+
 7. If you choose 6.a., you first need to reload your bash configurations to allow the detection of the newly set MODULEPATH variable:
 	source ~/.bashrc
 or
     source ~/.bash_profile
+
 
 8. Finally, you can load the DeltaMP module with:
     module load DeltaMP/0.2

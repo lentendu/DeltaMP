@@ -1,5 +1,6 @@
 init
 get
+Illumina_demulti
 Illumina_fastq
 Illumina_pair_end
 Illumina_raw_stat

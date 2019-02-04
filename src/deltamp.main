@@ -222,6 +222,24 @@ do
 	fi
 done < $BIN/variables_definition_$TECH.tsv
 
+# check output and execution directories
+if [ ! -d $OUT_PATH ]
+then
+	error_doc "the output directory $OUT_PATH does not exist."
+	if [ ! -w $OUT_PATH ]
+	then
+		error_doc "the output directory $OUT_PATH is not writable."
+	fi
+fi
+if [ ! -d $EXEC_PATH ]
+then
+	error_doc "the execution directory $EXEC_PATH does not exist."
+	if [ ! -w $OUT_PATH ]
+	then
+		error_doc "the execution directory $EXEC_PATH is not writable."
+	fi
+fi
+
 # switch to special options
 if [ $DELETE == "yes" ]
 then
@@ -260,15 +278,14 @@ then
 		FLIP=true
 		read FWD RVS <<<"$RVS $FWD"
 		read FWD_NAME RVS_NAME <<<"$RVS_NAME $FWD_NAME"
+	else
+		error_doc "sequencing direction should be either forward or reverse, not ${SEQ_DIR}."
 	fi
 elif [ $TECH == "Illumina" ]
 then
 	RAW_EXT=fastq
-	DEMULTI=yes
-	if [ DEMULTI_ONLY == "yes" ] || [ $DEMULTI == "no" ]
-	then
-	error_doc "demultiplexing is not available for $TECH libraries."
-	fi
+else
+	error_doc "sequencing technology should be either 454 or Illumina, not ${TECH}."
 fi
 
 # Databases
@@ -296,7 +313,7 @@ then
 	DBALIGN=$DB.align
 	if [ $CUT_DB == "yes" ]
 	then
-		if [ $FLIP == "true" ]
+		if [ $TECH == "454" ] && [ $FLIP == "true" ]
 		then
 			DBCUT=$RVS_NAME.$FWD_NAME.$DB
 		else
@@ -320,15 +337,29 @@ then
 	fi
 elif [ $CLASSIF == "vsearch" ]
 then
-	if [ ! -f $DBFOLD/$DB.udb ] && [ ! -f $DBCHOP/$DBCUT.udb ]
+	if [ ! -f $DBFOLD/$DB.udb ] && [ ! -f $DBFOLD/$DBCUT.udb ]
 	then
-		if [ ! -f $DBFOLD/$DB.txt ]
+		if [ -f $DBFOLD/$DB.txt ]
 		then
 			error_doc "the database description file $DB.txt is present in the database directory ${DBFOLD},\nbut not the database sequence files ($DB.udb)${error_cut}."
 		else
 			error_doc "the database files ($DB.txt, $DB.udb) were not found in the database directory ${DBFOLD}${error_cut}."
 		fi
 	fi
+fi
+
+# Chimera
+if [ $CHIMERA == "before" ] || [ $CHIMERA == "both" ]
+then
+	CHIMERA1="yes"
+else
+	CHIMERA1="no"
+fi
+if [ $CHIMERA == "after" ] || [ $CHIMERA == "both" ]
+then
+	CHIMERA2="yes"
+else
+	CHIMERA2="no"
 fi
 
 # Pre-clustering
@@ -445,7 +476,7 @@ then
 	FULLCITATION[CLUST2]="Edgar RC (2013) UPARSE: highly accurate OTU sequences from microbial amplicon reads. Nature Methods, 10, 996–998."
 elif [ $CLUST == "swarm" ]
 then
-	VERSION[CLUST]=`swarm --version | awk 'NR==1{print $2}'`
+	VERSION[CLUST]=`swarm --version 2>&1 | awk 'NR==1{print $2}'`
 	CITATION[CLUST]="Mahé et al., 2015"
 	FULLCITATION[CLUST]="Mahé F, Rognes T, Quince C, Vargas C de, Dunthorn M (2015) Swarm v2: highly-scalable and high-resolution amplicon clustering. PeerJ, 3, e1420."
 fi
@@ -474,41 +505,55 @@ OUT=$OUT_PATH/$PROJECT/$SUBPROJECT
 EXEC=$EXEC_PATH/$SUBPROJECT
 
 # Store barcodes, libraries and sample lists into files
+sed '1,/^Barcode sequence/d;/^$/d;s/^\t/barcode\t/' config/$METADATA > config/barcodes.txt
 if [ $TECH == "454" ]
 then
-	sed '1,/^Barcode sequence/d;/^$/d;s/^/barcode\t/' config/$METADATA | awk '{print}' > config/barcodes.txt
-	cut -f 4 config/barcodes.txt | sort | uniq > config/lib1.list
-	LIB1_SIZE=`sed -n '$=' config/lib1.list`
+	# lib1 : original unique library full paths or filenames
+	cut -f 3 config/barcodes.txt | sort -u > config/lib1.list
+	# lib2 : unique library filenames with dash to underscore
 	sed 's/-/_/g;s/ftp\.sra.*\///' config/lib1.list > config/lib2.list
+	# lib3 : samples and demultiplexed library filename prefix (one line per sample per library even if multiple barcodes, a sample could be in multiple libraries, i.e. repeated on multiple lines)
 	if [ $DEMULTI == "no" ]
 	then
-		while read head bar samp lib; do echo $samp $samp"."${lib%.*} ; done < config/barcodes.txt | sed 's/-/_/g;s/ftp\.sra.*\///' | sort | uniq > config/lib3.list
+		sed 's/\.'$RAW_EXT'[^\t$]*//g;s/-/_/g;s/ftp\.sra.*\///' config/barcodes.txt | awk '{print $2"\t"$2"."$3}' | sort -u > config/lib3.list
 	else
-		if [ $(cut -f 3 config/barcodes.txt | sort | uniq | wc -l) -gt $(cut -f 4 config/barcodes.txt | sort | uniq | wc -l) ]
+		if [ $(cut -f 2 config/barcodes.txt | sort -u | wc -l) -gt $(cut -f 3 config/barcodes.txt | sort -u | wc -l) ]
 		then
 			cd .. && rm -r $SUBPROJECT
 			if [ ! "$(ls -A)" ] ; then cd .. && rmdir $PROJECT ; fi
 			error_doc "there is more samples than libraries, it seems that the libraries are not demultiplexed\nSet 'Libraries already demultiplexed' to 'no' in the configuration file to allow deltamp execution."
 		else
-			while read head bar samp lib; do echo $samp ${lib%.*} ; done < config/barcodes.txt | sed 's/-/_/g;s/ftp\.sra.*\///' | sort | uniq > config/lib3.list
+			sed 's/\.'$RAW_EXT'[^\t$]*//;s/-/_/g;s/ftp\.sra.*\///' config/barcodes.txt | awk '{print $2"\t"$3}' | sort -u > config/lib3.list
 		fi
 	fi
 	LIB3_SIZE=`sed -n '$=' config/lib3.list | sed 's/$/:10/'`
-	sort -k 1,1 config/lib3.list | awk '{if(NR==1){S=$1;printf "%s %s",S,$2} else {if($1==S){printf " %s",$2} else {S=$1;printf "\n%s %s",S,$2}}}END{printf "\n"}' > config/lib4.list
+	# lib4 : one line per sample with all library prefixes as additionnal fields
+	sort -k 1,1 config/lib3.list | awk '{if(NR==1){S=$1;printf "%s\t%s",S,$2} else {if($1==S){printf "\t%s",$2} else {S=$1;printf "\n%s\t%s",S,$2}}}END{printf "\n"}' > config/lib4.list
 elif [ $TECH == "Illumina" ]
 then
-	LIB1_SIZE=1
-	sed '1,/^Barcode sequence/d;/^$/d;s/^\t//' config/$METADATA | awk '{print}' > config/barcodes.txt
-	sed 's/\.fastq[^\t$]*//g;s/-/_/g;s/ftp\.sra[^\t]*\///g' config/barcodes.txt > config/lib3.list
+	# lib1 : original unique library full path or filename common prefix and R1 and R2 suffixes
+	cut -f 3-4 config/barcodes.txt | sed 's/\(.*\)\([^\t]*\)\t\1\(.*\)$/\1\t\2\t\3/' | sort -u > config/lib1.list
+	# lib2 : unique library filename common prefix with dash to underscore and R1 and R2 suffixes
+	sed 's/-/_/g;s/ftp\.sra[^\t]*\///g' config/lib1.list > config/lib2.list
+	# lib3 : sample and demultiplexed library full filename for R1 and R2 without $RAW_EXT extension
+	if [ $DEMULTI == "no" ]
+	then
+		sed 's/\.'$RAW_EXT'[^\t$]*//g;s/-/_/g;s/ftp\.sra[^\t]*\///g' config/barcodes.txt | awk '{print $2"\t"$2"."$3"\t"$2"."$4}' | sort -u > config/lib3.list
+	else
+		if [ $(cut -f 2 config/barcodes.txt | sort -u | wc -l) -gt $(cut -f 3 config/barcodes.txt | sort -u | wc -l) ]
+		then
+			cd .. && rm -r $SUBPROJECT
+			if [ ! "$(ls -A)" ] ; then cd .. && rmdir $PROJECT ; fi
+			error_doc "there is more samples than libraries, it seems that the libraries are not demultiplexed\nSet 'Libraries already demultiplexed' to 'no' in the configuration file to allow deltamp execution."
+		else
+			sed 's/\.'$RAW_EXT'[^\t$]*//g;s/-/_/g;s/ftp\.sra[^\t]*\///g;s/^barcode\t//' config/barcodes.txt | sort -u > config/lib3.list
+		fi
+	fi
 	LIB3_SIZE=`sed -n '$=' config/lib3.list`
-	while read samp fwd rvs
-	do
-		prefix=`printf "%s\n%s\n" $fwd $rvs | sed -e 'N;s/^\(.*\).*\n\1.*$/\1/'`
-		echo $prefix ${fwd/$prefix/} ${rvs/$prefix/}
-	done < config/barcodes.txt > config/lib1.list
-	sed 's/-/_/g;s/ftp\.sra.*\///' config/lib1.list > config/lib2.list
-	paste <(cut -f 1 config/lib3.list) <(cut -f 1 config/lib2.list) | sort -k 1,1 | awk '{if(NR==1){S=$1;printf "%s %s",S,$2} else {if($1==S){printf " %s",$2} else {S=$1;printf "\n%s %s",S,$2}}}END{printf "\n"}' > config/lib4.list
+	# lib4 : sample and library filename common prefixes (multiple library allowed for one sample)
+	sed 's/\t\(.*\)[^\t]*\t\1.*$/\t\1/;s/Cil3\([1-9]\)/Cil0\1/g' config/lib3.list | awk '{t[$1]=t[$1]"\t"$2}END{for(i in t){printf "%s%s\n",i,t[i]}}' | sort > config/lib4.list
 fi
+LIB1_SIZE=`sed -n '$=' config/lib1.list`
 SAMP_SIZE=`sed -n '$=' config/lib4.list`
 
 # Save newly set variables to file (avoiding lowercase variables from loops):
@@ -555,7 +600,7 @@ then
 		for i in ${PREV_LIST[@]}
 		do
 			# which environmental variable(s) differ between the two SUBPROJECTs
-			TMP_DIF[$i]=$(comm -13 <(sort $i/config/env.txt) <(sort $SUBPROJECT/config/env.txt) | grep -v "$HASH\|TIME\|CLEAN\|REF_SUBPROJECT\|CITATION\|VERSION\|ARGUMENTS\|DRY" | awk '{print $1}' | tr "\n" "#" |  sed 's/#$//')
+			TMP_DIF[$i]=$(comm -13 <(sort $i/config/env.txt) <(sort $SUBPROJECT/config/env.txt) | grep -v "$HASH\|TIME\|CLEAN\|REF_SUBPROJECT\|CITATION\|VERSION\|ARGUMENTS\|DRY\|CHIMERA " | awk '{print $1}' | tr "\n" "#" |  sed 's/#$//')
 			BAR_DIF[$i]=$(comm -3 <(sort $i/config/barcodes.txt) <(sort $SUBPROJECT/config/barcodes.txt) | head -1 | tr "\t" "#")
 			if [ -z "${TMP_DIF[$i]}" ] && [ -z "${BAR_DIF[$i]}" ]
 			then
@@ -674,7 +719,7 @@ then
 		echo "deltamp execution will begin with ${FIRST_STEP} step."
 		echo ""
 		echo "The following parameters differ between both SUBPROJECTs:"
-		diff --suppress-common-lines -y <(sort $SUBPROJECT/config/env.txt | grep -v "${SUBPROJECT##*_}\|START\|CITATION\|VERSION\|ARGUMENTS") <(sort $REF_SUBPROJECT/config/env.txt | grep -v "${REF_SUBPROJECT##*_}\|START\|CITATION\|VERSION\|ARGUMENTS") | awk '{print $1"\t"$2"\t"$5}' | cat <(echo -e "Parameter\tCurrent SUBPROJECT\tPrevious SUBPROJECT") - > $SUBPROJECT/config/prev.diff.txt
+		diff --suppress-common-lines -y <(sort $SUBPROJECT/config/env.txt | grep -v "${SUBPROJECT##*_}\|START\|CITATION\|VERSION\|ARGUMENTS\|CHIMERA[12]") <(sort $REF_SUBPROJECT/config/env.txt | grep -v "${REF_SUBPROJECT##*_}\|START\|CITATION\|VERSION\|ARGUMENTS\|CHIMERA[12]") | awk '{print $1"\t"$2"\t"$5}' | cat <(echo -e "Parameter\tCurrent SUBPROJECT\tPrevious SUBPROJECT") - > $SUBPROJECT/config/prev.diff.txt
 		column -t -s $'\t' $SUBPROJECT/config/prev.diff.txt
 		echo ""
 	fi
@@ -710,7 +755,7 @@ else
 		mkdir archives archives/$SUBPROJECT.outputs archives/$SUBPROJECT.processing processing libraries quality_check
 		cp config/configuration.$SUBPROJECT.tsv archives/$SUBPROJECT.outputs
 	fi
-	paste <(date +%F -d @$START_TIME) <(date +%T -d @$START_TIME) <(echo -e "${VERSION[DELTAMP]}\t$USER\t$INIT_DIR\t$ARGUMENTS\t$SUBPROJECT") >> ${DELTAMP_BUILD%/*}/history
+	#paste <(date +%F -d @$START_TIME) <(date +%T -d @$START_TIME) <(echo -e "${VERSION[DELTAMP]}\t$USER\t$INIT_DIR\t$ARGUMENTS\t$SUBPROJECT") >> ${DELTAMP_BUILD%/*}/history
 	echo "###"
 	echo "execution of deltamp version ${VERSION[DELTAMP]} for the SUBPROJECT $SUBPROJECT"
 	echo "###"

@@ -16,12 +16,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # 
 
+# load modules
+module load DeltaMP/DELTAMP_VERSION
+
 # Define Variables
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
 . $BIN/check_previous_step
-
-# load modules
-module load DeltaMP/${VERSION[DELTAMP]}
 
 # Raw sequences group file
 while read NAME LIB
@@ -34,8 +34,8 @@ if [ $DEMULTI == "no" ]
 then
 	LIB_ALL=(`cat config/lib2.list`)
 	cd libraries/demultiplex
-	. $BIN/check_barcodes.sh ${LIB_ALL[@]%.*} > ../../archives/$SUBPROJECT.outputs/demultiplexing_check.csv
-	cd ../..
+	. $BIN/check_${TECH}_barcodes.sh ${LIB_ALL[@]%.*} > $EXEC/archives/$SUBPROJECT.outputs/demultiplexing_check.csv
+	cd $EXEC
 fi
 
 # Quality check for each sample in each library
@@ -52,7 +52,7 @@ done | tr "\n" "\t" | paste <(echo "Sample") <(echo "Library") <(echo "Raw") - >
 while read NAME LIB
 do
 	paste <(echo -e "$NAME\t$LIB") <(nbseq.py ../libraries/fasta/$LIB.fasta) <(tr "\n" "\t" < $LIB.stat | sed 's/$/\n/')
-done  < ../config/lib3.list | cat header - > $SUBPROJECT.lib_counts.tsv
+done  < $EXEC/config/lib3.list | cat header - > $SUBPROJECT.lib_counts.tsv
 
 # For each sample over all libraries
 sed '1d' $SUBPROJECT.lib_counts.tsv | sort -k 1,1 | awk '{if(NR==1){for(i=3;i<=NF;i++){sum[i]=$i};prev=$1;printf "%s", prev} else if($1==prev){for(i=3;i<=NF;i++){sum[i]+=$i}} else {for(i=3;i<=NF;i++){printf "\t%s", sum[i];sum[i]=$i};prev=$1;printf "\n%s", prev}} END {for(i=3;i<=NF;i++){printf "\t%s", sum[i]} ; printf "\n"}' | mimato | cat <(sed 's/Library\t//' header) - > $SUBPROJECT.quality.stat.txt

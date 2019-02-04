@@ -16,18 +16,18 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # 
 
+# load modules
+module load DeltaMP/DELTAMP_VERSION
+
 # Define Variables
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
 . $BIN/check_previous_step
-
-# load modules
-module load DeltaMP/${VERSION[DELTAMP]}
 
 # record newly set variables
 (set -o posix; set > config/merge.set)
 
 # Merge all samples names and fasta files (removing gaps if any), create a group file
-SAMP_NAME=(`cut -d " " -f 1 config/lib4.list`)
+SAMP_NAME=(`cut -f 1 config/lib4.list`)
 cd processing
 for i in "${SAMP_NAME[@]}"
 do

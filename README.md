@@ -12,8 +12,9 @@ DeltaMP integrate a checkpointing feature which enable easy and efficient compar
 Last but not least, DeltaMP produces version controlled, reproducible and fully documented OTU tables in TAB-separated and BIOM formats readily usable for downstream taxonomic and OTU diversity analyses.
 
 ## Table of Contents
- - [Dependencies](#dependencies)
  - [Installation](#installation)
+ - [Dependencies](#dependencies)
+ - [Quick start](#quick-start)
  - [Usage instructions](#usage-instructions)
  - [Configuration file](#configuration-file)
    * [PROJECT section](#project-section)
@@ -32,6 +33,18 @@ Last but not least, DeltaMP produces version controlled, reproducible and fully 
  - [Outputs](#outputs)
  - [Troubleshooting](#troubleshooting)
  - [References](#references)
+
+
+## Installation
+
+Source code of DeltaMP version 0.2 is available at <https://github.com/lentendu/DeltaMP/releases/tag/v0.2>
+
+The repository could also be cloned using for example:
+```
+git clone https://github.com/lentendu/DeltaMP.git
+```
+
+Then install following the [installation instructions](INSTALL).
 
 
 ## Dependencies
@@ -76,16 +89,9 @@ DeltaMP is intend to be used on a HPC with a job scheduler (i.e. batch-queuing s
 All this dependencies need to be available through the $PATH environmental variable or need to be loaded by the DeltaMP module file.
 
 
-## Installation
+## Quick start
 
-Source code of DeltaMP version 0.2 is available at <https://github.com/lentendu/DeltaMP/releases/tag/v0.2>
 
-The repository could also be cloned using for example:
-```
-git clone https://github.com/lentendu/DeltaMP.git
-```
-
-Then install following the [installation instructions](INSTALL).
 
 
 ## Usage instructions
@@ -182,13 +188,13 @@ The default values for the optional parameters could be displayed by using the -
 
 ### LIBRARIES section
 
-+ __Sequencing technology__: “454” or “Illumina”. The default is Illumina.
++ __Sequencing technology__: “Illumina” or “454”. The default is Illumina.
 
 + __Directory path to archives or libraries OR BioProject accession__: full path of the directory where to find the sequence libraries or archives. If the raw sequences are publicly available at the European Nucleotide Archive (https://www.ebi.ac.uk/ena), only provide the BioProject accession number. The libraries will then automatically be retrieved from the provided URLs in the BARCODE section. The default is /home/$USER.
 
 + __Tab separated list of archives__: filename of archives containing raw libraries, one per column. The default is “no” for no archive.
 
-+ __Libraries already demultiplexed__: *454-specific parameter*, “yes” or “no”. If the libraries are not demultiplexed, one sff file per sample in each library will be produced. An archive containing all demultiplexed libraries and labeled with “raw_sff” will be outputted in the output directory. The default is “yes” for libraries already demultiplexed.
++ __Libraries already demultiplexed__: “yes” or “no”. If the libraries are not demultiplexed, one fastq/sff file per sample in each library will be produced. An archive containing all demultiplexed libraries and labeled with "raw_fastq"/“raw_sff” will be created in the output directory. The default is “yes” for libraries already demultiplexed.
 
 
 ### TARGET section
@@ -211,7 +217,7 @@ The default values for the optional parameters could be displayed by using the -
 ### PAIR-END section
 *all Illumina-specific parameters*
 
-+ __Remove primers at reads ends__: "no", "3prime", "5prime" or "both". Using cutadapt, "3prime" remove non-anchored reverse-complemented reverse and forward primers from 3'-end of forward and reverse libraries, respectively; "5prime" remove non-anchored forward and reverse primers from 5'-end of forward and reverse libraries, respectively; "both" combined both previous removal using the [linked adapter strategy](https://cutadapt.readthedocs.io/en/stable/guide.html#linked-adapters-combined-5-and-3-adapter) with anchored 5' adapter; value "no" avoid primer clipping. For "3prime", "5prime" and "both" values, unmatched reads are checked against the opposite primer/linked-adapter to allow for biderectionnal sequencing strategy detection, and the reads matched in this second step are reverse-complemented and append to the reads match at the first step. The default is "both".
++ __Remove primers at reads ends__: "no", "3prime", "5prime" or "both". Using cutadapt, "3prime" remove non-anchored reverse-complemented reverse and forward primers from 3'-end of forward and reverse libraries, respectively; "5prime" remove non-anchored forward and reverse primers from 5'-end of forward and reverse libraries, respectively; "both" combined both previous removal using the [linked adapter strategy](https://cutadapt.readthedocs.io/en/stable/guide.html#linked-adapters-combined-5-and-3-adapter) with anchored 5' adapter; value "no" avoid primer clipping. For "3prime", "5prime" and "both" values, unmatched reads are checked against the opposite primer/linked-adapter to allow for biderectionnal sequencing strategy detection, and the reads matched in this second step are reverse-complemented and append to the reads match at the first step. The default is "5prime".
 
 + __PandaSeq algorithm__: "simple_bayesian", "ea_util", "flash", "pear", "rdp_mle", "stitch" or "uparse" . See the [PandaSeq manual](https://storage.googleapis.com/pandaseq/pandaseq.html) (or `man pandaseq`) for algorithm descriptions. The default is “simple_bayesian”.
 
@@ -225,7 +231,7 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Minimum number of flows__: *454 specific parameter*, a number between 300 and 600, minimum length of flowgrams to be kept for denoising. The default is 360.
 
-+ __Number of mismatches allowed on the barcode sequence__: *454 specific parameter*, a number between 0 and 2, or 'a' for automatic detection of maximum allowed mismatch on a barcode to avoid mislabeling of sequence inside one library. The default is 1.
++ __Number of mismatches allowed on the barcode sequence__: a number between 0 and 2, or 'a' for automatic detection of maximum allowed mismatch on a barcode to avoid mislabeling of sequence inside one library. This value is used for demultiplexing only. The default is 1.
 
 + __Number of mismatches allowed on the primer sequence__: a number between 0 and 10. For Illumina libraries, this number will only be used to calculate allowed dissimilarity (number of mismatch / primer length) for primer detection and removal by cutadapt. The default is 6.
 
@@ -268,6 +274,8 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Reduce database to amplified fragment__: "yes" or "no", to cut the database reference sequences using either the provided primers or ITSx with the provided 'ITSx region to extract' or do nothing, respectively. If set to "yes", this also use the cut database for taxonomic assignment, while if set to "no" this will use the full database sequences for taxonomic assignment. If a unique cut read is produced from multiple accessions with different taxonomic path, the cut read will be annotated with the least common ancestor. If set to "yes" and the cut database is already present in the "Directory path to database", the database cutting is skipped. The default is "no".
 
++ __Consensus assignment threshold__: a number between 50 and 100. Consensus threshold percent to assign a taxonomic rank among the matches. For "bayesian" taxonomic calssifier the matches are the 100 bootstrap matches, for "vsearch" the matches are the best match(es) plus the match(es) in a 1 % similarity range below the best match(es) similarity. The default is 60.
+
 + __Assign all reads__: the accepted values are “yes” or “no”. Activating this option will assign all dereplicated or pre-clustered reads to a taxonomy. A consensus assignment is then determined for each OTU at a threshold of 60 %. If set to “no”, only the most abundant read per OTU will be assigned to taxonomy. The default is “no”.
 
 + __Assign putative function__: "yes" or "no" to assign putative function to Fungi using the FUNGuild database (Nguyen et al., 2016).
@@ -306,7 +314,6 @@ The SUBPROJECT directory is copied into the "Path to execution location" and all
 
 Once all step's jobs are completed, the outputs are copied back into the "Path to output location"/PROJECT/SUBPROJECT directory.
 
-
 ### Directories structure
 
 + output SUBPROJECT directory:
@@ -320,7 +327,6 @@ Once all step's jobs are completed, the outputs are copied back into the "Path t
    * log/: output "xxx.out" and error "xxx.err" logfiles of each job step "xxx", split among tasks for array job (e.g. "xxx.1.out")
    * processing/: contains files and directories produced from trim step to the end
    * quality_check/: used for the quality step
-
 
 ### best practices
 
@@ -340,7 +346,6 @@ The output statistics will be then useful to check the proper handling of raw re
 deltamp -cd [path/]configuration_file
 ```
 To run the pipeline normally after such a dry checkpointing, first delete all directories created for dry runs from the output directory, or change the output directory in the configuration file. 
-
 
 ### Checkpointing
 
@@ -375,12 +380,13 @@ For 454 or Illumina specific steps, step script filenames follow “454_xxx.sh�
 + init: create symlink to files of previous SUBPROJECT if checkpointing; one serial job
 + get: raw data copy/download and oligo file(s) creation; one serial job
 + 454 libraries specific steps
-   * demulti: demultiplex sff based on barcodes; target raw sequences in libraries containing multiple target primers are identified when holding the expected forward sequencing primer with a maximum number of mismatches equal to one third of the primer length; one parallel array job per library
-   * sff: sff to fasta + qual and raw reads statistics; one parallel array job per group of 10 demultiplexed libraries
+   * demulti: demultiplex sff based on barcodes; target raw sequences in libraries containing multiple target primers are identified when holding the expected forward sequencing primer with a maximum number of mismatches equal to one third of the primer length; one parallel array job per run/lane library
+   * sff: sff to fasta + qual and raw reads statistics; one parallel array job per group of 10 libraries
    * raw_stat: summarize raw statistics; one serial array job per library
-   * opt: sequence count for incremented length and quality values; one parallel array job per group of 10 demultiplexed libraries
+   * opt: sequence count for incremented length and quality values; one parallel array job per group of 10 libraries
    * quality: control sequencing depth for raw and trimmed reads; optimize the length and quality trimming parameters; one serial job
 + Illumina libraries specific steps
+   * demulti: demultiplex fastq based on barcodes using cutadapt; one serial job per run/lane library
    * fastq: cut primers; raw reads quality and length statistics; one serial array job per library
    * pair_end: pair-end assembly; convert to fasta + qual; cut and pair-end reads counts and pair-end reads quality and length statistics; one serial array job per library
    * raw_stat: combine length, average quality, average base position quality and overlap length statistics for all libraries; one serial job
@@ -392,12 +398,17 @@ For 454 or Illumina specific steps, step script filenames follow “454_xxx.sh�
 + OTU: cluster sequences into OTUs; pick representative sequences; remove singletons (optional); chimera check; one parallel job
 + id: classify all or only OTU representative sequences against a reference database; create OTU consensus assignment if needed; one parallel job
 + end: create OTU tables, extract representative sequences and count reads; combine each logs from all steps; add sample's metadata from ENA BioProject to BIOM file; add functional annotation; one serial job
-+ archiving: compress raw demultiplexed (454)s, pipeline outputs and processing file in separated tar.gz archives; copy to the output directory
++ archiving: compress raw demultiplexed reads (if demultiplexing), pipeline outputs and processing file in separated tar.gz archives; copy to the output directory
 + doc: create the complete documentation of the pipeline processes; one serial job
 
 Each step job is waiting in the queue so long its preceeding step job is not completed, except for the cut_db step which do not have to wait on any job completion. For checkpointing, the init step job will wait on the completion of the last common step job from the previous SUBPROJECT.
 
+
 ## Outputs
+
+### documentation:
+
+SUBPROJECT.documentation.txt: The file describes the whole processing of the libraries through the pipeline in a human readable format. This file is not archived and will be directly outputted in the SUBPROJECT output directory.
 
 ### files in SUBPROJECT.outputs.tar.gz at the end of a full analyses :
 
@@ -414,14 +425,7 @@ The TAB-separated OTU matrices each contains a dense matrix of read counts per O
 + SUBPROJECT.log: contains the compilation of all logs (standard output and standard error normally printed in the terminal) outputted by the different steps in their called order
 + SUBPROJECT.raw_and_pair-end_reads_statistics.pdf: contains graphical representations of length and quality distributions as well as the average quality over the raw sequences for each sequence library, for both the full library and for each sample in the library.
 + configuration.SUBPROJECT.tsv: the original configuration file
-
-### documentation:
-
-SUBPROJECT.documentation.txt: The file describes the whole processing of the libraries through the pipeline in a human readable format. This file is not archived and will be directly outputted in the SUBPROJECT output directory.
-
-### 454 specific:
-
-demultiplexing_check.csv: Informations on demultiplexing efficiency and potential barcode mismatch for each library (only for originally non-demultiplexed libraries)
++ demultiplexing_check.csv: Informations on demultiplexing efficiency and potential barcode mismatch for each run/lane library (only for originally non-demultiplexed libraries)
 
 
 ## Troubleshooting
@@ -439,6 +443,7 @@ In all those cases, check the standard output (.out) and standard error (.err) l
 To detect job terminated due to overpassing requested memory and/or time, compare the requested memory/time in the problematic step's script with the maximum used memory/runtime during job execution. To print job's record after execution, use `qacct` (grid Engine) or `sacct` (SLURM).
 
 For unsolved issues, send an email to lentendu@rhrk.uni-kl.de, including the .out and .err log files as well as the output of the qacct command for the problematic job.
+
 
 ## References
 + Bengtsson‐Palme Johan, Ryberg Martin, Hartmann Martin, Branco Sara, Wang Zheng, Godhe Anna, Wit Pierre, Sánchez‐García Marisol, Ebersberger Ingo, Sousa Filipe, Amend Anthony, Jumpponen Ari, Unterseher Martin, Kristiansson Erik, Abarenkov Kessy, Bertrand Yann J. K., Sanli Kemal, Eriksson K. Martin, Vik Unni, Veldre Vilmar, Nilsson R. Henrik, Bunce Michael, 2013. Improved software detection and extraction of ITS1 and ITS2 from ribosomal ITS sequences of fungi and other eukaryotes for analysis of environmental sequencing data. Methods in Ecology and Evolution 4, 914–919. doi:[10.1111/2041-210X.12073](http://dx.doi.org/10.1111/2041-210X.12073)

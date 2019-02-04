@@ -16,11 +16,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # 
 
+# load modules
+module load DeltaMP/DELTAMP_VERSION
+
 # Define Variables
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
-
-# load modules
-module load DeltaMP/${VERSION[DELTAMP]}
 
 # check database presence
 cd $DBFOLD
@@ -67,24 +67,24 @@ then
 	# Primers
 	unset PRIMER
 	declare -A PRIMER
-	if [ $FLIP == "true" ]
+	if [ $TECH == "454" ] && [ $FLIP == "true" ]
 	then
 		read FWD RVS <<<"$RVS $FWD"
 		read FWD_NAME RVS_NAME <<<"$RVS_NAME $FWD_NAME"
 	fi
-	PRIMER[$FWD_NAME]=${FWD,,}
-	PRIMER[$RVS_NAME]=${RVS,,}
-	PRIMER[$FWD_NAME.rc]=`echo ">a ${PRIMER[$FWD_NAME]}" | tr " " "\n" | obicomplement | grep -v ">"`
-	PRIMER[$RVS_NAME.rc]=`echo ">a ${PRIMER[$RVS_NAME]}" | tr " " "\n" | obicomplement | grep -v ">"`
+	PRIMER[$FWD_NAME]=${FWD^^}
+	PRIMER[$RVS_NAME]=${RVS^^}
+	PRIMER[$FWD_NAME.rc]=`echo ">a ${PRIMER[$FWD_NAME]}" | tr " " "\n" | obicomplement --uppercase | grep -v ">"`
+	PRIMER[$RVS_NAME.rc]=`echo ">a ${PRIMER[$RVS_NAME]}" | tr " " "\n" | obicomplement --uppercase | grep -v ">"`
 	echo "Used primers are:"
 	cat <(echo ${!PRIMER[@]}) <(echo ${PRIMER[@]}) | column -t
 	
 	
-	# Modified primer with IUPAC for the 12 last nt only
+	# Modified primer with IUPAC
 	declare -A PRIMER_I
 	for i in "${!PRIMER[@]}"
 	do
-		TMP=`echo ${PRIMER[$i]: -12} | sed 's/\(.\)/\1-*/g;s/-\*$//'`
+		TMP=`echo ${PRIMER[$i]} | sed 's/\(.\)/\1-*/g;s/-\*$//'`
 		while read A B
 		do
 			TMP=`echo $TMP | sed "s/$A/$B/g"`
@@ -183,7 +183,7 @@ then
 	# Cut align database
 	if [ -f $DBFOLD/$DBALIGN.fasta ]
 	then
-		CUT_POS=(`grep -m 1 ${PRIMER_I[$FWD_NAME]}.*${PRIMER_I[$RVS_NAME.rc]} $DBFOLD/$DBALIGN.fasta | awk -v F=${PRIMER_I[$FWD_NAME]} -v R=${PRIMER_I[$RVS_NAME.rc]} '{match($1,F);print RSTART+RLENGTH;match($1,R);print RSTART-1}'`)
+		CUT_POS=(`obigrep --without-progress-bar --uppercase --only=100 -s ${PRIMER_I[$FWD_NAME]}.*${PRIMER_I[$RVS_NAME.rc]} $DBFOLD/$DBALIGN.fasta | twofasta | awk -v F=${PRIMER_I[$FWD_NAME]} -v R=${PRIMER_I[$RVS_NAME.rc]} '$0!~"^>"{match($1,F);if(length(RSTART)>0){printf "%s ", RSTART+RLENGTH; match($1,R); printf "%s\n", RSTART-1}}' | sort | uniq -c | sort -n -k 1,1 | awk '{print $2,$3}'`)
 		obigrep --without-progress-bar --id-list=<(cut -f 1 $DBFOLD/$DBCUT.taxonomy) $DBFOLD/$DBALIGN.fasta > $DBCHOP.pick.fasta
 		mothur "#set.logfile(name=mothur.dbalign.logfile);
 		pcr.seqs(fasta=$DBCHOP.pick.fasta, start=${CUT_POS[0]}, end=${CUT_POS[1]}, processors=$NCPUS);
@@ -200,7 +200,7 @@ else
 	RVS_E=$(awk -v F=${#RVS} 'BEGIN{printf "%.2f",1/F+0.005}')
 	twofasta ../$DB.fasta | cutadapt -g ${FWD} -e ${FWD_E} --no-indels --trimmed-only - | cutadapt -a ${RVS_RC} -e ${RVS_E} --no-indels --trimmed-only - > $DBCUT.cut.fasta
 	# clean: remove sequences with n's, longer than 800 nt, smaller than MINLEN, with a taxonomic path with less than 3 ranks and containing the primer sequence internaly
-	PRIMER_REG=$(for i in $FWD $RVS_RC; do TMP=$(awk -v I=$i 'BEGIN{print tolower(I)}') ; while read A B; do TMP=`echo $TMP | sed "s/$A/$B/g"` ; done < $BIN/IUPAC.txt ; echo $TMP ; done)
+	PRIMER_REG=$(for i in $FWD $RVS_RC; do TMP=$(awk -v I=$i 'BEGIN{print I}') ; while read A B; do TMP=`echo $TMP | sed "s/$A/$B/g"` ; done < $BIN/IUPAC.txt ; echo $TMP ; done)
 	paste - - < $DBCUT.cut.fasta | sort -k 1,1 | join <(sort -k 1,1 $DBFOLD/$DB.taxonomy | sed 's/^/>/;s/;$//;s/;/|/g') - | awk '{rank=split($2,a,"|");print $1,"ranks="rank"; taxo="$2";\n"$3}' | obigrep --without-progress-bar -p 'ranks>2' -l $MINLEN -L 800 -s '^[atcg]*$' | obigrep -v -s $(echo $PRIMER_REG | sed 's/ /|/g') | sed 's/ .*taxo=/ /;s/; *$//' | twofasta | sed '$!N;/>/s/\n/ /' | sort -k 2,2 | awk '{if($2==prev){print $1"\n"$3} else {print "#"$1"\n"$3;prev=$2}}' > $DBCUT.taxo.fasth
 	# For each taxonomic path with more than a sequence, dereplicate then cluster with swarm and keep only the seed
 	clust() {

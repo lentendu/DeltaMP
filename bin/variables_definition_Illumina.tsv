@@ -1,4 +1,5 @@
-CLIPPING	no	Remove primers at reads ends	no 5prime 3prime both
+CLIPPING	5prime	Remove primers at reads ends	no 5prime 3prime both
+TRUNCLEN	no	Unpaired fastq truncation length	^[0-9]+$ no
 PALG	simple_bayesian	PandaSeq algorithm	simple_bayesian ea_util flash pear rdp_mle stitch uparse
 PTRESH	0.6	PandaSeq threshold	^[0-9]+(.[0-9]+)?$
 MIN_OV	1	Minimum overlap	^[0-9]+$
