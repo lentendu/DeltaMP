@@ -23,12 +23,18 @@ module load DeltaMP/DELTAMP_VERSION
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
 . $BIN/check_previous_step
 
+# Demultiplex check
+if [ $DEMULTI == "no" ]
+then
+	. $BIN/check_${TECH}_barcodes.sh > archives/$SUBPROJECT.outputs/demultiplexing_check.tsv
+fi
+
 # Raw, primer detected, pair-end and trim read counts per library
-while read lib fwd rvs
+while read samp fwd rvs
 do
-	samp=`awk -v L=$lib '{for(i=2;i<=NF;i++){if($i==L){print $1}}}' config/lib4.list`
-	paste <(echo -e "$samp\t$lib") <(awk 'BEGIN{a=0}{a++;}END{print a/4}' libraries/$lib${fwd}) <(tac libraries/fastq/log.pandaseq.$lib.txt | grep -m 1 -P "STAT\tREADS" | cut -f 4) <(tac libraries/fastq/log.pandaseq.$lib.txt | grep -m 1 -P "STAT\tOK\t" | cut -f 4) quality_check/$lib.stat
-done < <(sed 's/\.fastq\.[^ ]*/\.fastq/g' config/lib2.list) | cat <(paste <(echo -e "Sample\tLibrary\tRaw\tPrimer detected\tPair-end") <(seq $MINQUAL 30 | sed 's/\(.*\)/Trimmed at \1 Phred score/' | tr "\n" "\t" | sed 's/$/\n/')) -> quality_check/$SUBPROJECT.lib_counts.tsv
+	lib=$(echo $fwd $rvs | sed 's/\(.*\)[^ ]* \1.*$/\1/')
+	paste <(echo -e "$samp\t$lib") <(awk '$1=="Total"{print gensub(",","","g",$NF);exit}' libraries/fastq/log.cutadapt.$lib.fwd.txt) <(tac libraries/fastq/log.pandaseq.$lib.txt | grep -m 1 -P "STAT\tREADS" | cut -f 4) <(tac libraries/fastq/log.pandaseq.$lib.txt | grep -m 1 -P "STAT\tOK\t" | cut -f 4) quality_check/$lib.stat
+done < config/lib3.list | cat <(paste <(echo -e "Sample\tLibrary\tRaw\tPrimer detected\tPair-end") <(seq $MINQUAL 30 | sed 's/\(.*\)/Trimmed at \1 Phred score/' | tr "\n" "\t" | sed 's/$/\n/')) - > quality_check/$SUBPROJECT.lib_counts.tsv
 cd quality_check
 
 # per sample
@@ -64,14 +70,17 @@ QUAL=`cat optimized.quality.txt`
 cut -f 1-4,$(($QUAL - $MINQUAL + 5)) $SUBPROJECT.sample_counts.tsv > $SUBPROJECT.summary.stat.tsv
 dd if=$SUBPROJECT.summary.stat.tsv of=../archives/$SUBPROJECT.outputs/$SUBPROJECT.read_counts.tsv bs=1M
 
-# Merge raw stat statistics and weblogos
-cd ..
-gs -q -sDEVICE=pdfwrite -o archives/$SUBPROJECT.outputs/$SUBPROJECT.raw_and_pair-end_reads_statistics.pdf libraries/raw_stat/$SUBPROJECT.raw_reads_with_primer_quality.pdf libraries/raw_stat/$SUBPROJECT.pair-end_reads_quality.pdf libraries/raw_stat/$SUBPROJECT.legend.pdf
-#if [ $CLIPPING != "no" ]
-#then
-#gs -q -sDEVICE=pdfwrite -dEPSCrop -o archives/$SUBPROJECT.outputs/$SUBPROJECT.forward.weblogo.pdf libraries/raw_stat/weblogo.*.forward.eps
-#gs -q -sDEVICE=pdfwrite -dEPSCrop -o archives/$SUBPROJECT.outputs/$SUBPROJECT.reverse.weblogo.pdf libraries/raw_stat/weblogo.*.reverse.eps
-#fi
+# Merge raw stat statistics
+cd $EXEC
+if [ $DEMULTI == "yes" ]
+then
+	cd libraries/raw_stat
+	Rscript --vanilla $BIN/Rscript_raw_stat_figures_Illumina.R $SUBPROJECT $BIN $(echo "DeltaMP_${VERSION[DELTAMP]}") all
+	cd $EXEC
+	gs -q -sDEVICE=pdfwrite -o archives/$SUBPROJECT.outputs/$SUBPROJECT.raw_and_pair-end_reads_statistics.pdf libraries/raw_stat/$SUBPROJECT.raw_reads_with_primer_quality.pdf libraries/raw_stat/$SUBPROJECT.pair-end_reads_quality.pdf libraries/raw_stat/$SUBPROJECT.legend.pdf
+else
+	gs -q -sDEVICE=pdfwrite -o archives/$SUBPROJECT.outputs/$SUBPROJECT.raw_and_pair-end_reads_statistics.pdf libraries/raw_stat/*.raw_and_pair-end_reads_statistics.pdf
+fi
 
 # list files and directories
 . $BIN/list_step_files.sh

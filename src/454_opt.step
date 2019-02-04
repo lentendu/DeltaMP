@@ -24,7 +24,7 @@ while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var
 . $BIN/check_previous_step
 
 # Library to analyse
-LIB_CHUNK=(`sed -n $ARRAY_TASK,$(($ARRAY_TASK+9))p config/lib3.list | cut -d " " -f 2`)
+LIB_CHUNK=(`sed -n $ARRAY_TASK,$(($ARRAY_TASK+9))p config/lib3.list | cut -f 2`)
 echo "Analysed libraries:"
 echo ${LIB_CHUNK[@]} | tr " " "\n"
 

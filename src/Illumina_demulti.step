@@ -24,41 +24,22 @@ while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var
 . $BIN/check_previous_step
 
 # Define the library to demultiplex
-LIB_NAME=`head -$ARRAY_TASK config/lib2.list | tail -1 | sed 's/_L[0-9]*_[IR][12]_[0-9]*\.fastq//'`
+read LIB_NAME FWD_SUF RVS_SUF <<<`sed -n ${ARRAY_TASK}'p' config/lib2.list`
+FWD_LIB=${LIB_NAME}${FWD_SUF/.$RAW_EXT.*/}
+RVS_LIB=${LIB_NAME}${RVS_SUF/.$RAW_EXT.*/}
 cd libraries
-mv $LIB_NAME*fastq demultiplex && mv fastq/oligos.$LIB_NAME demultiplex
-cd demultiplex
 
-# Make contigs and groups with MOTHUR
-FWD_LIB=`ls $LIB_NAME*R1*.fastq | sed 's/\.fastq//'`
-RVS_LIB=`ls $LIB_NAME*R2*.fastq | sed 's/\.fastq//'`
-FWD_IND=`ls $LIB_NAME*I1*.fastq | sed 's/\.fastq//'`
-RVS_IND=`ls $LIB_NAME*I2*.fastq | sed 's/\.fastq//'`
-
-if [ ! -z "$FWD_IND" ] && [ ! -z "$FWD_RVS" ]
+#Define barcode difference allowed for the library
+if [ $BDIFFS == "a" ]
 then
-	mothur "#make.contigs(ffastq=$FWD_LIB.fastq, rfastq=$RVS_LIB.fastq, findex=$FWD_IND.fastq, rindex=$RVS_IND.fastq, oligos=oligos.$LIB_NAME, bdiffs=1, pdiffs=6, processors=$NCPUS)"
-elif [ ! -z "$FWD_IND" ]
-then
-	mothur "#make.contigs(ffastq=$FWD_LIB.fastq, rfastq=$RVS_LIB.fastq, findex=$FWD_IND.fastq, oligos=oligos.$LIB_NAME, bdiffs=1, pdiffs=6, processors=$NCPUS)"
-elif [ ! -z "$RVS_IND" ]
-then
-	mothur "#make.contigs(ffastq=$FWD_LIB.fastq, rfastq=$RVS_LIB.fastq, rindex=$RVS_IND.fastq, oligos=oligos.$LIB_NAME, bdiffs=1, pdiffs=6, processors=$NCPUS)"
+	unset BDIFFS
+	grep -v ">" fasta/oligos.$LIB_NAME | awk '{sub("\\^","");print "barcode "$1}' > MID.$LIB_NAME
+	BDIFFS=`barcode_mismatch_check.sh MID.$LIB_NAME`
+	rm MID.$LIB_NAME
 fi
 
-
-# Split library over the different samples and copy to fastq and archives folders
-SAMPLE=(`cut -f 2 $FWD_LIB.contigs.groups | sort | uniq | tr "\n" " " | sed 's/$/\n/'`)
-mkdir $LIB_NAME && cd $LIB_NAME
-for i in "${SAMPLE[@]}"
-do
-	awk -v I=$i '$2==I{print $1}' ../$FWD_LIB.contigs.groups > $i.accnos
-	mothur "#set.dir(input=$EXEC/libraries/demultiplex, output=$EXEC/libraries/demultiplex/$LIB_NAME);
-	get.seqs(accnos=$i.accnos, fastq=$FWD_LIB.fastq);
-	get.seqs(accnos=$i.accnos, fastq=$RVS_LIB.fastq)"
-	dd if=$FWD_LIB.pick.fastq of=../../$SUBPROJECT.fastq/$SAMPLE.$FWD_LIB.fastq bs=1M && rm $FWD_LIB.pick.fastq
-	dd if=$RVS_LIB.pick.fastq of=../../$SUBPROJECT.fastq/$SAMPLE.$RVS_LIB.fastq bs=1M && rm $RVS_LIB.pick.fastq
-done
+# cutadapt with 5' anchored adaptors
+cutadapt -g file:fasta/oligos.${LIB_NAME} -G file:fasta/oligos.${LIB_NAME} -e ${BDIFFS} --trimmed-only -o fastq/{name}.${FWD_LIB}.fastq -p fastq/{name}.${RVS_LIB}.fastq ${FWD_LIB}.fastq ${RVS_LIB}.fastq > fastq/log_cutadapt.demultiplex.${LIB_NAME}.txt
 
 # list files and directories
 . $BIN/list_step_files.sh

@@ -1,28 +1,50 @@
 library(plyr)
+suppressMessages(library(dplyr))
+library(tibble)
 subp<-commandArgs()[7]
 bin<-commandArgs()[8]
 amp<-commandArgs()[9]
+lib<-commandArgs()[10]
 source(file.path(bin,"palette.R"))
  
 # Read stat tables
-list1<-sub("\\.stat","",list.files(pattern="*\\.stat$"))
-for (i in list1) {
-  assign(i, read.table(paste0(i,".stat"),h=T,check.names=F))
-}
-
-# Add position/length column if necessary
-maxc<-max(aaply(list1,1,function(x) ncol(get(x))))
-for (i in list1) {
-  if(ncol(get(i))<maxc) {
-    tmp<-cbind.data.frame(seq(1,nrow(get(i))),get(i))
-    colnames(tmp)[1]<-i
-    assign(i,tmp)
+if (lib == "all") {
+  list1<-sub("\\.stat","",list.files(pattern="*\\.stat$"))
+  lname<-subp
+  proj<-paste0("Project: ",subp)
+  for (i in list1) {
+    assign(i, read.table(paste0(i,".stat"),h=T,check.names=F))
+  }
+  for (i in c("fwd","rvs","pairend")) {
+    assign(paste0(i,".meanqual"),Reduce(function(...) left_join(...,by=paste0(i,".meanqual")),llply(grep(paste0(i,".meanqual"),list1,value=T),get)))# %>% replace(., is.na(.), 0))
+    assign(paste0(i,".meanposqual"),Reduce(function(...) left_join(...,by=paste0(i,".meanposqual")),llply(grep(paste0(i,".meanposqual"),list1,value=T),function(x) get(x) %>% data.frame %>% rownames_to_column(paste0(i,".meanposqual"))))) # %>% replace(., is.na(.), 0))
+  }
+  pairend.length<-Reduce(function(...) left_join(...,by="pairend.length"),llply(grep("pairend.length",list1,value=T),get))
+  pairend.overlap<-Reduce(function(...) left_join(...,by="pairend.overlap"),llply(grep("pairend.overlap",list1,value=T),function(x) get(x) %>% data.frame %>% rownames_to_column("pairend.overlap") %>% mutate(`pairend.overlap`=as.numeric(`pairend.overlap`))))
+    
+} else {
+  list1<-sub("\\.stat","",list.files(pattern=paste0(lib,".*\\.stat$")))
+  lname<-lib
+  proj<-paste0("Project: ",subp,"\nLibrary: ",lib)
+  for (i in list1) {
+    assign(sub(paste0(lib,"\\."),"",i), read.table(paste0(i,".stat"),h=T,check.names=F))
+  }
+  # Add position/length column if necessary
+  maxc<-max(aaply(list1,1,function(x) ncol(get(x))))
+  for (i in list1) {
+    if(ncol(get(i))<maxc) {
+      tmp<-cbind.data.frame(seq(1,nrow(get(i))),get(i))
+      colnames(tmp)[1]<-i
+      assign(i,tmp)
+    }
   }
 }
 
+list2<-c(apply(expand.grid(c("fwd","rvs","pairend"),c("meanqual","meanposqual")),1,paste,collapse="."),"pairend.length","pairend.overlap")
+
 # sum
-for (i in list1) {
-  tmp<-cbind.data.frame(get(i)[,1],sum=round(apply(get(i)[,-1],1,sum)))
+for (i in list2) {
+  tmp<-cbind.data.frame(get(i)[,1],sum=round(apply(get(i)[,-1],1,function(x) sum(na.omit(x)))))
   colnames(tmp)<-c(colnames(get(i))[1],"sum")
   assign(paste0("sum.",i),tmp)
 }
@@ -30,13 +52,13 @@ for (i in list1) {
 # Figures
 
 ## Raw reads ##
-pdf(paste(subp,"raw_reads_with_primer_quality.pdf",sep="."),paper="a4",width=0,height=0,title=paste(subp,"raw reads quality"))
+pdf(paste(lname,"raw_reads_with_primer_quality.pdf",sep="."),paper="a4",width=0,height=0) #,title=paste(subp,"raw reads quality"))
 layout(matrix(c(1:5),ncol=1),heights=c(1,4,4,4,4))
 # Title
 par(mar=c(0,2,0,0),cex=1)
 plot.new()
 text(0.5,0.85,"Raw reads quality (with primers)",font=2,xpd=T,cex=1.4)
-text(0,0.3,paste0("Project: ",subp),adj=c(0,NA),font=2,xpd=T,cex=1)
+text(0,0.3,proj,adj=c(0,NA),font=2,xpd=T,cex=1)
 text(1,0.3,paste0(amp,"   ",Sys.Date()),adj=c(1,NA),xpd=T,cex=1)
 ## raw forward and reverse ##
 labfr<-c(fwd="forward",rvs="reverse")
@@ -68,13 +90,13 @@ dev.off()
 
 
 ## Pair-end ##
-pdf(paste(subp,"pair-end_reads_quality.pdf",sep="."),paper="a4",width=0,height=0,title=paste(subp,"pair-end reads quality"))
+pdf(paste(lname,"pair-end_reads_quality.pdf",sep="."),paper="a4",width=0,height=0) #,title=paste(subp,"pair-end reads quality"))
 layout(matrix(c(1:5),ncol=1),heights=c(1,4,4,4,4))
 # Title
 par(mar=c(0,2,0,0),cex=1)
 plot.new()
 text(0.5,0.85,"Pair-end reads quality",font=2,xpd=T,cex=1.4)
-text(0,0.3,paste0("Project: ",subp),adj=c(0,NA),font=2,xpd=T,cex=1)
+text(0,0.3,proj,adj=c(0,NA),font=2,xpd=T,cex=1)
 text(1,0.3,paste0(amp,"   ",Sys.Date()),adj=c(1,NA),xpd=T,cex=1)
 # Mean sequence quality
 par(mar=c(3,3,1,0.5),mgp=c(1.8,0.5,0),tck=-0.03,cex.axis=0.8,las=1,xpd=T)
@@ -119,7 +141,7 @@ dev.off()
 
 
 ## Legend ##
-pdf(paste(subp,"legend.pdf",sep="."),paper="a4",width=0,height=0,title=paste(subp,"sample legend"))
+pdf(paste(lname,"legend.pdf",sep="."),paper="a4",width=0,height=0) #,title=paste(subp,"sample legend"))
 layout(matrix(c(1,2),ncol=1),heights=c(1,20))
 par(mar=c(0,2,0,0),cex=1)
 plot.new()

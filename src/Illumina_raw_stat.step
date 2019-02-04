@@ -23,37 +23,47 @@ module load DeltaMP/DELTAMP_VERSION
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
 . $BIN/check_previous_step
 
+# Library to analyse
+read LIB_NAME FWD_SUF RVS_SUF <<<`sed -n ${ARRAY_TASK}'p' config/lib2.list`
+cd libraries/raw_stat
+
 # Raw and pair end stat
 	# Length and quality
-cd libraries/raw_stat
 for i in pairend.length fwd.meanqual rvs.meanqual pairend.meanqual
 do
-	read min max <<< `cat *.$i | awk 'NR==1{MIN=$1;MAX=$1} ; {if($1<MIN){MIN=$1};if($1>MAX){MAX=$1}} END {print MIN,MAX}'`
-	while read lib fs ra
+	read min max <<< `cat *${LIB_NAME}.$i | awk 'NR==1{MIN=$1;MAX=$1} ; {if($1<MIN){MIN=$1};if($1>MAX){MAX=$1}} END {print MIN,MAX}'`
+	while read sam fs ra
 	do
+		lib=$(echo $fs $ra | sed 's/\(.*\)[^ ]* \1.*$/\1/')
 		sort $lib.$i | uniq -c | sort -k 2,2 | join -1 2 -a 2 -o 0,1.1 -e "0" - <(seq $min $max | sort) | sort -k 1,1n | cut -d " " -f 2 | cat <(echo $lib) - | tr "\n" "\t" | sed 's/\t$/\n/'
-	done < ../../config/lib2.list | transpose_tab | paste <(cat <(echo $i) <(seq $min $max)) - > $i.stat
-	rm *.$i
+	done < <(grep $LIB_NAME ../../config/lib3.list) | transpose_tab | paste <(cat <(echo $i) <(seq $min $max)) - > $LIB_NAME.$i.stat
+	rm *${LIB_NAME}.$i
 done
 
 	# meanposqual
 for i in fwd rvs pairend
 do
-	max_length=`for j in *.$i.meanposqual; do sed -n '$=' $j ; done | awk 'NR==1{M=$1} ; {if($1>M){M==$1}}END{print M}'`
+	max_length=`for j in *${LIB_NAME}.$i.meanposqual; do sed -n '$=' $j ; done | awk 'NR==1{M=$1} ; {if($1>M){M==$1}}END{print M}'`
 	
-	while read lib fs ra
+	while read sam fs ra
 	do
+		lib=$(echo $fs $ra | sed 's/\(.*\)[^ ]* \1.*$/\1/')
 		cat <(echo $lib) $lib.$i.meanposqual | tr "\n" " " | sed 's/$/\n/'
-	done < ../../config/lib2.list | awk -v M=$max_length '{printf "%s",$1;for(i=2;i<=M+1;i++){if($i!=""){printf " %s", $i} else printf " NA"};printf "\n"}' | transpose > $i.meanposqual.stat
-	rm *.$i.meanposqual
+	done < <(grep $LIB_NAME ../../config/lib3.list) | awk -v M=$max_length '{printf "%s",$1;for(i=2;i<=M+1;i++){if($i!=""){printf " %s", $i} else printf " NA"};printf "\n"}' | transpose > ${LIB_NAME}.$i.meanposqual.stat
+	rm *${LIB_NAME}.$i.meanposqual
 done
 
 	# Overlap
-max_over=`awk 'NR==1{M=NF} ; {if(NF>M){M=NF}}END{print M}' overlap.txt`
-awk -v M=$max_over '{printf "%s",$1;for(i=2;i<=M;i++){if($i!=""){printf " %s", $i} else printf " 0"};printf "\n"}' overlap.txt | transpose > pairend.overlap.stat
+max_over=`cat *${LIB_NAME}.overlap.txt | awk 'NR==1{M=NF} ; {if(NF>M){M=NF}}END{print M}'`
+cat *${LIB_NAME}.overlap.txt | awk -v M=$max_over '{printf "%s",$1;for(i=2;i<=M;i++){if($i!=""){printf " %s", $i} else printf " 0"};printf "\n"}' | transpose > ${LIB_NAME}.pairend.overlap.stat
 
 # Figures
-Rscript --vanilla $BIN/Rscript_raw_stat_figures_Illumina.R $SUBPROJECT $BIN $(echo "DeltaMP_${VERSION[DELTAMP]}")
+if [ $DEMULTI == "no" ]
+then
+	Rscript --vanilla $BIN/Rscript_raw_stat_figures_Illumina.R $SUBPROJECT $BIN $(echo "DeltaMP_${VERSION[DELTAMP]}") $LIB_NAME
+	gs -q -sDEVICE=pdfwrite -o $LIB_NAME.raw_and_pair-end_reads_statistics.pdf ${LIB_NAME}.raw_reads_with_primer_quality.pdf ${LIB_NAME}.pair-end_reads_quality.pdf ${LIB_NAME}.legend.pdf
+	rm ${LIB_NAME}.raw_reads_with_primer_quality.pdf ${LIB_NAME}.pair-end_reads_quality.pdf ${LIB_NAME}.legend.pdf
+fi
 
 # list files and directories
 . $BIN/list_step_files.sh

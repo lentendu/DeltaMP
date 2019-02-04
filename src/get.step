@@ -120,20 +120,22 @@ fi
 mkdir $RAW_EXT raw_stat fasta
 cat <(echo "forward $FWD") <(echo "reverse $RVS") > fasta/oligos.$FWD_NAME.$RVS_NAME
 
-LIB=(`cut -f 1 ../config/lib1.list`)
-if [ $TECH == "454" ]
-then
-	for i in "${LIB[@]}"
-	do
-		if [[ $LIB_DIR == "/"* ]]
-		then
-			j=${i%.*}
-		else
-			j=`echo ${i##*/} | sed 's/\.[^\.]*$//'`
-		fi
-		awk -v I=$i 'BEGIN{OFS="\t"}$4==I{print $1,$2,$3}' $EXEC/config/barcodes.txt | cat fasta/oligos.$FWD_NAME.$RVS_NAME - | sed 's/reverse/#reverse/;s/-/_/g' > fasta/oligos.${j//-/_}
-	done
-fi
+while read lib fwd rvs
+do
+	if [[ $LIB_DIR == "/"* ]]
+	then
+		j=${lib/.$RAW_EXT*/}
+	else
+		j=`echo ${lib##*/} | sed 's/\.'$RAW_EXT'.*//'`
+	fi
+	if [ $TECH == "454" ]
+	then
+		awk -v I=$lib 'BEGIN{OFS="\t"}$3==I{print "barcode",$1,$2}' $EXEC/config/barcodes.txt | cat fasta/oligos.$FWD_NAME.$RVS_NAME - | sed 's/reverse/#reverse/;s/-/_/g' > fasta/oligos.${j//-/_}
+	elif [ $TECH == "Illumina" ]
+	then
+		awk -v I=$(echo "$lib$fwd") '$3==I{print ">"$2"\n^"$1}' $EXEC/config/barcodes.txt > fasta/oligos.${j//-/_}
+	fi
+done < $EXEC/config/lib1.list
 
 # Replace "-" by "_" in library names
 for i in *.$RAW_EXT

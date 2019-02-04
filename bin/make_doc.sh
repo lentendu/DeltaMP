@@ -21,32 +21,39 @@
 ## Documentation
 declare -a TITLE=("Input data" "Pipeline execution" "Benchmarking" "Demultiplexing" "Quality check" "High quality reads processing" "Outputs" "References" "Raw reads extraction")
 
-echo "Documentation of the project $SUBPROJECT produced by deltamp" 
+echo "Documentation of the project $SUBPROJECT produced by DeltaMP v.${VERSION[DELTAMP]}" 
 echo "" 
 
 printf '%'$((${#TITLE[0]}+8))'s\n' |tr " " "#"
 echo "### ${TITLE[0]} ###"
 printf '%'$((${#TITLE[0]}+8))'s\n' |tr " " "#"
-if [ $TECH == "454" ]
+
+if [ $DEMULTI == "no" ]
 then
-	NBLIB=$LIB1_SIZE
-	if [ $DEMULTI == "no" ]
+	DEM="not demultiplexed"
+	if [ $TECH == "454" ]
 	then
 		RAWAVG=`grep "^It took [0-9]* secs to extract [0-9]*.$" log/454_demulti.*.out | sed 's/\.$//' | awk '{sum+=$NF}END{printf "%.0f\n", sum/NR}'`
 	else
-		RAWAVG=`grep "^It took [0-9]* secs to extract [0-9]*.$" log/454_sff.*.out | sed 's/\.$//' | awk '{sum+=$NF}END{printf "%.0f\n", sum/NR}'`
+		RAWAVG
 	fi
 else
-	NBLIB=$LIB3_SIZE
-	RAWAVG=`awk '$1=="Average"{printf "%.0f\n", $2}' quality_check/$SUBPROJECT.summary.stat.tsv`
+	DEM="demultiplexed"
+	if [ $TECH == "454" ]
+	then
+		RAWAVG=`grep "^It took [0-9]* secs to extract [0-9]*.$" log/454_sff.*.out | sed 's/\.$//' | awk '{sum+=$NF}END{printf "%.0f\n", sum/NR}'`
+	else
+		RAWAVG=`awk '$1=="Average"{printf "%.0f\n", $2}' quality_check/$SUBPROJECT.summary.stat.tsv`
+	fi
 fi
-echo "The analysed $RAW_EXT raw reads originated from $NBLIB library(ies) representing $SAMP_SIZE samples and containing an average of $RAWAVG reads per library."
+NBLIB=$LIB1_SIZE
+echo "The analysed $RAW_EXT raw reads originated from $NBLIB $DEM library(ies) representing $SAMP_SIZE samples and containing an average of $RAWAVG reads per library."
 echo "" 
 
 printf '%'$((${#TITLE[1]}+8))'s\n' |tr " " "#"
 echo "### ${TITLE[1]} ###"
 printf '%'$((${#TITLE[1]}+8))'s\n' |tr " " "#"
-echo "The input sequences were analysed with deltamp version ${VERSION[DELTAMP]}, a metabarcode analysis pipeline for grid engines mainly based on MOTHUR (version ${VERSION[MOTHUR]}, ${CITATION[MOTHUR]}) and OBITools (version ${VERSION[OBI]}, ${CITATION[OBI]}) software suites."
+echo "The input sequences were analysed with DeltaMP version ${VERSION[DELTAMP]}, a metabarcode analysis pipeline for grid engines mainly based on MOTHUR (version ${VERSION[MOTHUR]}, ${CITATION[MOTHUR]}) and OBITools (version ${VERSION[OBI]}, ${CITATION[OBI]}) software suites."
 CIT=(MOTHUR OBI)
 echo ""
 echo "The pipeline was executed from the directory $INIT_DIR with the following command:"
@@ -71,19 +78,16 @@ then
 	echo ""
 fi
 
-if [ $TECH == "454" ]
+if [ $DEMULTI == "no" ]
 then
-	if [ $DEMULTI == "no" ]
+	printf '%'$((${#TITLE[3]}+8))'s\n' |tr " " "#"
+	echo "### ${TITLE[3]} ###"
+	printf '%'$((${#TITLE[3]}+8))'s\n' |tr " " "#"
+	if [ $TECH == "454" ]
 	then
-		printf '%'$((${#TITLE[3]}+8))'s\n' |tr " " "#"
-		echo "### ${TITLE[3]} ###"
-		printf '%'$((${#TITLE[3]}+8))'s\n' |tr " " "#"
-		if [ $TECH == "454" ]
-		then
-			echo "The demultiplexing was achieved using QIIME (version ${VERSION[QIIME]}, ${CITATION[QIIME]}) script 'make_per_library_sff.py'."
-			CIT+=(QIIME)
-			echo ""
-		fi
+		echo "The demultiplexing was achieved using QIIME (version ${VERSION[QIIME]}, ${CITATION[QIIME]}) script 'make_per_library_sff.py'."
+		CIT+=(QIIME)
+		echo ""
 		if [ $BDIFFS == "a" ]
 		then
 			echo "The libraries were demultiplexed allowing $PDIFFS mismatches on the primer sequence and the following number of mismatches on the barcode sequence:" 
@@ -91,13 +95,20 @@ then
 		else
 			echo "The libraries were demultiplexed allowing $PDIFFS mismatches on the primer and $BDIFFS mismatches on the barcode." 
 		fi
-		echo ""
-		echo "More informations on demultiplexing efficiency are available in the file demultiplexing_check.csv ."
-		echo ""
-		echo "The raw libraries are available in the archive $SUBPROJECT.demultiplex_sff.tar.gz located at $OUT ."
+	else
+		echo "The demultiplexing was achieved using cutadapt (version ${VERSION[CUT]}, ${CITATION[CUT]}) allowing until $BDIFFS mismatches on the barcode sequences."
+		CIT+=(CUT)
 		echo ""
 	fi
-elif [ $CLIPPING == "yes" ]
+
+	echo ""
+	echo "More informations on demultiplexing efficiency are available in the file demultiplexing_check.csv ."
+	echo ""
+	echo "The raw demultiplexed libraries are available in the archive $SUBPROJECT.demultiplex_${RAW_EXT}.tar.gz located at $OUT ."
+	echo ""
+fi
+
+if [ $CLIPPING != "no" ]
 then
 	printf '%'$((${#TITLE[8]}+8))'s\n' |tr " " "#"
 	echo "### ${TITLE[8]} ###"
