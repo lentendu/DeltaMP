@@ -1,5 +1,5 @@
 # object variables
-version := 0.2
+version := 0.3
 SHELL := /bin/bash
 batch := $(shell grep BATCH_QUEUE config.txt | cut -f 2)
 module := modulefiles/DeltaMP/$(version)
