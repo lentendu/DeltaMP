@@ -6,6 +6,8 @@ bin<-commandArgs()[8]
 amp<-commandArgs()[9]
 lib<-commandArgs()[10]
 source(file.path(bin,"palette.R"))
+
+list2<-c(apply(expand.grid(c("fwd","rvs","pairend"),c("meanqual","meanposqual")),1,paste,collapse="."),"pairend.length","pairend.overlap")
  
 # Read stat tables
 if (lib == "all") {
@@ -30,8 +32,8 @@ if (lib == "all") {
     assign(sub(paste0(lib,"\\."),"",i), read.table(paste0(i,".stat"),h=T,check.names=F))
   }
   # Add position/length column if necessary
-  maxc<-max(aaply(list1,1,function(x) ncol(get(x))))
-  for (i in list1) {
+  maxc<-max(aaply(list2,1,function(x) ncol(get(x))))
+  for (i in list2) {
     if(ncol(get(i))<maxc) {
       tmp<-cbind.data.frame(seq(1,nrow(get(i))),get(i))
       colnames(tmp)[1]<-i
@@ -39,8 +41,6 @@ if (lib == "all") {
     }
   }
 }
-
-list2<-c(apply(expand.grid(c("fwd","rvs","pairend"),c("meanqual","meanposqual")),1,paste,collapse="."),"pairend.length","pairend.overlap")
 
 # sum
 for (i in list2) {
