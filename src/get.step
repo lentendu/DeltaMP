@@ -52,6 +52,7 @@ else
 	if [ "$(sed -n '$=' $LIB_DIR.txt)" -gt 1 ]
 	then
 		parallel -j $NCPUS 'wget -nv -O - {} | dd of=$(basename {}) bs=1M' ::: ${ARCH[@]}
+		ARCH=($(basename -a ${ARCH[@]}))
 	else
 		echo "The accession $LIB_DIR was not found at the European Nucleotide Archive (http://www.ebi.ac.uk/ena/data)"
 		echo "Aborting"
@@ -61,26 +62,26 @@ fi
 
 
 # Extract
-my_extract () {
+my_extract() {
 	if [[ -f "$@" ]]
 	then
 		if [[ "$@" != *$RAW_EXT ]]
 		then
-			mkdir tmp
+			mkdir tmp.$@
 			case $@ in
-				*.tar.bz2) tar xjvf $@ -C tmp ;;
-				*.tar.gz) tar xzvf $@ -C tmp ;;
+				*.tar.bz2) tar xjvf $@ -C tmp.$@ ;;
+				*.tar.gz) tar xzvf $@ -C tmp.$@ ;;
 				*.bz2) bunzip2 -1 $@ ;;
-				*.gz) dd if=$@ ibs=1M | unpigz -p 1 | dd of=${i%.*} obs=1M && rm $@ ;;
-				*.tar) tar xf $@ -C tmp ;;
-				*.tbz2) tar xjvf $@ -C tmp ;;
-				*.tgz) tar xzvf $@ -C tmp ;;
+				*.gz) dd if=$@ ibs=1M | unpigz -p 1 | dd of=${@%.*} obs=1M && rm $@ ;;
+				*.tar) tar xf $@ -C tmp.$@ ;;
+				*.tbz2) tar xjvf $@ -C tmp.$@ ;;
+				*.tgz) tar xzvf $@ -C tmp.$@ ;;
 				*.zip) unzip -j $@ ;;
-				#*.7z) 7za e -o./tmp $@ && rm $@;;
+				#*.7z) 7za e -o./tmp.$@ $@ && rm $@;;
 				*) echo "ERROR: '$@' cannot be extracted, unknown extension" && exit 100 ;;
 			esac
-			find ./tmp -type f -exec mv -i {} . \;
-			rm -r ./tmp
+			find ./tmp.$@ -type f -exec mv -i {} . \;
+			rm -r ./tmp.$@
 		fi
 	else
 		echo "ERROR: '$@' does not exist or is not a file" && exit 100
@@ -92,18 +93,16 @@ parallel -j $NCPUS my_extract ::: ${ARCH[@]}
 
 if [[ "${ARCHIVES[@]}" != "no" ]]
 then
-my_extract2 () {
-	case $1 in
-		*.bz2) bunzip2 $1 $2 ;;
-		*.gz)
-			dd if=$1 ibs=1M | unpigz -p 1 | dd of=${1%.*} obs=1M && rm $1
-			dd if=$2 ibs=1M | unpigz -p 1 | dd of=${2%.*} obs=1M && rm $2 ;;
-		*.tar) tar xf $1 $2 ;;
-		*.zip) unzip $1 $2 ;;
+my_extract2() {
+	case $@ in
+		*.bz2) bunzip2 $@ ;;
+		*.gz) dd if=$@ ibs=1M | unpigz -p 1 | dd of=${1%.*} obs=1M && rm $@ ;;
+		*.tar) tar xf $@ ;;
+		*.zip) unzip $@ ;;
 	esac
 }
 	export -f my_extract2
-	parallel -j $NCPUS -C"\t" -a ../config/lib1.list 'my_extract2 $(basename {1}){2} $(basename {1}){3}'
+	awk '{print $1$2"\n"$1$3}' ../config/lib1.list | parallel -j $NCPUS my_extract2
 fi
 
 # Oligo files
