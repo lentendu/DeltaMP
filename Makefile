@@ -44,10 +44,10 @@ $(steps): bin/%.sh : | %.step
 	eval $$SEDSTEP $| | sed 's#/DELTAMP_VERSION#/$(version)#' | cat $< - | sed 's/log\/NAME/log\/'$*'/' > $@
 
 # header (type of job) specific dependencies
-bin/init.sh bin/get.sh bin/454_quality.sh bin/Illumina_quality.sh bin/doc.sh bin/archiver.sh : serial.head
+bin/init.sh bin/454_quality.sh bin/Illumina_quality.sh bin/doc.sh bin/archiver.sh : serial.head
 bin/Illumina_demulti.sh bin/Illumina_fastq.sh bin/Illumina_pair_end.sh bin/Illumina_opt.sh bin/454_raw_stat.sh bin/Illumina_raw_stat.sh : serial_array.head
 bin/merge.sh bin/end.sh : serial_highmem.head
-bin/OTU.sh : mp.head
+bin/get.sh bin/OTU.sh : mp.head
 bin/454_demulti.sh bin/454_sff.sh bin/454_opt.sh bin/trim.sh : mp_array.head
 bin/cut_db.sh bin/id.sh : mp_highmem.head
 
