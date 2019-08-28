@@ -109,7 +109,9 @@ then
 	do
 		case $lib$fwd in
 			*.bz2) bunzip2 $lib$fwd $lib$rvs ;;
-			*.gz) gunzip $lib$fwd $lib$rvs ;;
+			*.gz)
+				dd if=$lib$fwd ibs=1M | unpigz -p 1 | dd of=$lib${fwd%.*} obs=1M && rm $lib$fwd
+				dd if=$lib$rvs ibs=1M | unpigz -p 1 | dd of=$lib${rvs%.*} obs=1M && rm $lib$rvs ;;
 			*.tar) tar xf $lib$fwd $lib$rvs ;;
 			*.zip) unzip $lib$fwd $lib$rvs ;;
 		esac
