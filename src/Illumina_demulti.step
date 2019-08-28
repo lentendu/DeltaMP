@@ -39,7 +39,9 @@ then
 fi
 
 # cutadapt with 5' anchored adaptors
-cutadapt -g file:fasta/oligos.${LIB_NAME} -G file:fasta/oligos.${LIB_NAME} -e ${BDIFFS} --trimmed-only -o fastq/{name}.${FWD_LIB}.fastq -p fastq/{name}.${RVS_LIB}.fastq ${FWD_LIB}.fastq ${RVS_LIB}.fastq > fastq/log_cutadapt.demultiplex.${LIB_NAME}.txt
+BLENGTH=$(grep -o -m 1 -E "[ATCG]+" fasta/oligos.${LIB_NAME} | awk '{print length($1)}')
+BDISS=$(awk -v L=$BLENGTH -v D=$BDIFFS 'BEGIN{printf "%.2g\n", D/L}')
+cutadapt -g file:fasta/oligos.${LIB_NAME} -G file:fasta/oligos.${LIB_NAME} -e ${BDISS} --trimmed-only -o fastq/{name}.${FWD_LIB}.fastq -p fastq/{name}.${RVS_LIB}.fastq ${FWD_LIB}.fastq ${RVS_LIB}.fastq > fastq/log_cutadapt.demultiplex.${LIB_NAME}.txt
 
 # list files and directories
 . $BIN/list_step_files.sh
