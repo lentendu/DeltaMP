@@ -33,7 +33,7 @@ fi
 while read samp fwd rvs
 do
 	lib=$(echo $fwd $rvs | sed 's/\(.*\)[^ ]* \1.*$/\1/')
-	paste <(echo -e "$samp\t$lib") <(awk '$1=="Total"{print gensub(",","","g",$NF);exit}' libraries/fastq/log.cutadapt.$lib.fwd.txt) <(tac libraries/fastq/log.pandaseq.$lib.txt | grep -m 1 -P "STAT\tREADS" | cut -f 4) <(tac libraries/fastq/log.pandaseq.$lib.txt | grep -m 1 -P "STAT\tOK\t" | cut -f 4) quality_check/$lib.stat
+	paste <(echo -e "$samp\t$lib") <(sed -n '1,/^Total/{/Total/{s/^.* //;s/,//g;p}}' libraries/fastq/log.cutadapt.$lib.fwd.txt) <(tac libraries/fastq/log.pandaseq.$lib.txt | grep -m 1 -P "STAT\tREADS" | cut -f 4) <(tac libraries/fastq/log.pandaseq.$lib.txt | grep -m 1 -P "STAT\tOK\t" | cut -f 4) quality_check/$lib.stat
 done < config/lib3.list | cat <(paste <(echo -e "Sample\tLibrary\tRaw\tPrimer detected\tPair-end") <(seq $MINQUAL 30 | sed 's/\(.*\)/Trimmed at \1 Phred score/' | tr "\n" "\t" | sed 's/$/\n/')) - > quality_check/$SUBPROJECT.lib_counts.tsv
 cd quality_check
 
