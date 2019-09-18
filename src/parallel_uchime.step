@@ -114,4 +114,4 @@ then
 else
 	echo "# The parrallel self reference UCHIME implementation did not detected any chimera."
 fi
-cd ..
+cd .. && rm -r temp_uchime
