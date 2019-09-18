@@ -219,11 +219,11 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Remove primers at reads ends__: "no", "3prime", "5prime" or "both". Using cutadapt, "3prime" remove non-anchored reverse-complemented reverse and forward primers from 3'-end of forward and reverse libraries, respectively; "5prime" remove non-anchored forward and reverse primers from 5'-end of forward and reverse libraries, respectively; "both" combined both previous removal using the [linked adapter strategy](https://cutadapt.readthedocs.io/en/stable/guide.html#linked-adapters-combined-5-and-3-adapter) with anchored 5' adapter; value "no" avoid primer clipping. For "3prime", "5prime" and "both" values, unmatched reads are checked against the opposite primer/linked-adapter to allow for biderectionnal sequencing strategy detection, and the reads matched in this second step are reverse-complemented and append to the reads match at the first step. The default is "5prime".
 
-+ __PandaSeq algorithm__: "simple_bayesian", "ea_util", "flash", "pear", "rdp_mle", "stitch" or "uparse" . See the [PandaSeq manual](https://storage.googleapis.com/pandaseq/pandaseq.html) (or `man pandaseq`) for algorithm descriptions. The default is “simple_bayesian”.
++ __Pair-end algorithm__: "vsearch", "simple_bayesian", "ea_util", "flash", "pear", "rdp_mle", "stitch" or "uparse" . Either using the vsearch "--fastq_mergepairs" option or any algorithm of PandaSeq. See the [PandaSeq manual](https://storage.googleapis.com/pandaseq/pandaseq.html) (or `man pandaseq`) for algorithm descriptions. The default is “simple_bayesian”.
 
-+ __PandaSeq threshold__: a number between 0 and 1 provided to the -t option of pandaseq. The default is 0.6.
++ __Pair-end similarity threshold__: a number between 0 and 1 setting a similarity threshold ratio on the alligned region from which a pair is conserved. This value is provided to the -t option of pandaseq. This value is substract to 1 and then multiply by 100 to be provided to the --fastq_maxdiffpct option of vsearch. The default is 0.6 (i.e. vsearch default is 40).
 
-+ __Minimum overlap__: a number between 0 and ∞ provided to the -o option of pandaseq. The default is 1.
++ __Minimum overlap__: a number between 0 and ∞ provided to the --fastq_minovlen option of vsearch or the -o option of pandaseq. The default is 10.
 
 
 ### TRIMMING section

@@ -29,7 +29,14 @@ LIB_NAME=$(echo $FWD_LIB $RVS_LIB | sed 's/\(.*\)[^ ]* \1.*$/\1/')
 cd libraries
 
 # Pair end
-pandaseq -f fastq/$LIB_NAME.fwd.fastq -r fastq/$LIB_NAME.rvs.fastq -g fastq/log.pandaseq.$LIB_NAME.txt -F -A $PALG -o $MIN_OV -t $PTRESH -T 1 > fastq/$LIB_NAME.pairend.fastq
+if [ $PALG == "vsearch" ]
+then
+	ASCII=$(vsearch --fastq_chars fastq/$LIB_NAME.fwd.fastq 2>&1 | grep -m 1 "^Guess" | sed 's/.* //')
+	PCTTRESH=$(awk -v P=$PTRESH 'BEGIN{print (1-P)*100}')
+	vsearch --threads 1 --fastq_mergepairs fastq/$LIB_NAME.fwd.fastq --reverse fastq/$LIB_NAME.rvs.fastq --fastq_ascii $ASCII --fastq_minovlen $MIN_OV --fastq_maxdiffpct $PCTTRESH --fastqout fastq/$LIB_NAME.pairend.fastq --fastq_allowmergestagger --quiet 2> fastq/log.pairend.$LIB_NAME.txt
+else
+	pandaseq -f fastq/$LIB_NAME.fwd.fastq -r fastq/$LIB_NAME.rvs.fastq -g fastq/log.pairend.$LIB_NAME.txt -F -A $PALG -o $MIN_OV -t $PTRESH -T 1 > fastq/$LIB_NAME.pairend.fastq
+fi
 
 # Convert to fasta + qual
 mothur "#set.dir(input=$EXEC/libraries/fastq, output=$EXEC/libraries/fasta);
