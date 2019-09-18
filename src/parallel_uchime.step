@@ -100,8 +100,14 @@ done
 
 # merge accnos and chimeras
 cat mothur.chimera.log >> ../$LOG
-cat $FASTA.ab.denovo.uchime.accnos $FASTA.low{4..0}.ref.uchime.accnos > ../$FASTA.denovo.uchime.accnos
-cat $FASTA.ab.denovo.uchime.chimeras $FASTA.low{4..0}.ref.uchime.chimeras > ../$FASTA.denovo.uchime.chimeras
+if [ -s $FASTA.ab.denovo.uchime.accnos ]
+then
+	cat $FASTA.ab.denovo.uchime.accnos $FASTA.low{4..0}.ref.uchime.accnos > ../$FASTA.denovo.uchime.accnos
+	cat $FASTA.ab.denovo.uchime.chimeras $FASTA.low{4..0}.ref.uchime.chimeras > ../$FASTA.denovo.uchime.chimeras
+else
+	cat $FASTA.low{4..0}.ref.uchime.accnos > ../$FASTA.denovo.uchime.accnos
+	cat $FASTA.low{4..0}.ref.uchime.chimeras > ../$FASTA.denovo.uchime.chimeras
+fi
 if [ -s ../$FASTA.denovo.uchime.accnos ]
 then
 	echo "# The parrallel self reference UCHIME implementation detected a total of $(sed -n '$=' ../$FASTA.denovo.uchime.accnos) chimeras."
