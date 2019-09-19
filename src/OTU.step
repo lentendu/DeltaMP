@@ -88,10 +88,11 @@ cd processing
 
 SIM=`awk -v T=$TRESH 'BEGIN{print T/100}'`
 DISIM=`awk -v S=$SIM 'BEGIN{print 1-S}'`
+mothur "#count.seqs(name=$NAMES.names)"
 
 if [ $CLUST == "cd-hit-est" ]
 then
-	paste - - < $FASTA.fasta | sed 's/>//' | sort -k 1,1 | join - <(tr "," " " < $NAMES.names | awk '{print $1,split($2,a,",")}' | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1"\n"$2}' > $FASTA.sort.fasta
+	paste - - < $FASTA.fasta | sed 's/>//' | sort -k 1,1 | join - <(sed '1d' $NAMES.count_table | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1"\n"$2}' > $FASTA.sort.fasta
 	if [ $PREV_PATH == "no" ]
 	then
 		cd-hit-est -T $NCPUS -M 0 -c $SIM -r 0 -g 1 -d 0 -i $FASTA.sort.fasta -o $FASTA.cdhit.fasta
@@ -115,7 +116,7 @@ then
 	LIST=$NAMES.cdhit
 elif [ $CLUST == "sumaclust" ]
 then
-	paste - - < $FASTA.fasta | sed 's/>//' | sort -k 1,1 | join - <(tr "," " " < $NAMES.names | awk '{print $1,split($2,a,",")}' | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1"\n"$2}' > $FASTA.sort.fasta
+	paste - - < $FASTA.fasta | sed 's/>//' | sort -k 1,1 | join - <(sed '1d' $NAMES.count_table | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1"\n"$2}' > $FASTA.sort.fasta
 	sumaclust -t $SIM -p $NCPUS -e -O $FASTA.suma.map $FASTA.sort.fasta | obigrep --without-progress-bar -a cluster_center:True | obisort -k cluster_weight -r | obiannotate -C > $FASTA.suma.fasta
 	suma2mothur $FASTA.suma.map $NAMES.names $DISIM
 	NAMES_OTUS=$NAMES.suma
@@ -135,7 +136,7 @@ then
 	rm $FASTA.mcl.dico $FASTA.mcl.load $FASTA.mcl.clust
 elif [ $CLUST == "vsearch" ]
 then
-	paste - - < $FASTA.fasta | sed 's/>//' | sort -k 1,1 | join - <(tr "," " " < $NAMES.names | awk '{print $1,split($2,a,",")}' | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1";size="$3"\n"$2}' > $FASTA.sort.fasta
+	paste - - < $FASTA.fasta | sed 's/>//' | sort -k 1,1 | join - <(sed '1d' $NAMES.count_table | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1";size="$3"\n"$2}' > $FASTA.sort.fasta
 	vsearch --quiet --cluster_smallmem $FASTA.sort.fasta --usersort --id $SIM --centroids $FASTA.vsearch.fasta --xsize -uc $FASTA.uc
 	vsearch2mothur $FASTA.uc $NAMES.names $DISIM
 	NAMES_OTUS=$NAMES.vsearch
@@ -144,7 +145,7 @@ then
 	LIST=$NAMES.vsearch
 elif [ $CLUST == "swarm" ]
 then
-	paste - - < $FASTA.fasta | sed 's/>//' | sort -k 1,1 | join - <(tr "," " " < $NAMES.names | awk '{print $1,split($2,a,",")}' | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1";size="$3"\n"$2}' > $FASTA.sort.fasta
+	paste - - < $FASTA.fasta | sed 's/>//' | sort -k 1,1 | join - <(sed '1d' $NAMES.count_table | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1";size="$3"\n"$2}' > $FASTA.sort.fasta
 	MEM=`awk -v N=$NCPUS 'BEGIN{print 4000*N}'`
 	swarm -f -z -c $MEM -t $NCPUS -w $FASTA.tmp.fasta -u $FASTA.swarm $FASTA.sort.fasta
 	sed '/>/s/;.*//' $FASTA.tmp.fasta > $FASTA.swarm.fasta && rm $FASTA.tmp.fasta
@@ -154,6 +155,7 @@ then
 	FASTA_OTUS=$FASTA.swarm
 	LIST=$NAMES.swarm
 fi
+rm $NAMES.count_table
 
 # Remove singletons
 if [ $DEL_SING == "yes" ]
