@@ -54,7 +54,7 @@ suma2mothur () {
 	map=$1 ; names=$2 ; disim=$3
 	size=`sed -n '$=' $map`
 	awk '{for(i=2;i<=NF;i++){print $i,NR,i}}' $map | sort -k 1,1 | join - <(sort -k 1,1 $names) | sort -k 2,2n -k 3,3n | awk '{if(NR==1){prev=$2;printf "%s\t%s",$1,$4} else {if($2==prev) {printf ",%s", $4} else {prev=$2;printf "\n%s\t%s",$1,$4}}}END{printf "\n"}' | awk '{print split($2,a,",")"\t"$0}' | sort -k 1,1nr | cut -f 2- > ${names%.*}.suma.names
-	awk -v L=${#size} -v D=$disim -v S=$size 'BEGIN{printf "%s\t%s","label","numOtus";for(i=1;i<=S;i++){printf "\t%s%0"L"d", "Otu",i};printf "\n%s\t%s", D,S} {printf "\t%s",$2} END{printf "\n"}' ${names%.*}.suma.names > ${names%.*}.suma.list
+	cat <(cat <(echo -e "label\nnumOtus") <(awk -v S=$size 'BEGIN{L=length(S);for(i=1;i<=S;i++){printf "%s%0"L"d\n", "Otu",i}}') | tr "\n" "\t" | sed 's/\t$/\n/') <(cat <(echo -e "$disim\n$size") <(cut -f 2 ${names%.*}.suma.names)  | tr "\n" "\t" | sed 's/\t$/\n/') > ${names%.*}.suma.list
 	echo "suma2mothur output files:#${names%.*}.suma.list#${names%.*}.suma.names" | tr "#" "\n"
 }
 
@@ -63,7 +63,7 @@ mcl2mothur () {
 	size=`sed -n '$=' $mcl`
 	awk '{for(i=2;i<=NF;i++){print $i,NR}}' $mcl | sort -k 1,1 | join -a 2 - <(sort -k 1,1 $names) | awk -v S=$size 'BEGIN{i=S+1}{if(NF==2){print $1,i,split($2,a,","),$2;i=i+1} else print $1,$2,split($3,a,","),$3}' | sort -k 2,2n -k 3,3nr | awk '{if(NR==1){printf "%s\t%s" ,$1,$4;prev=$2;sum=$3} else {if($2!=prev){printf "\t%s\n%s\t%s" ,sum,$1,$4;prev=$2;sum=$3} else {sum+=$3;printf ",%s" ,$4}}}END{printf "\t%s\n",sum}' | sort -k 3,3nr | cut -f 1,2 > ${names%.*}.mcl.names
 	size2=`sed -n '$=' ${names%.*}.mcl.names`
-	awk -v L=${#size} -v D=$disim -v S=$size2 'BEGIN{printf "%s\t%s","label","numOtus";for(i=1;i<=S;i++){printf "\t%s%0"L"d", "Otu",i};printf "\n%s\t%s", D,S} {printf "\t%s",$2} END{printf "\n"}' ${names%.*}.mcl.names > ${names%.*}.mcl.list
+	cat <(cat <(echo -e "label\nnumOtus") <(awk -v S=$size2 'BEGIN{L=length(S);for(i=1;i<=S;i++){printf "%s%0"L"d\n", "Otu",i}}') | tr "\n" "\t" | sed 's/\t$/\n/') <(cat <(echo -e "$disim\n$size2") <(cut -f 2 ${names%.*}.mcl.names)  | tr "\n" "\t" | sed 's/\t$/\n/') > ${names%.*}.mcl.list
 	echo "mcl2mothur output files:#${names%.*}.mcl.list#${names%.*}.mcl.names" | tr "#" "\n"
 }
 
@@ -71,7 +71,7 @@ vsearch2mothur () {
 	map=$1 ; names=$2 ; disim=$3
 	size=`grep -c "^S" $map`
 	grep -v "^C" $map | awk '{split($9,a,";");print $1,$2,$4,a[1]}' | sort -k 4,4 | join -1 4 - <(sort -k 1,1 $names) | sort -k 3,3n -k 2,2r -k 4,4nr | awk '{if(NR==1){otu=$3;printf "%s\t%s", $1,$5} else {if($3==otu){printf ",%s", $5} else {otu=$3;printf "\n%s\t%s", $1,$5}}} END {printf "\n"}' | awk '{print $0"\t"split($2,a,",")}' | sort -k 3,3nr | cut -f 1-2 > ${names%.*}.vsearch.names
-	awk -v L=${#size} -v D=$disim -v S=$size 'BEGIN{printf "%s\t%s","label","numOtus";for(i=1;i<=S;i++){printf "\t%s%0"L"d", "Otu",i};printf "\n%s\t%s", D,S} {printf "\t%s",$2} END{printf "\n"}' ${names%.*}.vsearch.names > ${names%.*}.vsearch.list
+	cat <(cat <(echo -e "label\nnumOtus") <(awk -v S=$size 'BEGIN{L=length(S);for(i=1;i<=S;i++){printf "%s%0"L"d\n", "Otu",i}}') | tr "\n" "\t" | sed 's/\t$/\n/') <(cat <(echo -e "$disim\n$size") <(cut -f 2 ${names%.*}.vsearch.names)  | tr "\n" "\t" | sed 's/\t$/\n/') > ${names%.*}.vsearch.list
 	echo "vsearch2mothur output files:#${names%.*}.vsearch.list#${names%.*}.vsearch.names" | tr "#" "\n"
 }
 
@@ -79,7 +79,7 @@ swarm2mothur () {
 	swarm=$1 ; names=$2 ; disim=$3
 	size=`sed -n '$=' $swarm`
 	sed 's/;size=[0-9]*//g' $swarm | awk '{for(i=1;i<=NF;i++){print $i,NR,i}}' | sort -k 1,1 | join - <(sort -k 1,1 $names) | sort -k 2,2n -k 3,3n | awk '{if(NR==1){printf "%s\t%s",$1,$4;prev=$2} else {if($2==prev){printf ",%s",$4} else {printf "\n%s\t%s",$1,$4;prev=$2}}}END{printf "\n"}' | perl -e 'print sort { length($b) <=> length($a) } <>' > ${names%.*}.swarm.names
-	awk -v L=${#size} -v D=$disim -v S=$size 'BEGIN{printf "%s\t%s","label","numOtus";for(i=1;i<=S;i++){printf "\t%s%0"L"d", "Otu",i};printf "\n%s\t%s", D,S} {printf "\t%s",$2} END{printf "\n"}' ${names%.*}.swarm.names > ${names%.*}.swarm.list
+	cat <(cat <(echo -e "label\nnumOtus") <(awk -v S=$size 'BEGIN{L=length(S);for(i=1;i<=S;i++){printf "%s%0"L"d\n", "Otu",i}}') | tr "\n" "\t" | sed 's/\t$/\n/') <(cat <(echo -e "$disim\n$size") <(cut -f 2 ${names%.*}.swarm.names)  | tr "\n" "\t" | sed 's/\t$/\n/') > ${names%.*}.swarm.list
 	echo "swarm2mothur output files:#${names%.*}.swarm.list#${names%.*}.swarm.names" | tr "#" "\n"
 }
 
