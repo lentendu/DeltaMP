@@ -78,7 +78,7 @@ vsearch2mothur () {
 swarm2mothur () {
 	swarm=$1 ; names=$2 ; disim=$3
 	size=`sed -n '$=' $swarm`
-	grep -P -v "^C\t" $swarm | cut -f 1,2,9 | sed 's/;size=[0-9]*$//' | sort -k 3,3 | join -1 3 - <(sort -k 1,1 $names) | sort -k 3,3n -k 2,2r | awk '{if($3==prev){print "##"$4} else {print $1"\t"$4;prev=$3}}' tmp.join.sort.uc | sed -z 's/\n##/,/g' | perl -e 'print sort { length($b) <=> length($a) } <>' > ${names%.*}.swarm.names
+	grep -P -v "^C\t" $swarm | cut -f 1,2,9 | sed 's/;size=[0-9]*$//' | sort -k 3,3 | join -1 3 - <(sort -k 1,1 $names) | sort -k 3,3n -k 2,2r | awk '{if($3==prev){print "##"$4} else {print $1"\t"$4;prev=$3}}' | sed -z 's/\n##/,/g' | perl -e 'print sort { length($b) <=> length($a) } <>' > ${names%.*}.swarm.names
 	cat <(cat <(echo -e "label\nnumOtus") <(awk -v S=$size 'BEGIN{L=length(S);for(i=1;i<=S;i++){printf "%s%0"L"d\n", "Otu",i}}') | tr "\n" "\t" | sed 's/\t$/\n/') <(cat <(echo -e "$disim\n$size") <(cut -f 2 ${names%.*}.swarm.names)  | tr "\n" "\t" | sed 's/\t$/\n/') > ${names%.*}.swarm.list
 	echo "swarm2mothur output files:#${names%.*}.swarm.list#${names%.*}.swarm.names" | tr "#" "\n"
 }
@@ -147,10 +147,10 @@ elif [ $CLUST == "swarm" ]
 then
 	paste - - < $FASTA.fasta | sed 's/>//' | sort -k 1,1 | join - <(sed '1d' $NAMES.count_table | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1";size="$3"\n"$2}' > $FASTA.sort.fasta
 	MEM=`awk -v N=$NCPUS 'BEGIN{print 4000*N}'`
-	swarm -f -z -c $MEM -t $NCPUS -w $FASTA.tmp.fasta -u $FASTA.swarm $FASTA.sort.fasta
+	swarm -f -z -c $MEM -t $NCPUS -w $FASTA.tmp.fasta -o $FASTA.swarm.out -u $FASTA.swarm $FASTA.sort.fasta
 	sed '/>/s/;.*//' $FASTA.tmp.fasta > $FASTA.swarm.fasta && rm $FASTA.tmp.fasta
 	swarm2mothur $FASTA.swarm $NAMES.names $DISIM
-	rm $FASTA.swarm
+	rm $FASTA.swarm $FASTA.swarm.out
 	NAMES_OTUS=$NAMES.swarm
 	FASTA_OTUS=$FASTA.swarm
 	LIST=$NAMES.swarm
