@@ -33,7 +33,7 @@ while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var
 cdhit2mothur () {
 	clstr=$1 ; names=$2 ; disim=$3
 	size=`grep -c "^>" $clstr`
-	awk -v L=${#size} 'BEGIN{i=0};{if($0~"^>"){i+=1} else printf "%s%0"L"d\t%s\t%s\n", "Otu",i,$3,$4}' $clstr | sed 's/>//;s/\.\.\.//' | sort -k 2,2 | join -1 2 - <(sort -k 1,1 $names) | sort -k 2,2 -k 3,3 | gawk '{if(NR==1){printf "%s\t%s",$1,$4; prev=$2} else if($2==prev){printf ",%s",$4} else printf "\n%s\t%s",$1,$4; prev=$2}END{printf "\n"}' | awk '{print split($2,a,","),$1,$2}' | sort -k 1,1nr -k 2,2 | awk '{print $2"\t"$3}' > ${names%.*}.cdhit.names
+	awk -v L=${#size} 'BEGIN{i=0};{if($0~"^>"){i+=1} else printf "%s%0"L"d\t%s\t%s\n", "Otu",i,$3,$4}' $clstr | sed 's/>//;s/\.\.\.//' | sort -k 2,2 | join -1 2 - <(sort -k 1,1 $names) | sort -k 2,2 -k 3,3 | awk '{if(NR==1){printf "%s\t%s",$1,$4; prev=$2} else if($2==prev){printf ",%s",$4} else printf "\n%s\t%s",$1,$4; prev=$2}END{printf "\n"}' | awk '{print split($2,a,","),$1,$2}' | sort -k 1,1nr -k 2,2 | awk '{print $2"\t"$3}' > ${names%.*}.cdhit.names
 	awk -v L=${#size} -v D=$disim -v S=$size 'BEGIN{printf "%s\t%s","label","numOtus";for(i=1;i<=S;i++){printf "\t%s%0"L"d", "Otu",i};printf "\n%s\t%s", D,S} {printf "\t%s",$2} END{printf "\n"}' ${names%.*}.cdhit.names > ${names%.*}.cdhit.list
 	echo "cdhit2mothur output files:#${names%.*}.cdhit.list#${names%.*}.cdhit.names" | tr "#" "\n"
 }
@@ -44,7 +44,7 @@ cdhit2mothur-2d () {
 	awk '{if($1~"^>"){otu=$2} else {if(NF<5){print otu,$3,"100"} else print otu,$3,$5}}' $clstr | sed 's/>//;s/\.\.\.//;s/+\///;s/%//' | sort -k 2,2 | join -v 1 -1 2 - <(awk '$1~">"{sub(">","",$1);print $1}' $db1 | sort) | join - <(sort $names) | awk '{print $1,$2,$3,split($4,a,","),$4}' | sort -k 2,2n -k 4,4nr -k 3,3nr | tee tmp.$clstr | awk '{if(NR==1){otu=$2;print $1} else if($2!=otu){otu=$2;print $1}}' > repseq.$clstr
 	obigrep --without-progress-bar --id-list=repseq.$clstr $db2 > ${clstr%.*}
 	size=`sed -n '$=' repseq.$clstr`
-	gawk -v L=${#size} '{if(NR==1){printf "%s%0"L"d\t%s", "Otu",$2+1,$5;prev=$2} else if($2==prev){printf ",%s",$5} else printf "\n%s%0"L"d\t%s", "Otu",$2+1,$5;prev=$2}END{printf "\n"}' tmp.$clstr | cat <(echo -e "label\t"$tresh) <(echo -e "numOtus\t"$size) - | tee tmp2.$clstr | transpose > ${names%.*}.cdhit.list
+	awk -v L=${#size} '{if(NR==1){printf "%s%0"L"d\t%s", "Otu",$2+1,$5;prev=$2} else if($2==prev){printf ",%s",$5} else printf "\n%s%0"L"d\t%s", "Otu",$2+1,$5;prev=$2}END{printf "\n"}' tmp.$clstr | cat <(echo -e "label\t"$tresh) <(echo -e "numOtus\t"$size) - | tee tmp2.$clstr | transpose > ${names%.*}.cdhit.list
 	sed '1,2d' tmp2.$clstr | awk '{split($2,a,",");print a[1]"\t"$2}' > ${names%.*}.cdhit.names
 	rm repseq.$clstr tmp.$clstr tmp2.$clstr
 	echo "cdhit2mothur output files:#${clstr%.*}#${names%.*}.cdhit.list#${names%.*}.cdhit.names" | tr "#" "\n"
@@ -53,7 +53,7 @@ cdhit2mothur-2d () {
 suma2mothur () {
 	map=$1 ; names=$2 ; disim=$3
 	size=`sed -n '$=' $map`
-	awk '{for(i=2;i<=NF;i++){print $i,NR,i}}' $map | sort -k 1,1 | join - <(sort -k 1,1 $names) | sort -k 2,2n -k 3,3n | gawk '{if(NR==1){prev=$2;printf "%s\t%s",$1,$4} else {if($2==prev) {printf ",%s", $4} else {prev=$2;printf "\n%s\t%s",$1,$4}}}END{printf "\n"}' | awk '{print split($2,a,",")"\t"$0}' | sort -k 1,1nr | cut -f 2- > ${names%.*}.suma.names
+	awk '{for(i=2;i<=NF;i++){print $i,NR,i}}' $map | sort -k 1,1 | join - <(sort -k 1,1 $names) | sort -k 2,2n -k 3,3n | awk '{if(NR==1){prev=$2;printf "%s\t%s",$1,$4} else {if($2==prev) {printf ",%s", $4} else {prev=$2;printf "\n%s\t%s",$1,$4}}}END{printf "\n"}' | awk '{print split($2,a,",")"\t"$0}' | sort -k 1,1nr | cut -f 2- > ${names%.*}.suma.names
 	awk -v L=${#size} -v D=$disim -v S=$size 'BEGIN{printf "%s\t%s","label","numOtus";for(i=1;i<=S;i++){printf "\t%s%0"L"d", "Otu",i};printf "\n%s\t%s", D,S} {printf "\t%s",$2} END{printf "\n"}' ${names%.*}.suma.names > ${names%.*}.suma.list
 	echo "suma2mothur output files:#${names%.*}.suma.list#${names%.*}.suma.names" | tr "#" "\n"
 }
@@ -61,7 +61,7 @@ suma2mothur () {
 mcl2mothur () {
 	mcl=$1 ; names=$2 ; disim=$3
 	size=`sed -n '$=' $mcl`
-	awk '{for(i=2;i<=NF;i++){print $i,NR}}' $mcl | sort -k 1,1 | join -a 2 - <(sort -k 1,1 $names) | awk -v S=$size 'BEGIN{i=S+1}{if(NF==2){print $1,i,split($2,a,","),$2;i=i+1} else print $1,$2,split($3,a,","),$3}' | sort -k 2,2n -k 3,3nr | gawk '{if(NR==1){printf "%s\t%s" ,$1,$4;prev=$2;sum=$3} else {if($2!=prev){printf "\t%s\n%s\t%s" ,sum,$1,$4;prev=$2;sum=$3} else {sum+=$3;printf ",%s" ,$4}}}END{printf "\t%s\n",sum}' | sort -k 3,3nr | cut -f 1,2 > ${names%.*}.mcl.names
+	awk '{for(i=2;i<=NF;i++){print $i,NR}}' $mcl | sort -k 1,1 | join -a 2 - <(sort -k 1,1 $names) | awk -v S=$size 'BEGIN{i=S+1}{if(NF==2){print $1,i,split($2,a,","),$2;i=i+1} else print $1,$2,split($3,a,","),$3}' | sort -k 2,2n -k 3,3nr | awk '{if(NR==1){printf "%s\t%s" ,$1,$4;prev=$2;sum=$3} else {if($2!=prev){printf "\t%s\n%s\t%s" ,sum,$1,$4;prev=$2;sum=$3} else {sum+=$3;printf ",%s" ,$4}}}END{printf "\t%s\n",sum}' | sort -k 3,3nr | cut -f 1,2 > ${names%.*}.mcl.names
 	size2=`sed -n '$=' ${names%.*}.mcl.names`
 	awk -v L=${#size} -v D=$disim -v S=$size2 'BEGIN{printf "%s\t%s","label","numOtus";for(i=1;i<=S;i++){printf "\t%s%0"L"d", "Otu",i};printf "\n%s\t%s", D,S} {printf "\t%s",$2} END{printf "\n"}' ${names%.*}.mcl.names > ${names%.*}.mcl.list
 	echo "mcl2mothur output files:#${names%.*}.mcl.list#${names%.*}.mcl.names" | tr "#" "\n"
@@ -70,7 +70,7 @@ mcl2mothur () {
 vsearch2mothur () {
 	map=$1 ; names=$2 ; disim=$3
 	size=`grep -c "^S" $map`
-	grep -v "^C" $map | awk '{split($9,a,";");print $1,$2,$4,a[1]}' | sort -k 4,4 | join -1 4 - <(sort -k 1,1 $names) | sort -k 3,3n -k 2,2r -k 4,4nr | gawk '{if(NR==1){otu=$3;printf "%s\t%s", $1,$5} else {if($3==otu){printf ",%s", $5} else {otu=$3;printf "\n%s\t%s", $1,$5}}} END {printf "\n"}' | awk '{print $0"\t"split($2,a,",")}' | sort -k 3,3nr | cut -f 1-2 > ${names%.*}.vsearch.names
+	grep -v "^C" $map | awk '{split($9,a,";");print $1,$2,$4,a[1]}' | sort -k 4,4 | join -1 4 - <(sort -k 1,1 $names) | sort -k 3,3n -k 2,2r -k 4,4nr | awk '{if(NR==1){otu=$3;printf "%s\t%s", $1,$5} else {if($3==otu){printf ",%s", $5} else {otu=$3;printf "\n%s\t%s", $1,$5}}} END {printf "\n"}' | awk '{print $0"\t"split($2,a,",")}' | sort -k 3,3nr | cut -f 1-2 > ${names%.*}.vsearch.names
 	awk -v L=${#size} -v D=$disim -v S=$size 'BEGIN{printf "%s\t%s","label","numOtus";for(i=1;i<=S;i++){printf "\t%s%0"L"d", "Otu",i};printf "\n%s\t%s", D,S} {printf "\t%s",$2} END{printf "\n"}' ${names%.*}.vsearch.names > ${names%.*}.vsearch.list
 	echo "vsearch2mothur output files:#${names%.*}.vsearch.list#${names%.*}.vsearch.names" | tr "#" "\n"
 }
@@ -78,7 +78,7 @@ vsearch2mothur () {
 swarm2mothur () {
 	swarm=$1 ; names=$2 ; disim=$3
 	size=`sed -n '$=' $swarm`
-	sed 's/;size=[0-9]*//g' $swarm | awk '{for(i=1;i<=NF;i++){print $i,NR,i}}' | sort -k 1,1 | join - <(sort -k 1,1 $names) | sort -k 2,2n -k 3,3n | gawk '{if(NR==1){printf "%s\t%s",$1,$4;prev=$2} else {if($2==prev){printf ",%s",$4} else {printf "\n%s\t%s",$1,$4;prev=$2}}}END{printf "\n"}' | perl -e 'print sort { length($b) <=> length($a) } <>' > ${names%.*}.swarm.names
+	sed 's/;size=[0-9]*//g' $swarm | awk '{for(i=1;i<=NF;i++){print $i,NR,i}}' | sort -k 1,1 | join - <(sort -k 1,1 $names) | sort -k 2,2n -k 3,3n | awk '{if(NR==1){printf "%s\t%s",$1,$4;prev=$2} else {if($2==prev){printf ",%s",$4} else {printf "\n%s\t%s",$1,$4;prev=$2}}}END{printf "\n"}' | perl -e 'print sort { length($b) <=> length($a) } <>' > ${names%.*}.swarm.names
 	awk -v L=${#size} -v D=$disim -v S=$size 'BEGIN{printf "%s\t%s","label","numOtus";for(i=1;i<=S;i++){printf "\t%s%0"L"d", "Otu",i};printf "\n%s\t%s", D,S} {printf "\t%s",$2} END{printf "\n"}' ${names%.*}.swarm.names > ${names%.*}.swarm.list
 	echo "swarm2mothur output files:#${names%.*}.swarm.list#${names%.*}.swarm.names" | tr "#" "\n"
 }
