@@ -31,11 +31,11 @@ cd libraries
 # Pair end
 if [ $PALG == "vsearch" ]
 then
-	ASCII=$(vsearch --fastq_chars fastq/$LIB_NAME.fwd.fastq 2>&1 | grep -m 1 "^Guess" | sed 's/.* //')
+	ASCII=$(vsearch --fastq_chars fastq/$LIB_NAME.fwd.fastq.bz2 2>&1 | grep -m 1 "^Guess" | sed 's/.* //')
 	PCTTRESH=$(awk -v P=$PTRESH 'BEGIN{print (1-P)*100}')
-	vsearch --threads 1 --fastq_mergepairs fastq/$LIB_NAME.fwd.fastq --reverse fastq/$LIB_NAME.rvs.fastq --fastq_ascii $ASCII --fastq_minovlen $MIN_OV --fastq_maxdiffpct $PCTTRESH --fastqout fastq/$LIB_NAME.pairend.fastq --fastq_allowmergestagger --quiet 2> fastq/log.pairend.$LIB_NAME.txt
+	vsearch --quiet --threads 1 --fastq_mergepairs fastq/$LIB_NAME.fwd.fastq.bz2 --reverse fastq/$LIB_NAME.rvs.fastq.bz2 --fastq_ascii $ASCII --fastq_minovlen $MIN_OV --fastq_maxdiffpct $PCTTRESH --fastq_allowmergestagger --fastqout - 2> fastq/log.pairend.$LIB_NAME.txt | bzip2 -c > fastq/$LIB_NAME.pairend.fastq.bz2
 else
-	pandaseq -f fastq/$LIB_NAME.fwd.fastq -r fastq/$LIB_NAME.rvs.fastq -g fastq/log.pairend.$LIB_NAME.txt -F -A $PALG -o $MIN_OV -t $PTRESH -T 1 > fastq/$LIB_NAME.pairend.fastq
+	pandaseq -f fastq/$LIB_NAME.fwd.fastq.bz2 -r fastq/$LIB_NAME.rvs.fastq.bz2 -g fastq/log.pairend.$LIB_NAME.txt -F -A $PALG -o $MIN_OV -t $PTRESH -T 1 -W fastq/$LIB_NAME.pairend.fastq.bz2
 fi
 
 # Convert to fasta + qual
@@ -48,7 +48,10 @@ sed '/>/s/-/_/g' fasta/$LIB_NAME.pairend.fasta > fasta/$LIB_NAME.pairend.tmp && 
 sed '/>/s/-/_/g' fasta/$LIB_NAME.pairend.qual > fasta/$LIB_NAME.pairend.tmp && mv fasta/$LIB_NAME.pairend.tmp fasta/$LIB_NAME.pairend.qual
 
 # Stat on assembly
-sed -n '/OVERLAPS/p' fastq/log.pandaseq.$LIB_NAME.txt | cut -f 4- | paste -d " " <(echo $LIB_NAME) - > raw_stat/$LIB_NAME.overlap.txt
+if [ $PALG != "vsearch" ]
+then
+	sed -n '/OVERLAPS/p' fastq/log.pairend.$LIB_NAME.txt | cut -f 4- | paste -d " " <(echo $LIB_NAME) - > raw_stat/$LIB_NAME.overlap.txt
+fi
 awk '$0!~"^>"{print length($1)}' fasta/$LIB_NAME.pairend.fasta > raw_stat/$LIB_NAME.pairend.length
 awk '$0!~"^>"{sum=0;for(i=1;i<=NF;i++){sum+=$i};print int(sum/NF)}' fasta/$LIB_NAME.pairend.qual > raw_stat/$LIB_NAME.pairend.meanqual
 awk '$0!~"^>"{for(i=1;i<=NF;i++){sum[i]+=$i;nb[i]+=1}}END{for(i=1;sum[i];i++){print int(sum[i]/nb[i])}}' fasta/$LIB_NAME.pairend.qual > raw_stat/$LIB_NAME.pairend.meanposqual

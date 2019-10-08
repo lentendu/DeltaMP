@@ -126,12 +126,14 @@ do
 	fi
 done < $EXEC/config/lib1.list
 
-# Replace "-" by "_" in library names
+# Replace "-" by "_" in library names and compress
 for i in *.$RAW_EXT
 do
 	if [[ $i =~ - ]]
 	then
-		mv $i ${i//-/_}
+		bzip2 -c $i > ${i//-/_}.bz2
+	else
+		bzip2 $i
 	fi
 done
 

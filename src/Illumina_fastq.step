@@ -38,54 +38,47 @@ then
 	# cutadapt
 	if [ $CLIPPING == "both" ]
 	then
-		cutadapt -a $FWD...$RVS_RC -A $RVS...$FWD_RC -e $DISS --no-indels --untrimmed-output=fastq/${FWD_LIB}.fwd_unt.fastq --untrimmed-paired-output=fastq/${RVS_LIB}.fwd_unt.fastq -o fastq/${FWD_LIB}.fwd.fastq -p fastq/${RVS_LIB}.fwd.fastq ${RAWPATH}${FWD_LIB}.fastq ${RAWPATH}${RVS_LIB}.fastq > fastq/log.cutadapt.${LIB_NAME}.fwd.txt
+		cutadapt -a $FWD...$RVS_RC -A $RVS...$FWD_RC -e $DISS --no-indels --untrimmed-output=fastq/${FWD_LIB}.fwd_unt.fastq --untrimmed-paired-output=fastq/${RVS_LIB}.fwd_unt.fastq -o fastq/${FWD_LIB}.fwd.fastq -p fastq/${RVS_LIB}.fwd.fastq ${RAWPATH}${FWD_LIB}.fastq.bz2 ${RAWPATH}${RVS_LIB}.fastq.bz2 > fastq/log.cutadapt.${LIB_NAME}.fwd.txt
 		cutadapt -a $RVS...$FWD_RC -A $FWD...$RVS_RC -e $DISS --no-indels --trimmed-only -o fastq/${FWD_LIB}.rvs.fastq -p fastq/${RVS_LIB}.rvs.fastq fastq/${FWD_LIB}.fwd_unt.fastq fastq/${RVS_LIB}.fwd_unt.fastq > fastq/log.cutadapt.${LIB_NAME}.rvs.txt
 	elif [ $CLIPPING == "5prime" ]
 	then
-		cutadapt -g $FWD -G $RVS -e $DISS --no-indels --untrimmed-output=fastq/${FWD_LIB}.fwd_unt.fastq --untrimmed-paired-output=fastq/${RVS_LIB}.fwd_unt.fastq -o fastq/${FWD_LIB}.fwd.fastq -p fastq/${RVS_LIB}.fwd.fastq ${RAWPATH}${FWD_LIB}.fastq ${RAWPATH}${RVS_LIB}.fastq > fastq/log.cutadapt.${LIB_NAME}.fwd.txt
+		cutadapt -g $FWD -G $RVS -e $DISS --no-indels --untrimmed-output=fastq/${FWD_LIB}.fwd_unt.fastq --untrimmed-paired-output=fastq/${RVS_LIB}.fwd_unt.fastq -o fastq/${FWD_LIB}.fwd.fastq -p fastq/${RVS_LIB}.fwd.fastq ${RAWPATH}${FWD_LIB}.fastq.bz2 ${RAWPATH}${RVS_LIB}.fastq.bz2 > fastq/log.cutadapt.${LIB_NAME}.fwd.txt
 		cutadapt -g $RVS -G $FWD -e $DISS --no-indels --trimmed-only -o fastq/${FWD_LIB}.rvs.fastq -p fastq/${RVS_LIB}.rvs.fastq fastq/${FWD_LIB}.fwd_unt.fastq fastq/${RVS_LIB}.fwd_unt.fastq > fastq/log.cutadapt.${LIB_NAME}.rvs.txt
 	elif [ $CLIPPING == "3prime" ]
 	then
-		cutadapt -a $RVS_RC -A $FWD_RC -e $DISS --no-indels --untrimmed-output=fastq/${FWD_LIB}.fwd_unt.fastq --untrimmed-paired-output=fastq/${RVS_LIB}.fwd_unt.fastq -o fastq/${FWD_LIB}.fwd.fastq -p fastq/${RVS_LIB}.fwd.fastq ${RAWPATH}${FWD_LIB}.fastq ${RAWPATH}${RVS_LIB}.fastq > fastq/log.cutadapt.${LIB_NAME}.fwd.txt
+		cutadapt -a $RVS_RC -A $FWD_RC -e $DISS --no-indels --untrimmed-output=fastq/${FWD_LIB}.fwd_unt.fastq --untrimmed-paired-output=fastq/${RVS_LIB}.fwd_unt.fastq -o fastq/${FWD_LIB}.fwd.fastq -p fastq/${RVS_LIB}.fwd.fastq ${RAWPATH}${FWD_LIB}.fastq.bz2 ${RAWPATH}${RVS_LIB}.fastq.bz2 > fastq/log.cutadapt.${LIB_NAME}.fwd.txt
 		cutadapt -a $FWD_RC -A $RVS_RC -e $DISS --no-indels --trimmed-only -o fastq/${FWD_LIB}.rvs.fastq -p fastq/${RVS_LIB}.rvs.fastq fastq/${FWD_LIB}.fwd_unt.fastq fastq/${RVS_LIB}.fwd_unt.fastq > fastq/log.cutadapt.${LIB_NAME}.rvs.txt
 	fi
 	# reverse complement (if not empty)
 	if [ -s fastq/${FWD_LIB}.rvs.fastq ]
 	then
-		obicomplement --without-progress-bar --uppercase fastq/${FWD_LIB}.rvs.fastq | sed '/^@/s/_CMP complemented=True;//' | cat fastq/${FWD_LIB}.fwd.fastq - > fastq/${LIB_NAME}.fwd.fastq
+		obicomplement --without-progress-bar --uppercase fastq/${FWD_LIB}.rvs.fastq | sed '/^@/s/_CMP complemented=True;//' | cat fastq/${FWD_LIB}.fwd.fastq - | bzip2 -c > fastq/${LIB_NAME}.fwd.fastq.bz2
 		rm fastq/${FWD_LIB}.rvs.fastq fastq/${FWD_LIB}.fwd.fastq fastq/${FWD_LIB}.fwd_unt.fastq
 	else
-		mv fastq/${FWD_LIB}.fwd.fastq fastq/${LIB_NAME}.fwd.fastq
+		bzip2 -c fastq/${FWD_LIB}.fwd.fastq > fastq/${LIB_NAME}.fwd.fastq.bz2
 		rm fastq/${FWD_LIB}.rvs.fastq fastq/${FWD_LIB}.fwd_unt.fastq
 	fi
 	if [ -s fastq/${RVS_LIB}.rvs.fastq ]
 	then
-		obicomplement --without-progress-bar --uppercase fastq/${RVS_LIB}.rvs.fastq | sed '/^@/s/_CMP complemented=True;//' | cat fastq/${RVS_LIB}.fwd.fastq - > fastq/${LIB_NAME}.rvs.fastq
+		obicomplement --without-progress-bar --uppercase fastq/${RVS_LIB}.rvs.fastq | sed '/^@/s/_CMP complemented=True;//' | cat fastq/${RVS_LIB}.fwd.fastq - | bzip2 -c > fastq/${LIB_NAME}.rvs.fastq.bz2
 		rm fastq/${RVS_LIB}.rvs.fastq fastq/${RVS_LIB}.fwd.fastq fastq/${RVS_LIB}.fwd_unt.fastq
 	else
-		mv fastq/${RVS_LIB}.fwd.fastq fastq/${LIB_NAME}.rvs.fastq
+		bzip2 -c fastq/${RVS_LIB}.fwd.fastq > fastq/${LIB_NAME}.rvs.fastq.bz2
 		rm fastq/${RVS_LIB}.rvs.fastq fastq/${RVS_LIB}.fwd_unt.fastq
 	fi
 	# primer logo
 	# weblogo -c classic -s large -t "${LIB_NAME}: $FWD_NAME" < <(awk -v a=${#FWD} 'BEGIN{FS="\t"} NF==11{printf ">%s\n%*s\n",$1,a,$6}' raw_stat/${FWD_LIB}.cutadapt | sed 's/ /N/g' )> raw_stat/weblogo.${LIB_NAME}.forward.eps
 	# weblogo -c classic -s large -t "${LIB_NAME}: primer $RVS_NAME" < <(awk -v a=${#RVS} 'BEGIN{FS="\t"} NF==11{printf ">%s\n%*s\n",$1,a,$6}' raw_stat/${RVS_LIB}.cutadapt | sed 's/ /N/g') > raw_stat/weblogo.${LIB_NAME}.reverse.eps
 else
-	ln -s $PWD/${FWD_LIB}.fastq $PWD/fastq/${LIB_NAME}.fwd.fastq
-	ln -s $PWD/${RVS_LIB}.fastq $PWD/fastq/${LIB_NAME}.rvs.fastq
+	ln -s $PWD/${FWD_LIB}.fastq.bz2 $PWD/fastq/${LIB_NAME}.fwd.fastq.bz2
+	ln -s $PWD/${RVS_LIB}.fastq.bz2 $PWD/fastq/${LIB_NAME}.rvs.fastq.bz2
 fi
 
-# Convert to fasta + qual for raw reads stat
-mothur "#set.dir(input=$EXEC/libraries/fastq, output=$EXEC/libraries/fasta);
-set.logfile(name=mothur.${LIB_NAME}.logfile);
-fastq.info(fastq=${LIB_NAME}.fwd.fastq);
-fastq.info(fastq=${LIB_NAME}.rvs.fastq)"
-
-awk '$0!~"^>"{sum=0;for(i=1;i<=NF;i++){sum+=$i};print int(sum/NF)}' fasta/${LIB_NAME}.fwd.qual > raw_stat/${LIB_NAME}.fwd.meanqual
-awk '$0!~"^>"{for(i=1;i<=NF;i++){sum[i]+=$i;nb[i]+=1}}END{for(i=1;sum[i];i++){print int(sum[i]/nb[i])}}' fasta/${LIB_NAME}.fwd.qual > raw_stat/${LIB_NAME}.fwd.meanposqual
-awk '$0!~"^>"{sum=0;for(i=1;i<=NF;i++){sum+=$i};print int(sum/NF)}' fasta/${LIB_NAME}.rvs.qual > raw_stat/${LIB_NAME}.rvs.meanqual
-awk '$0!~"^>"{for(i=1;i<=NF;i++){sum[i]+=$i;nb[i]+=1}}END{for(i=1;sum[i];i++){print int(sum[i]/nb[i])}}' fasta/${LIB_NAME}.rvs.qual > raw_stat/${LIB_NAME}.rvs.meanposqual
-
-rm fasta/${LIB_NAME}.fwd.fasta fasta/${LIB_NAME}.fwd.qual fasta/${LIB_NAME}.rvs.fasta fasta/${LIB_NAME}.rvs.qual
+# raw reads stat
+vsearch --quiet --fastq_stats fastq/${LIB_NAME}.fwd.fastq.bz2 --log fastq/${LIB_NAME}.fwd.stats
+sed -n '/RatePct/,/^$/p' fastq/${LIB_NAME}.fwd.stats | sed '1,2d;$d' | awk '{print $3}' > raw_stat/${LIB_NAME}.fwd.meanposqual
+vsearch --quiet --fastq_stats fastq/${LIB_NAME}.rvs.fastq.bz2 --log fastq/${LIB_NAME}.rvs.stats
+sed -n '/RatePct/,/^$/p' fastq/${LIB_NAME}.rvs.stats | sed '1,2d;$d' | awk '{print $3}' > raw_stat/${LIB_NAME}.rvs.meanposqual
 
 # list files and directories
 . $BIN/list_step_files.sh
