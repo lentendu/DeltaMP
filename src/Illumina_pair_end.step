@@ -39,6 +39,7 @@ else
 fi
 
 # Convert to fasta + qual
+bunzip2 fastq/$LIB_NAME.pairend.fastq.bz2
 mothur "#set.dir(input=$EXEC/libraries/fastq, output=$EXEC/libraries/fasta);
 set.logfile(name=mothur.$LIB_NAME.logfile, append=T);
 fastq.info(fastq=$LIB_NAME.pairend.fastq)"
