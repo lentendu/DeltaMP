@@ -183,32 +183,36 @@ fi
 # Chimera recheck
 if [ $CHIMERA2 == "yes" ]
 then
-	NSLOTS2=$(( $NCPUS / 2 ))
-	mothur "#chimera.uchime(fasta=$FASTA_OTUS.fasta, name=$NAMES_OTUS.names, group=$GROUP.groups, reference=self, processors=$NSLOTS2);
+	mothur "#count.seqs(name=$NAMES_OTUS.names)"
+	twofasta $FASTA_OTUS.fasta | paste - - | sed 's/^>//' | nl | sort -k 2,2 | join -1 2 - <(sed '1d' $NAMES_OTUS.count_table | sort -k 1,1) | sort -k4,4nr -k2,2n | awk '{print ">"$1";size="$4"\n"$3}' > $FASTA_OTUS.sort.fasta
+	vsearch --no_progress --uchime_denovo $FASTA_OTUS.sort.fasta --xsize --nonchimeras - | twofasta > $FASTA_OTUS.nochim.fasta
+	sed -n '/^>/{s/>//;p}' $FASTA_OTUS.nochim.fasta | nl -s $'\t' -n ln | sort -k 2,2 -t $'\t' | join -t $'\t' -o 1.1,0,2.2 -1 2 - <(sort -k 1,1 -t $'\t' $NAMES_OTUS.names) | sort -k 1,1n -t $'\t' | cut -f 2- > 
+	FASTA_OTUS=$FASTA_OTUS.nochim
+	NAMES_OTUS=$NAMES_OTUS.nochim
+	#NSLOTS2=$(( $NCPUS / 2 ))
+	#mothur "#chimera.uchime(fasta=$FASTA_OTUS.fasta, name=$NAMES_OTUS.names, group=$GROUP.groups, reference=self, processors=$NSLOTS2);
+	#get.current()"
+	#unset LOG ACCNOS
+	#LOG=`ls mothur.*.logfile | tail -1`
+	#ACCNOS=`sed -n '/get.current()/,$p' $LOG | grep "^accnos=" | sed 's/accnos=//;s/\.accnos//'`
+	#if [ -s $ACCNOS.accnos ]
+	#then
+		#mothur "#remove.seqs(accnos=$ACCNOS.accnos, name=$NAMES_OTUS.names, fasta=$FASTA_OTUS.fasta);
+		#get.current()"
+		#unset LOG
+		#LOG=`ls mothur.*.logfile | tail -1`
+		#NAMES_OTUS=`sed -n '/get.current()/,$p' $LOG | grep "^name=" | sed 's/name=//;s/\.names//'`
+		#FASTA_OTUS=`sed -n '/get.current()/,$p' $LOG | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
+	#fi
+	mothur "#list.seqs(name=$NAMES_OTUS.names);
+	get.seqs(accnos=current, fasta=$FASTA.fasta, list=$LIST.list, name=$NAMES.names, group=$GROUP.groups);
 	get.current()"
-	unset LOG ACCNOS
+	unset LOG FASTA NAMES GROUP LIST
 	LOG=`ls mothur.*.logfile | tail -1`
-	ACCNOS=`sed -n '/get.current()/,$p' $LOG | grep "^accnos=" | sed 's/accnos=//;s/\.accnos//'`
-	
-	if [ -s $ACCNOS.accnos ]
-	then
-		mothur "#remove.seqs(accnos=$ACCNOS.accnos, name=$NAMES_OTUS.names, fasta=$FASTA_OTUS.fasta);
-		get.current()"
-		unset LOG
-		LOG=`ls mothur.*.logfile | tail -1`
-		NAMES_OTUS=`sed -n '/get.current()/,$p' $LOG | grep "^name=" | sed 's/name=//;s/\.names//'`
-		FASTA_OTUS=`sed -n '/get.current()/,$p' $LOG | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
-		
-		mothur "#list.seqs(name=$NAMES_OTUS.names);
-		get.seqs(accnos=current, fasta=$FASTA.fasta, list=$LIST.list, name=$NAMES.names, group=$GROUP.groups);
-		get.current()"
-		unset LOG FASTA NAMES GROUP LIST
-		LOG=`ls mothur.*.logfile | tail -1`
-		FASTA=`sed -n '/get.current()/,$p' $LOG | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
-		NAMES=`sed -n '/get.current()/,$p' $LOG | grep "^name=" | sed 's/name=//;s/\.names//'`
-		GROUP=`sed -n '/get.current()/,$p' $LOG | grep "^group=" | sed 's/group=//;s/\.groups//'`
-		LIST=`sed -n '/get.current()/,$p' $LOG | grep "^list=" | sed 's/list=//;s/\.list//'`
-	fi
+	FASTA=`sed -n '/get.current()/,$p' $LOG | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
+	NAMES=`sed -n '/get.current()/,$p' $LOG | grep "^name=" | sed 's/name=//;s/\.names//'`
+	GROUP=`sed -n '/get.current()/,$p' $LOG | grep "^group=" | sed 's/group=//;s/\.groups//'`
+	LIST=`sed -n '/get.current()/,$p' $LOG | grep "^list=" | sed 's/list=//;s/\.list//'`
 fi
 
 # Save newly set and updated variables
