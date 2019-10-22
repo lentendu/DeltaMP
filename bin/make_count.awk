@@ -1,16 +1,36 @@
 BEGIN{
-	gsub(";","\t",S)
+	gsub(" ","\t",S)
 	l=split(S,h)
 	print "Representative_Sequence\ttotal\t"S
 }
 {
-	printf "%s\t%s",$1,$2
-	for(i=1;i<=l;i++){
-		if($3~h[i]":"){
-			printf "\t%s", gensub(".*"h[i]":([0-9]*).*","\\1",$3)
+	if(NR==1){
+		for (i in h){
+			samp[h[i]]=0
+		}
+		prev=$1
+		sum=$4
+		samp[$3]=$4
+	} else {
+		if($1==prev){
+			sum+=$4
+			samp[$3]=$4
 		} else {
-			printf "\t%s",0
+			printf "%s\t%s", prev,sum
+			for (i in h){
+				printf "\t%s", samp[h[i]]
+				samp[h[i]]=0
+			}
+			printf "\n"
+			prev=$1
+			sum=$4
+			samp[$3]=$4
 		}
 	}
-printf "\n"
+} END {
+	printf "%s\t%s", prev,sum
+	for (i in h){
+		printf "\t%s", samp[h[i]]
+	}
+	printf "\n"
 }
