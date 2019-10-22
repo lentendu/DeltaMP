@@ -32,10 +32,10 @@ cd processing
 LABELS=(all abundant all_$TARG_ORG abundant_$TARG_ORG)
 if [ $CLASSIF == "bayesian" ]
 then
-	sed '1d' ${COUNT_OTUS}.count_table | sort -k 1,1 | join -1 2 <(cut -f 1 ${NAMES_OTUS}.names | nl -n rz | sort -k 2,2) - | sed 's/ / Otu/' | sort -k2,2 | join -1 2 - <(sed '1d' $CONS.taxonomy) | awk -v L=$SAMP_SIZE '{printf "%s",$1; for(i=4;i<=L+3;i++){printf "\t%s",$i};printf "\t%s\t%s\t%s\t%s\n",$NF,$2}' | cat <(head -1 ${COUNT_OTUS}.count_table | cut -f 3- | sed 's/^/OTU\t/;s/$/\ttaxonomy\trepseq/') - > $SUBPROJECT.${LABELS[0]}_OTUs.tsv
+	sed '1d' ${COUNT_OTUS}.count_table | sort -k 1,1 | join -1 2 <(cut -f 1 ${NAMES_OTUS}.names | nl -n rz -w ${#NBOTUS} | sort -k 2,2) - | sed 's/ / Otu/' | sort -k 2,2 | join -1 2 - <(sed '1d' $CTAXO.taxonomy) | awk -v L=$SAMP_SIZE '{printf "%s",$1; for(i=4;i<=L+3;i++){printf "\t%s",$i};printf "\t%s\t%s\t%s\t%s\n",$NF,$2}' | cat <(head -1 ${COUNT_OTUS}.count_table | cut -f 3- | sed 's/^/OTU\t/;s/$/\ttaxonomy\trepseq/') - > $SUBPROJECT.${LABELS[0]}_OTUs.tsv
 elif [ $CLASSIF == "vsearch" ]
 then
-	sed '1d' ${COUNT_OTUS}.count_table | sort -k 1,1 | join -1 2 <(cut -f 1 ${NAMES_OTUS}.names | nl -n rz | sort -k 2,2) - | sed 's/ / Otu/' | sort -k2,2 | join -1 2 - <(sed '1d' $CONS.taxonomy) | awk -v L=$SAMP_SIZE '{printf "%s",$1; for(i=4;i<=L+3;i++){printf "\t%s",$i};printf "\t%s\t%s\t%s\t%s\n",$(NF-2),$(NF-1),$NF,$2}' | cat <(head -1 ${COUNT_OTUS}.count_table | cut -f 3- | sed 's/^/OTU\t/;s/$/\ttaxonomy\tsimilarity\treference\trepseq/') - > $SUBPROJECT.${LABELS[0]}_OTUs.tsv
+	sed '1d' ${COUNT_OTUS}.count_table | sort -k 1,1 | join -1 2 <(cut -f 1 ${NAMES_OTUS}.names | nl -n rz -w ${#NBOTUS} | sort -k 2,2) - | sed 's/ / Otu/' | sort -k 2,2 | join -1 2 - <(sed '1d' $CTAXO.taxonomy) | awk -v L=$SAMP_SIZE '{printf "%s",$1; for(i=4;i<=L+3;i++){printf "\t%s",$i};printf "\t%s\t%s\t%s\t%s\n",$(NF-2),$(NF-1),$NF,$2}' | cat <(head -1 ${COUNT_OTUS}.count_table | cut -f 3- | sed 's/^/OTU\t/;s/$/\ttaxonomy\tsimilarity\treference\trepseq/') - > $SUBPROJECT.${LABELS[0]}_OTUs.tsv
 fi
 awk -v M=$MIN_DOM -v S=$MIN_SAMP -v L=$SAMP_SIZE '{if(NR==1){print $0} else {seq=0;sam=0;for(i=2;i<=L+1;i++){if($i>0){seq+=$i;sam+=1}};if(seq>=M && sam>=S){print $0}}}' $SUBPROJECT.${LABELS[0]}_OTUs.tsv > $SUBPROJECT.${LABELS[1]}_OTUs.tsv
 grep -P "[\t;_:]$TARG_ORG;" $SUBPROJECT.${LABELS[0]}_OTUs.tsv | cat <(sed -n '1p' $SUBPROJECT.${LABELS[0]}_OTUs.tsv) - > $SUBPROJECT.${LABELS[2]}_OTUs.tsv

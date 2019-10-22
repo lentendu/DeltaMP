@@ -30,6 +30,7 @@ while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var
 
 # Taxonomic identification
 cd processing
+NBOTUS=$(sed -n '$=' $NAMES_OTUS.names)
 if [ $TARG == "COI" ] && [ $CLASSIF == "bayesian" ]
 then
 	NCPUS=`awk -v N=$NCPUS 'BEGIN{printf "%.f",N/2}'`
@@ -91,7 +92,7 @@ then
 			rm *.rabund *.sabund *.list
 		else
 			CTAXO=$TAXO.cons
-			sort -k 1,1 $TAXO.taxonomy | join -2 2 - <(cut -f 1 ${NAMES_OTUS}.names | nl -n rz | sort -k 2,2) | join - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 1,1) | sort -k 3,3n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy"} {print "Otu"$3,$4,$2}' > $CTAXO.taxonomy
+			sort -k 1,1 $TAXO.taxonomy | join -2 2 - <(cut -f 1 ${NAMES_OTUS}.names | nl -n rz -w ${#NBOTUS} | sort -k 2,2) | join - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 1,1) | sort -k 3,3n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy"} {print "Otu"$3,$4,$2}' > $CTAXO.taxonomy
 		fi
 		rm $TAXO.taxonomy
 	elif [ $CLASSIF == "vsearch" ]
@@ -121,7 +122,7 @@ then
 			sed 's/;\t/\t/;s/;$//;s/;tax=/\t/' ${TAXO}.hits | sort --parallel=$NCPUS -k 1,1 -k 4,4 | awk '$1 != p{printf ">"}{p=$1}1' | parallel -j $NCPUS --recstart ">" --pipe -k lca > ${TAXO}.taxonomy
 		fi
 		CTAXO=$TAXO.cons
-		sort -k 1,1 ${FASTA_OTUS}.taxonomy | join -2 2 - <(cut -f 1 ${NAMES_OTUS}.names | nl -n rz | sort -k 2,2) | join - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 1,1) | sort -k 5,5n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy","similarity","references"} {print "Otu"$5,$6,$3,$2,$4}' > $CTAXO.taxonomy
+		sort -k 1,1 ${FASTA_OTUS}.taxonomy | join -2 2 - <(cut -f 1 ${NAMES_OTUS}.names | nl -n rz -w ${#NBOTUS} | sort -k 2,2) | join - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 1,1) | sort -k 5,5n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy","similarity","references"} {print "Otu"$5,$6,$3,$2,$4}' > $CTAXO.taxonomy
 		rm ${TAXO}.hits ${TAXO}.taxonomy
 	fi
 else
@@ -151,7 +152,7 @@ else
 			get.current()"
 			TAXO=`sed -n '/^taxonomy=/{s/.*=//;s/\.taxonomy//;p}' current_files.summary`
 			CTAXO=$TAXO.cons
-			sort -k 1,1 $TAXO.taxonomy | join -2 2 - <(cut -f 1 ${NAMES_OTUS}.names | nl -n rz | sort -k 2,2) | join - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 1,1) | sort -k 3,3n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy"} {print "Otu"$3,$4,$2}' > $CTAXO.taxonomy
+			sort -k 1,1 $TAXO.taxonomy | join -2 2 - <(cut -f 1 ${NAMES_OTUS}.names | nl -n rz -w ${#NBOTUS} | sort -k 2,2) | join - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 1,1) | sort -k 3,3n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy"} {print "Otu"$3,$4,$2}' > $CTAXO.taxonomy
 			rm $TAXO.tax.summary $TAXO.taxonomy
 		fi
 	elif [ $CLASSIF == "vsearch" ]
@@ -167,8 +168,8 @@ else
 			sed 's/;\t/\t/;s/;$//;s/;tax=/\t/' ${FASTA_OTUS}.hits | sort --parallel=$NCPUS -k 1,1 -k 4,4 | awk '$1 != p{printf ">"}{p=$1}1' | parallel -j $NCPUS --recstart ">" --pipe -k lca > ${FASTA_OTUS}.taxonomy
 		fi
 		CTAXO=${FASTA_OTUS}.cons
-		sort -k 1,1 ${FASTA_OTUS}.taxonomy | join -2 2 - <(cut -f 1 ${NAMES_OTUS}.names | nl -n rz | sort -k 2,2) | join - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 1,1) | sort -k 5,5n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy","similarity","references"} {print "Otu"$5,$6,$3,$2,$4}' > $CTAXO.taxonomy
-		rm ${FASTA}*.hits ${FASTA_OTUS}.taxonomy
+		sort -k 1,1 ${FASTA_OTUS}.taxonomy | join -2 2 - <(cut -f 1 ${NAMES_OTUS}.names | nl -n rz -w ${#NBOTUS} | sort -k 2,2) | join - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 1,1) | sort -k 5,5n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy","similarity","references"} {print "Otu"$5,$6,$3,$2,$4}' > $CTAXO.taxonomy
+		rm ${FASTA_OTUS}*.hits ${FASTA_OTUS}.taxonomy
 	fi
 fi
 
