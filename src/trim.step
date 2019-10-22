@@ -114,7 +114,7 @@ do
 done
 
 # Merge trimmed reads of all libraries of the sample
-TRIMMED=(ls *.trim.fasta)
+TRIMMED=(*.trim.fasta)
 if [ ${#TRIMMED[@]} -gt 1 ]
 then
 	cat *.trim.fasta > $SAMP.trim.fasta
@@ -142,7 +142,7 @@ then
 else
 	vsearch --no_progress --derep_fulllength $FASTA.fasta --sizeout --output - | twofasta | sed '/>/s/;/ /' | tee $FASTA.unique.fasta | sed -n "/>/{s/>//;s/ size=/\t/;p}" | cat <(echo -e "Representative_Sequence\ttotal") - > $FASTA.unique.count_table
 	FASTA=$FASTA.unique
-	COUNT=$FASTA.unique
+	COUNT=$FASTA
 	echo -e "fasta=$FASTA.fasta\ncount=$COUNT.count_table" > current_files.summary
 fi
 
