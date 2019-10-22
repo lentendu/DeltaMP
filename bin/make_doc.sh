@@ -215,9 +215,8 @@ then
 	echo ""
 fi
 
-while read var val; do unset $var ; if [ $REF_SUBPROJECT == "no" ] ; then declare $var="$val" ; else declare $var="${val//$REF_SUBPROJECT/$SUBPROJECT}" ; fi ; done < config/merge_env.txt
-NBREADS=(`cut -f 2 processing/$NAMES.names | tr "," "\n" | wc -l`)
-NBUNIQ=`sed -n '$=' processing/$NAMES.names`
+NBREADS=$(awk 'NR>1{sum+=$2}END{print sum}' processing/$SUBPROJECT.unique.count_table)
+NBUNIQ=$(sed -n '$=' processing/$SUBPROJECT.names)
 echo "Reads from each sample were pooled together, representing a total of $NBREADS high-quality reads, and were further used in all downstream analyses."
 echo ""
 echo "The reads were dereplicated into $NBUNIQ unique sequences and then sorted in their decreasing abundance order before clustering."

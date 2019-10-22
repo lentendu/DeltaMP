@@ -7,7 +7,6 @@ get
 454_quality
 cut_db
 trim
-merge
 OTU
 id
 end

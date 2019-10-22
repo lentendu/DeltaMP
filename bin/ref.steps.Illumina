@@ -8,7 +8,6 @@ Illumina_opt
 Illumina_quality
 cut_db
 trim
-merge
 OTU
 id
 end
