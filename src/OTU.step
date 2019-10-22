@@ -30,14 +30,7 @@ while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var
 
 
 # Functions
-cdhit2mothur () {
-	clstr=$1 ; names=$2 ; disim=$3
-	size=`grep -c "^>" $clstr`
-	awk -v L=${#size} 'BEGIN{i=0};{if($0~"^>"){i+=1} else printf "%s%0"L"d\t%s\t%s\n", "Otu",i,$3,$4}' $clstr | sed 's/>//;s/\.\.\.//' | sort -k 2,2 | join -1 2 - <(sort -k 1,1 $names) | sort -k 2,2 -k 3,3 | awk '{if(NR==1){printf "%s\t%s",$1,$4; prev=$2} else if($2==prev){printf ",%s",$4} else printf "\n%s\t%s",$1,$4; prev=$2}END{printf "\n"}' | awk '{print split($2,a,","),$1,$2}' | sort -k 1,1nr -k 2,2 | awk '{print $2"\t"$3}' > ${names%.*}.cdhit.names
-	awk -v L=${#size} -v D=$disim -v S=$size 'BEGIN{printf "%s\t%s","label","numOtus";for(i=1;i<=S;i++){printf "\t%s%0"L"d", "Otu",i};printf "\n%s\t%s", D,S} {printf "\t%s",$2} END{printf "\n"}' ${names%.*}.cdhit.names > ${names%.*}.cdhit.list
-	echo "cdhit2mothur output files:#${names%.*}.cdhit.list#${names%.*}.cdhit.names" | tr "#" "\n"
-}
-
+## to fix ##
 cdhit2mothur-2d () {
 	clstr=$1 ; db1=$2 ; db2=$3 ; names=$4 ; tresh=$5
 	# Keep only OTUs with sequences from db2 and output their representative sequences (the most abundant variant, if tie then the variant with highest similarity to db1 seed)
@@ -49,55 +42,26 @@ cdhit2mothur-2d () {
 	rm repseq.$clstr tmp.$clstr tmp2.$clstr
 	echo "cdhit2mothur output files:#${clstr%.*}#${names%.*}.cdhit.list#${names%.*}.cdhit.names" | tr "#" "\n"
 }
+####
 
-suma2mothur () {
-	map=$1 ; names=$2 ; disim=$3
-	size=`sed -n '$=' $map`
-	awk '{for(i=2;i<=NF;i++){print $i,NR,i}}' $map | sort -k 1,1 | join - <(sort -k 1,1 $names) | sort -k 2,2n -k 3,3n | awk '{if(NR==1){prev=$2;printf "%s\t%s",$1,$4} else {if($2==prev) {printf ",%s", $4} else {prev=$2;printf "\n%s\t%s",$1,$4}}}END{printf "\n"}' | awk '{print split($2,a,",")"\t"$0}' | sort -k 1,1nr | cut -f 2- > ${names%.*}.suma.names
-	cat <(cat <(echo -e "label\nnumOtus") <(awk -v S=$size 'BEGIN{L=length(S);for(i=1;i<=S;i++){printf "%s%0"L"d\n", "Otu",i}}') | tr "\n" "\t" | sed 's/\t$/\n/') <(cat <(echo -e "$disim\n$size") <(cut -f 2 ${names%.*}.suma.names)  | tr "\n" "\t" | sed 's/\t$/\n/') > ${names%.*}.suma.list
-	echo "suma2mothur output files:#${names%.*}.suma.list#${names%.*}.suma.names" | tr "#" "\n"
-}
-
-mcl2mothur () {
-	mcl=$1 ; names=$2 ; disim=$3
-	size=`sed -n '$=' $mcl`
-	awk '{for(i=2;i<=NF;i++){print $i,NR}}' $mcl | sort -k 1,1 | join -a 2 - <(sort -k 1,1 $names) | awk -v S=$size 'BEGIN{i=S+1}{if(NF==2){print $1,i,split($2,a,","),$2;i=i+1} else print $1,$2,split($3,a,","),$3}' | sort -k 2,2n -k 3,3nr | awk '{if(NR==1){printf "%s\t%s" ,$1,$4;prev=$2;sum=$3} else {if($2!=prev){printf "\t%s\n%s\t%s" ,sum,$1,$4;prev=$2;sum=$3} else {sum+=$3;printf ",%s" ,$4}}}END{printf "\t%s\n",sum}' | sort -k 3,3nr | cut -f 1,2 > ${names%.*}.mcl.names
-	size2=`sed -n '$=' ${names%.*}.mcl.names`
-	cat <(cat <(echo -e "label\nnumOtus") <(awk -v S=$size2 'BEGIN{L=length(S);for(i=1;i<=S;i++){printf "%s%0"L"d\n", "Otu",i}}') | tr "\n" "\t" | sed 's/\t$/\n/') <(cat <(echo -e "$disim\n$size2") <(cut -f 2 ${names%.*}.mcl.names)  | tr "\n" "\t" | sed 's/\t$/\n/') > ${names%.*}.mcl.list
-	echo "mcl2mothur output files:#${names%.*}.mcl.list#${names%.*}.mcl.names" | tr "#" "\n"
-}
-
-vsearch2mothur () {
-	map=$1 ; names=$2 ; disim=$3
-	size=`grep -c "^S" $map`
-	grep -v "^C" $map | awk '{split($9,a,";");print $1,$2,$4,a[1]}' | sort -k 4,4 | join -1 4 - <(sort -k 1,1 $names) | sort -k 3,3n -k 2,2r -k 4,4nr | awk '{if(NR==1){otu=$3;printf "%s\t%s", $1,$5} else {if($3==otu){printf ",%s", $5} else {otu=$3;printf "\n%s\t%s", $1,$5}}} END {printf "\n"}' | awk '{print $0"\t"split($2,a,",")}' | sort -k 3,3nr | cut -f 1-2 > ${names%.*}.vsearch.names
-	cat <(cat <(echo -e "label\nnumOtus") <(awk -v S=$size 'BEGIN{L=length(S);for(i=1;i<=S;i++){printf "%s%0"L"d\n", "Otu",i}}') | tr "\n" "\t" | sed 's/\t$/\n/') <(cat <(echo -e "$disim\n$size") <(cut -f 2 ${names%.*}.vsearch.names)  | tr "\n" "\t" | sed 's/\t$/\n/') > ${names%.*}.vsearch.list
-	echo "vsearch2mothur output files:#${names%.*}.vsearch.list#${names%.*}.vsearch.names" | tr "#" "\n"
-}
-
-swarm2mothur () {
-	swarm=$1 ; names=$2 ; disim=$3
-	size=`grep -c "^C" $swarm`
-	grep -P -v "^C\t" $swarm | cut -f 1,2,9 | sed 's/;size=[0-9]*$//' | sort -k 3,3 | join -1 3 - <(sort -k 1,1 $names) | sort -k 3,3n -k 2,2r | awk '{if($3==prev){print "##"$4} else {print $1"\t"$4;prev=$3}}' | sed -z 's/\n##/,/g' | perl -e 'print sort { length($b) <=> length($a) } <>' > ${names%.*}.swarm.names
-	cat <(cat <(echo -e "label\nnumOtus") <(awk -v S=$size 'BEGIN{L=length(S);for(i=1;i<=S;i++){printf "%s%0"L"d\n", "Otu",i}}') | tr "\n" "\t" | sed 's/\t$/\n/') <(cat <(echo -e "$disim\n$size") <(cut -f 2 ${names%.*}.swarm.names)  | tr "\n" "\t" | sed 's/\t$/\n/') > ${names%.*}.swarm.list
-	echo "swarm2mothur output files:#${names%.*}.swarm.list#${names%.*}.swarm.names" | tr "#" "\n"
-}
 
 # Clustering
 cd processing
 
 SIM=`awk -v T=$TRESH 'BEGIN{print T/100}'`
 DISIM=`awk -v S=$SIM 'BEGIN{print 1-S}'`
-mothur "#count.seqs(name=$NAMES.names)"
 
 if [ $CLUST == "cd-hit-est" ]
 then
-	paste - - < $FASTA.fasta | sed 's/>//' | sort -k 1,1 | join - <(sed '1d' $NAMES.count_table | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1"\n"$2}' > $FASTA.sort.fasta
+	paste - - < $FASTA.fasta | sed 's/>//;s/ size=[^ \t]*//' | sort -k 1,1 | join - <(sed '1d' $COUNT.count_table | cut -f 1,2 | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1"\n"$2}' > $FASTA.sort.fasta
 	if [ $PREV_PATH == "no" ]
 	then
 		cd-hit-est -T $NCPUS -M 0 -c $SIM -r 0 -g 1 -d 0 -i $FASTA.sort.fasta -o $FASTA.cdhit.fasta
-		cdhit2mothur $FASTA.cdhit.fasta.clstr $NAMES.names $DISIM
+		awk '{if($1~">"){otu=$2} else print $3,$4,otu}' $FASTA.cdhit.fasta.clstr | sed 's/>//;s/\.\.\.//;s/*/S/;s/at/H/' | sort -k 1,1 | join - <(sed '1d' $COUNT.count_table | sort -k 1,1) | sort -k 3,3n -k 2,2r | cut -d " " -f 1,3- | awk -f sum_count.awk | cat <(head -1 $COUNT.count_table) - > $COUNT.cdhit.count_table
+		sed 's/\.\.\.//;s/>//' $FASTA.cdhit.fasta.clstr | awk '{if($4~"\\*"){print $3"\t"$3} else if($4=="at"){print ","$3}}' | sed -e :a -e '$!N;s/\n,/,/;ta' -e 'P;D' > $FASTA.cdhit.names
+		rm $FASTA.cdhit.fasta.clstr
 	else
+		## to fix ##
 		PREV_SUB=${PREV_PATH##*/}
 		tar -xzvf $PREV_PATH/$PREV_SUB.processing.files.tar.gz $PREV_SUB.processing/$PREV_SUB.*cdhit.names
 		tar -xzvf $PREV_PATH/$PREV_SUB.processing.files.tar.gz $PREV_SUB.processing/$PREV_SUB.*cdhit.fasta
@@ -110,109 +74,102 @@ then
 		cd-hit-est -c $SIM -r 0 -g 1 -d 0 -i $FASTA.cdhit.db1_db2.fasta -o $FASTA.cdhit.db2.fasta
 		cat $FASTA.cdhit.db1_db2.fasta.clstr $FASTA.cdhit.db2.fasta.clstr | clstr_renumber.pl > $FASTA.cdhit.fasta.clstr
 		cdhit2mothur-2d $FASTA.cdhit.fasta.clstr $REP_F.sort.fasta $FASTA.fasta $NAMES.names $DISIM
+		####
 	fi
-	NAMES_OTUS=$NAMES.cdhit
 	FASTA_OTUS=$FASTA.cdhit
-	LIST=$NAMES.cdhit
+	NAMES_OTUS=$FASTA.cdhit
+	COUNT_OTUS=$COUNT.cdhit
+
 elif [ $CLUST == "sumaclust" ]
 then
-	paste - - < $FASTA.fasta | sed 's/>//' | sort -k 1,1 | join - <(sed '1d' $NAMES.count_table | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1"\n"$2}' > $FASTA.sort.fasta
-	sumaclust -t $SIM -p $NCPUS -e -O $FASTA.suma.map $FASTA.sort.fasta | obigrep --without-progress-bar -a cluster_center:True | obisort -k cluster_weight -r | obiannotate -C > $FASTA.suma.fasta
-	suma2mothur $FASTA.suma.map $NAMES.names $DISIM
-	NAMES_OTUS=$NAMES.suma
+	paste - - < $FASTA.fasta | sed 's/>//;s/ size=[^ \t]*//' | sort -k 1,1 | join - <(sed '1d' $COUNT.count_table | cut -f 1,2 | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1" count="$3";\n"$2}' > $FASTA.sort.fasta
+	sumaclust -t $SIM -p $NCPUS -e -O $FASTA.suma.map $FASTA.sort.fasta | obigrep --without-progress-bar -a cluster_center:True | obisort -k cluster_weight -r | obiannotate --uppercase -C > $FASTA.suma.fasta
+	sed 's/\t/###/;s/\t/,/g;s/###/\t/' $FASTA.suma.map | sort -k 1,1 | join -1 2 <(sed -n '/>/{s/>//;p}' $FASTA.suma.fasta | nl | sort -k 2,2) - | sort -k 2,2n | awk '{print $1"\t"$3}' > $FASTA.suma.names
+	awk '{print $2,"S",NR;for(i=3;i<=NF;i++){print $i,"H",NR}}' $FASTA.suma.map | sort -k 1,1 | join - <(sed '1d' $COUNT.count_table | sort -k 1,1) | sort -k 3,3n -k 2,2r | cut -d " " -f 1,3- | awk -f sum_count.awk | cat <(head -1 $COUNT.count_table) - > $COUNT.suma.count_table
 	FASTA_OTUS=$FASTA.suma
-	LIST=$NAMES.suma
+	NAMES_OTUS=$FASTA.suma
+	COUNT_OTUS=$COUNT.suma
+	rm $FASTA.suma.map
+
 elif [ $CLUST == "mcl" ]
 then
 	sumatra -t $SIM -p $NCPUS -g $FASTA.fasta > $FASTA.simil
 	mcxload -abc $FASTA.simil -write-tab $FASTA.mcl.dico -o $FASTA.mcl.load
 	mcl $FASTA.mcl.load -I 1.2 -te $NCPUS -o $FASTA.mcl.clust
-	mcxdump -imx $FASTA.mcl.clust --dump-lines -tabr $FASTA.mcl.dico --lazy-tab --no-values -o $FASTA.mcl
-	mcl2mothur $FASTA.mcl $NAMES.names $DISIM
-	NAMES_OTUS=$NAMES.mcl
+	mcxdump -imx $FASTA.mcl.clust -tabr $FASTA.mcl.dico --lazy-tab --no-values -o - | sort -k 2,2 | join -1 2 - <(sort -k 1,1 $COUNT.count_table) | sort -k 2,2n -k 3,3nr | awk -f ./sum_count.awk | cat <(head -1 $COUNT.count_table) - > $COUNT.mcl.count_table
+	mcxdump -icl $FASTA.mcl.clust -tabr $FASTA.mcl.dico --lazy-tab --no-values -o - | tr "\t" "," | paste <(sed '1d' $COUNT.mcl.count_table | cut -f 1) - > $FASTA.mcl.names
+	obigrep --without-progress-bar --uppercase --id-list=<(sed '1d' $COUNT.mcl.count_table | cut -f 1) $FASTA.fasta | twofasta > $FASTA.mcl.fasta
 	FASTA_OTUS=$FASTA.mcl
-	LIST=$NAMES.mcl
-	obigrep --without-progress-bar --uppercase --id-list=<(cut -f 1 $NAMES_OTUS.names) $FASTA.fasta | twofasta > $FASTA_OTUS.fasta
-	rm $FASTA.mcl.dico $FASTA.mcl.load $FASTA.mcl.clust
+	NAMES_OTUS=$FASTA.mcl
+	COUNT_OTUS=$COUNT.mcl
+	rm $FASTA.simil $FASTA.mcl.dico $FASTA.mcl.load $FASTA.mcl.clust
+
 elif [ $CLUST == "vsearch" ]
 then
 	paste - - < $FASTA.fasta | sed 's/>//' | sort -k 1,1 | join - <(sed '1d' $NAMES.count_table | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1";size="$3"\n"$2}' > $FASTA.sort.fasta
-	vsearch --quiet --cluster_smallmem $FASTA.sort.fasta --usersort --id $SIM --centroids $FASTA.vsearch.fasta --xsize -uc $FASTA.uc
-	vsearch2mothur $FASTA.uc $NAMES.names $DISIM
-	NAMES_OTUS=$NAMES.vsearch
+	vsearch --quiet --threads $NCPUS --cluster_smallmem $FASTA.sort.fasta --usersort --id $SIM --centroids $FASTA.vsearch.fasta --xsize -uc $FASTA.uc
+	grep -P -v "^C\t" $FASTA.uc | cut -f 1,2,9 | sed 's/;size=.*//' | sort -k 2,2n -k 1,1r | awk '{if($1=="S"){print $3"\t"$3} else print","$3}' | sed -e :a -e '$!N;s/\n,/,/;ta' -e 'P;D' > $FASTA.vsearch.names
+	grep -P -v "^C\t" $FASTA.uc | cut -f 1,2,9 | sed 's/;size=.*//' | sort -k 3,3 | join -1 3 - <(sed '1d' $COUNT.count_table | sort -k 1,1) | sort -k 3,3n -k 2,2r | cut -d " " -f 1,3- | awk -f $BIN/sum_count.awk | cat <(head -1 $COUNT.count_table) - > $COUNT.vsearch.count_table
 	FASTA_OTUS=$FASTA.vsearch
-	sed '/>/s/;$//' $FASTA_OTUS.fasta > tmp.$FASTA_OTUS && mv tmp.$FASTA_OTUS $FASTA_OTUS.fasta
-	LIST=$NAMES.vsearch
+	NAMES_OTUS=$FASTA.vsearch
+	COUNT_OTUS=$COUNT.vsearch
+	rm $FASTA.uc
+
 elif [ $CLUST == "swarm" ]
 then
-	paste - - < $FASTA.fasta | sed 's/>//' | sort -k 1,1 | join - <(sed '1d' $NAMES.count_table | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1";size="$3"\n"$2}' > $FASTA.sort.fasta
+	paste - - < $FASTA.fasta | sed 's/>//;s/ size=[^ \t]*//' | sort -k 1,1 | join - <(sed '1d' $COUNT.count_table | cut -f 1,2 | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1";size="$3"\n"$2}' > $FASTA.sort.fasta
 	MEM=`awk -v N=$NCPUS 'BEGIN{print 4000*N}'`
-	swarm -f -z -c $MEM -t $NCPUS -w $FASTA.tmp.fasta -o $FASTA.swarm.out -u $FASTA.swarm $FASTA.sort.fasta
-	sed '/>/s/;.*//' $FASTA.tmp.fasta > $FASTA.swarm.fasta && rm $FASTA.tmp.fasta
-	swarm2mothur $FASTA.swarm $NAMES.names $DISIM
-	rm $FASTA.swarm $FASTA.swarm.out
-	NAMES_OTUS=$NAMES.swarm
+	swarm -f -z -c $MEM -t $NCPUS -w - -o $FASTA.swarm.tmp.names -u $FASTA.swarm $FASTA.sort.fasta | sed '/>/s/;.*//' > $FASTA.swarm.fasta
+	grep -P -v "^C\t" $FASTA.swarm | cut -f 1,2,9 | sed 's/;size=.*//' | sort -k 3,3 | join -1 3 - <(sed '1d' $COUNT.count_table | sort -k 1,1) | sort -k 3,3n -k 2,2r | cut -d " " -f 1,3- | awk -f $BIN/sum_count.awk | cat <(head -1 $COUNT.count_table) - > $COUNT.swarm.count_table
+	sed 's/;size=[0-9]*//g;s/^\([^ ]*\)/\1\t\1/;s/ /,/g' $FASTA.swarm.tmp.names > $FASTA.swarm.names
 	FASTA_OTUS=$FASTA.swarm
-	LIST=$NAMES.swarm
+	NAMES_OTUS=$FASTA.swarm
+	COUNT_OTUS=$COUNT.swarm
+	rm $FASTA.swarm $FASTA.swarm.tmp.names
 fi
-rm $NAMES.count_table
 
 # Remove singletons
 if [ $DEL_SING == "yes" ]
 then
-	awk '{size=split($2,a,",");if(size==1){print $1}}' $NAMES_OTUS.names > $NAMES_OTUS.singletons.accnos
-	mothur "#remove.seqs(accnos=$NAMES_OTUS.singletons.accnos, name=$NAMES_OTUS.names, fasta=$FASTA_OTUS.fasta);
+	awk 'NR==1 || $2>1{print}' $COUNT_OTUS.count_table | tee $COUNT_OTUS.pick.count_table | awk 'NR>1{print $1}' > $COUNT_OTUS.singletons.accnos
+	mothur "#get.seqs(accnos=$COUNT_OTUS.singletons.accnos, name=$NAMES_OTUS.names, fasta=$FASTA_OTUS.fasta);
 	get.current()"
-	unset LOG
-	LOG=`ls mothur.*.logfile | tail -1`
-	NAMES_OTUS=`sed -n '/get.current()/,$p' $LOG | grep "^name=" | sed 's/name=//;s/\.names//'`
-	FASTA_OTUS=`sed -n '/get.current()/,$p' $LOG | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
+	rm $COUNT_OTUS.count_table $COUNT_OTUS.singletons.accnos $NAMES_OTUS.names $FASTA_OTUS.fasta
+	COUNT_OTUS=$COUNT_OTUS.pick
+	FASTA_OTUS=`sed -n '/^fasta=/{s/.*=//;s/\.fasta//;p}' current_files.summary`
+	NAMES_OTUS=`sed -n '/^name=/{s/.*=//;s/\.names//;p}' current_files.summary`
 	
 	mothur "#list.seqs(name=$NAMES_OTUS.names);
-	get.seqs(accnos=current, fasta=$FASTA.fasta, list=$LIST.list, name=$NAMES.names, group=$GROUP.groups);
+	get.seqs(accnos=current, fasta=$FASTA.fasta, count=$COUNT.count_table);
 	get.current()"
-	unset LOG FASTA NAMES GROUP LIST
-	LOG=`ls mothur.*.logfile | tail -1`
-	FASTA=`sed -n '/get.current()/,$p' $LOG | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
-	NAMES=`sed -n '/get.current()/,$p' $LOG | grep "^name=" | sed 's/name=//;s/\.names//'`
-	GROUP=`sed -n '/get.current()/,$p' $LOG | grep "^group=" | sed 's/group=//;s/\.groups//'`
-	LIST=`sed -n '/get.current()/,$p' $LOG | grep "^list=" | sed 's/list=//;s/\.list//'`
+	FASTA=`sed -n '/^fasta=/{s/.*=//;s/\.fasta//;p}' current_files.summary`
+	COUNT=`sed -n '/^count=/{s/.*=//;s/\.count_table//;p}' current_files.summary`
+	ACCNOS=`sed -n '/^accnos=/{s/.*=//;p}' current_files.summary`
+	rm $ACCNOS && unset ACCNOS
 fi
 
 
 # Chimera recheck
 if [ $CHIMERA2 == "yes" ]
 then
-	mothur "#count.seqs(name=$NAMES_OTUS.names)"
-	twofasta $FASTA_OTUS.fasta | paste - - | sed 's/^>//' | nl | sort -k 2,2 | join -1 2 - <(sed '1d' $NAMES_OTUS.count_table | sort -k 1,1) | sort -k4,4nr -k2,2n | awk '{print ">"$1";size="$4"\n"$3}' > $FASTA_OTUS.sort.fasta
+	twofasta $FASTA_OTUS.fasta | paste - - | sed 's/^>//' | nl | sort -k 2,2 | join -1 2 - <(sed '1d' $COUNT_OTUS.count_table | cut -f 1,2 | sort -k 1,1) | sort -k4,4nr -k2,2n | awk '{print ">"$1";size="$4"\n"$3}' > $FASTA_OTUS.sort.fasta
 	vsearch --no_progress --uchime_denovo $FASTA_OTUS.sort.fasta --xsize --nonchimeras - | twofasta > $FASTA_OTUS.nochim.fasta
-	sed -n '/^>/{s/>//;p}' $FASTA_OTUS.nochim.fasta | nl -s $'\t' -n ln | sort -k 2,2 -t $'\t' | join -t $'\t' -o 1.1,0,2.2 -1 2 - <(sort -k 1,1 -t $'\t' $NAMES_OTUS.names) | sort -k 1,1n -t $'\t' | cut -f 2- > 
-	FASTA_OTUS=$FASTA_OTUS.nochim
-	NAMES_OTUS=$NAMES_OTUS.nochim
-	#NSLOTS2=$(( $NCPUS / 2 ))
-	#mothur "#chimera.uchime(fasta=$FASTA_OTUS.fasta, name=$NAMES_OTUS.names, group=$GROUP.groups, reference=self, processors=$NSLOTS2);
-	#get.current()"
-	#unset LOG ACCNOS
-	#LOG=`ls mothur.*.logfile | tail -1`
-	#ACCNOS=`sed -n '/get.current()/,$p' $LOG | grep "^accnos=" | sed 's/accnos=//;s/\.accnos//'`
-	#if [ -s $ACCNOS.accnos ]
-	#then
-		#mothur "#remove.seqs(accnos=$ACCNOS.accnos, name=$NAMES_OTUS.names, fasta=$FASTA_OTUS.fasta);
-		#get.current()"
-		#unset LOG
-		#LOG=`ls mothur.*.logfile | tail -1`
-		#NAMES_OTUS=`sed -n '/get.current()/,$p' $LOG | grep "^name=" | sed 's/name=//;s/\.names//'`
-		#FASTA_OTUS=`sed -n '/get.current()/,$p' $LOG | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
-	#fi
-	mothur "#list.seqs(name=$NAMES_OTUS.names);
-	get.seqs(accnos=current, fasta=$FASTA.fasta, list=$LIST.list, name=$NAMES.names, group=$GROUP.groups);
+	sed -n '/^>/{s/>//;p}' $FASTA_OTUS.nochim.fasta | nl -s $'\t' -n ln | sort -k 2,2 -t $'\t' | join -t $'\t' -1 2 - <(sed '1d' $COUNT_OTUS.count_table | sort -k 1,1 -t $'\t') | sort -k 2,2n -t $'\t' | cut -f 1,3- | cat <(head -1 $COUNT_OTUS.count_table) - | tee $COUNT_OTUS.nochim.count_table | awk 'NR>1{print $1}' > $COUNT_OTUS.nochim.accnos
+	mothur "#get.seqs(accnos=$COUNT_OTUS.nochim.accnos, name=$NAMES_OTUS.names);
 	get.current()"
-	unset LOG FASTA NAMES GROUP LIST
-	LOG=`ls mothur.*.logfile | tail -1`
-	FASTA=`sed -n '/get.current()/,$p' $LOG | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
-	NAMES=`sed -n '/get.current()/,$p' $LOG | grep "^name=" | sed 's/name=//;s/\.names//'`
-	GROUP=`sed -n '/get.current()/,$p' $LOG | grep "^group=" | sed 's/group=//;s/\.groups//'`
-	LIST=`sed -n '/get.current()/,$p' $LOG | grep "^list=" | sed 's/list=//;s/\.list//'`
+	rm $FASTA_OTUS.sort.fasta $FASTA_OTUS.fasta $NAMES_OTUS.names $COUNT_OTUS.count_table $COUNT_OTUS.nochim.accnos 
+	FASTA_OTUS=$FASTA_OTUS.nochim
+	COUNT_OTUS=$COUNT_OTUS.nochim
+	NAMES_OTUS=`sed -n '/^name=/{s/.*=//;s/\.names//;p}' current_files.summary`
+	
+	mothur "#list.seqs(name=$NAMES_OTUS.names);
+	get.seqs(accnos=current, fasta=$FASTA.fasta, count=$COUNT.count_table);
+	get.current()"
+	unset FASTA COUNT
+	FASTA=`sed -n '/^fasta=/{s/.*=//;s/\.fasta//;p}' current_files.summary`
+	COUNT=`sed -n '/^count=/{s/.*=//;s/\.count_table//;p}' current_files.summary`
+	ACCNOS=`sed -n '/^accnos=/{s/.*=//;p}' current_files.summary`
+	rm $ACCNOS && unset ACCNOS
 fi
 
 # Save newly set and updated variables

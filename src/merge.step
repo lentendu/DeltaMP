@@ -26,18 +26,16 @@ while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var
 # record newly set variables
 (set -o posix; set > config/merge.set)
 
-# Merge all samples names and fasta files (removing gaps if any), create a group file
+# Merge all samples fasta and count files (removing gaps if any)
 SAMP_NAME=(`cut -f 1 config/lib4.list`)
 cd processing
 for i in "${SAMP_NAME[@]}"
 do
 	(
-	LOG=$i/mothur.${TECH}_trim.$i.logfile
-	FASTA=`tac $LOG | sed -n '1,/get.current()/p' | sed -n '/^fasta=/h;${x;s/^fasta=//;p;}'`
-	NAMES=`tac $LOG | sed -n '1,/get.current()/p' | sed -n '/^name=/h;${x;s/^name=//;p;}'`
+	FASTA=`sed -n '/^fasta=/{s/.*=//;p}' $i/current_files.summary`
+	COUNT=`sed -n '/^count=/{s/.*=//;p}' $i/current_files.summary`
 	sed '/>/!s/[-\.]//g' $i/$FASTA >> $SUBPROJECT.fasta
-	cat $i/$NAMES >> $SUBPROJECT.names
-	cut -f 2 $i/$NAMES | tr "," "\n" | sed 's/$/\t'"$i"'/' >> $SUBPROJECT.groups
+	sed "1d;s/$/\t$i/" $i/$COUNT >> $SUBPROJECT.groups
 	)
 done
 
@@ -50,13 +48,15 @@ then
 fi
 
 # Dereplicate
-mothur "#unique.seqs(fasta=$SUBPROJECT.fasta, name=$SUBPROJECT.names);
+mothur "#unique.seqs(fasta=$SUBPROJECT.fasta);
 get.current()"
-unset LOG FASTA NAMES
-LOG=`ls mothur.*.logfile | tail -1`
-FASTA=`sed -n '/get.current()/,$p' $LOG | grep "^fasta=" | sed 's/fasta=//;s/\.fasta//'`
-NAMES=`sed -n '/get.current()/,$p' $LOG | grep "^name=" | sed 's/name=//;s/\.names//'`
-GROUP=$SUBPROJECT
+unset FASTA NAMES
+FASTA=`sed -n '/^fasta=/{s/.*=//;s/\.fasta//;p}' current_files.summary`
+NAMES=`sed -n '/^name=/{s/.*=//;s/\.names//;p}' current_files.summary`
+
+# count table
+awk '{split($2,a,","); for (i in a){print $1,a[i]}}' $NAMES.names | sort -k 2,2 | join -o 1.1,0,2.3,2.2 -1 2 - <(sort -k 1,1 $SUBPROJECT.groups) | sort -k 1,1 | awk '{if(NR==1){prev=$1;sum=$4;tab=$3":"$4} else {if($1==prev){sum+=$4;tab=tab";"$3":"$4} else {print prev,sum,tab;prev=$1;sum=$4;tab=$3":"$4}}}END{print prev,sum,tab}' | awk -v S="$(echo ${SAMP_NAME[@]} | sed 's/ /;/')" -f $BIN/make_count.awk > $FASTA.count_table
+COUNT=$FASTA
 
 # Save newly set variables
 cd ..

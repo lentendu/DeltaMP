@@ -24,34 +24,20 @@ while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/prev.txt
 . $BIN/check_previous_step
 
-# Function
-list2otu () {
-	list=$1 ; group=$2
-	samp=`cut -f 2 $group | sort -u`
-	awk '{if(NR==1){for(i=3;i<=NF;i++){OTU[i]=$i}} else {for(i=3;i<=NF;i++){split($i,a,",");for(j in a){print OTU[i],a[j]}}}}' $list \
-	| sort -k 2,2 | join -1 2 - <(sort -k 1,1 $group) | sort -k 2,2 -k 3,3 \
-	| awk '{
-		if(NR==1){otu=$2;sam=$3;sum=1;printf "%s\t%s",otu,sam}
-		else { if($2==otu){
-				if($3==sam){sum+=1}
-				else {sam=$3;printf "\t%s\t%s", sum,sam;sum=1}
-			} else {otu=$2;sam=$3;printf "\t%s\n%s\t%s",sum,otu,sam;sum=1}
-		}
-	} END {printf "\t%s\n",sum}' \
-	| awk -v S="$samp" '
-		BEGIN{b=split(S,sam," "); printf "%s","OTU"; for(i=1;i<=b;i++){printf "\t%s", sam[i]}; printf "\n" }
-		{printf "%s",$1; for(i=1;i<=b;i++){val=0; for(j=2;j<=NF;j+=2){if($j==sam[i]){val=$(j+1)}}; printf "\t%s",val }; printf "\n" }'
-}
-
 # load environment of previous step
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; if [ $REF_SUBPROJECT != "no" ] ; then declare $var=$(eval echo "$"$var | sed 's/'$REF_SUBPROJECT'/'$SUBPROJECT'/') ; fi ; done < config/id_env.txt
 
 # OTU table
 cd processing
 LABELS=(all abundant all_$TARG_ORG abundant_$TARG_ORG)
-list2otu $LIST.list $GROUP.groups > $LIST.otu
-paste $LIST.otu <(cut -f 3 $CTAXO.taxonomy | sed 's/([0-9]*);/;/g;s/Taxo/taxo/') <(cat <(echo "repseq") <(cut -f 1 $NAMES_OTUS.names)) > $SUBPROJECT.${LABELS[0]}_OTUs.tsv
-awk -v M=$MIN_DOM -v S=$MIN_SAMP '{if(NR==1){print $0} else {seq=0;sam=0;for(i=2;i<=NF-2;i++){if($i>0){seq+=$i;sam+=1}};if(seq>=M && sam>=S){print $0}}}' $SUBPROJECT.${LABELS[0]}_OTUs.tsv > $SUBPROJECT.${LABELS[1]}_OTUs.tsv
+if [ $CLASSIF == "bayesian" ]
+then
+	sed '1d' ${COUNT_OTUS}.count_table | sort -k 1,1 | join -1 2 <(cut -f 1 ${NAMES_OTUS}.names | nl -n rz | sort -k 2,2) - | sed 's/ / Otu/' | sort -k2,2 | join -1 2 - <(sed '1d' $CONS.taxonomy) | awk -v L=$SAMP_SIZE '{printf "%s",$1; for(i=4;i<=L+3;i++){printf "\t%s",$i};printf "\t%s\t%s\t%s\t%s\n",$NF,$2}' | cat <(head -1 ${COUNT_OTUS}.count_table | cut -f 3- | sed 's/^/OTU\t/;s/$/\ttaxonomy\trepseq/') - > $SUBPROJECT.${LABELS[0]}_OTUs.tsv
+elif [ $CLASSIF == "vsearch" ]
+then
+	sed '1d' ${COUNT_OTUS}.count_table | sort -k 1,1 | join -1 2 <(cut -f 1 ${NAMES_OTUS}.names | nl -n rz | sort -k 2,2) - | sed 's/ / Otu/' | sort -k2,2 | join -1 2 - <(sed '1d' $CONS.taxonomy) | awk -v L=$SAMP_SIZE '{printf "%s",$1; for(i=4;i<=L+3;i++){printf "\t%s",$i};printf "\t%s\t%s\t%s\t%s\n",$(NF-2),$(NF-1),$NF,$2}' | cat <(head -1 ${COUNT_OTUS}.count_table | cut -f 3- | sed 's/^/OTU\t/;s/$/\ttaxonomy\tsimilarity\treference\trepseq/') - > $SUBPROJECT.${LABELS[0]}_OTUs.tsv
+fi
+awk -v M=$MIN_DOM -v S=$MIN_SAMP -v L=$SAMP_SIZE '{if(NR==1){print $0} else {seq=0;sam=0;for(i=2;i<=L+1;i++){if($i>0){seq+=$i;sam+=1}};if(seq>=M && sam>=S){print $0}}}' $SUBPROJECT.${LABELS[0]}_OTUs.tsv > $SUBPROJECT.${LABELS[1]}_OTUs.tsv
 grep -P "[\t;_:]$TARG_ORG;" $SUBPROJECT.${LABELS[0]}_OTUs.tsv | cat <(sed -n '1p' $SUBPROJECT.${LABELS[0]}_OTUs.tsv) - > $SUBPROJECT.${LABELS[2]}_OTUs.tsv
 grep -P "[\t;_:]$TARG_ORG;" $SUBPROJECT.${LABELS[1]}_OTUs.tsv | cat <(sed -n '1p' $SUBPROJECT.${LABELS[0]}_OTUs.tsv) - > $SUBPROJECT.${LABELS[3]}_OTUs.tsv
 
@@ -85,10 +71,10 @@ fi
 # biom format (all OTUs only)
 if [ $CLASSIF == "bayesian" ]
 then
-	cut -f 1,3 $CTAXO.taxonomy | paste - <(cat <(echo "representative_sequence") <(cut -f 1 $NAMES_OTUS.names)) | sed '/\tTaxonomy/s/^/#/;s/)//g' | awk '{if(NR==1){print $1"\t"$3"\t"$2"\tbootstrap"} else {s=split($2,a,";"); delete x; split(a[1],b,"("); printf "%s\t%s\t%s",$1,$3,b[1]; x[1]=b[2]; for(i=2;i<=(s-1);i++){split(a[i],b,"("); printf ";%s",b[1]; x[i]=b[2]} ; printf "\t%s",x[1]; for(i=2;i<=(s-1);i++){if(x[i]!=""){printf ";%s",x[i]} else {printf ";%s","null"}} ; printf "\n"}}' > $CTAXO.taxo
+	sed '/\tTaxonomy/s/^/#/;s/NA;/NA(0);/g;s/)*;\t/\t/' $SUBPROJECT.${LABELS[0]}_OTUs.tsv | awk -v S=$SAMP_SIZE 'BEGIN{FS=OFS="\t"}{if(NR==1){print $1,$NF,$(S+2),"bootstrap"} else {l=split($(S+2),a,");");tax="";boot="";for(i=1;i<=l;i++){split(a[i],b,"(");tax=tax""b[1]";";boot=boot""b[2]";"};print $1,$NF,tax,boot}}' > $CTAXO.taxo
 elif [ $CLASSIF == "vsearch" ]
 then
-	cut -f 1 $CTAXO.taxonomy | paste - <(cat <(echo "representative_sequence") <(cut -f 1 $NAMES_OTUS.names)) <(cut -f 3-5 $CTAXO.taxonomy) | sed 's/)//g' | awk '{if(NR==1){print "#"$1"\t"$2"\t"$3"\tbootstrap\t"$4"\t"$5} else {s=split($3,a,";"); delete x; split(a[1],b,"("); printf "%s\t%s\t%s",$1,$2,b[1]; x[1]=b[2]; for(i=2;i<=(s-1);i++){split(a[i],b,"("); printf ";%s",b[1]; x[i]=b[2]} ; printf "\t%s",x[1]; for(i=2;i<=(s-1);i++){if(x[i]!=""){printf ";%s",x[i]} else {printf ";%s","null"}} ; printf "\t%s\t%s\n",$4,$5}}' > $CTAXO.taxo
+	sed '/\tTaxonomy/s/^/#/;s/NA;/NA(0);/g;s/)*;\t/\t/' $SUBPROJECT.${LABELS[0]}_OTUs.tsv | awk -v S=$SAMP_SIZE 'BEGIN{FS=OFS="\t"}{if(NR==1){print $1,$NF,$(S+2),"bootstrap",$(NF-2),$(NF-1)} else {l=split($(S+2),a,");");tax="";boot="";for(i=1;i<=l;i++){split(a[i],b,"(");tax=tax""b[1]";";boot=boot""b[2]";"};print $1,$NF,tax,boot,$(NF-2),$(NF-1)}}' > $CTAXO.taxo
 fi
 # Functional assignment
 if [ $TARG == "ITS" ] && [ FUNCT == "yes" ]
