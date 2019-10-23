@@ -196,6 +196,7 @@ fi
 
 # Save newly set and updated variables
 cd ..
+unset SAMP_NAME
 comm -23 <(set -o posix; set | sort) <(sort config/OTU.set) | tr "=" "\t" | grep -v "^[a-z]" | grep -P -v "^PWD\t" | sed "s/'//g" > config/OTU_env.txt
 rm config/OTU.set
 

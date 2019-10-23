@@ -33,11 +33,12 @@ fi
 while read samp fwd rvs
 do
 	lib=$(echo $fwd $rvs | sed 's/\(.*\)[^ ]* \1.*$/\1/')
+	RAW_COUNT=$(grep " Recs " libraries/fastq/$lib.fwd.stats | awk '{print $1}')
 	if [ $PALG == "vsearch" ]
 	then
-		paste <(echo -e "$samp\t$lib") <(sed -n '1,/^Total/{/Total/{s/^.* //;s/,//g;p}}' libraries/fastq/log.cutadapt.$lib.fwd.txt) <(awk '$2=="Pairs"{print $1;exit}' fastq/log.pairend.$lib.txt) <(awk '$2=="Merged"{print $1;exit}' fastq/log.pairend.$lib.txt) quality_check/$lib.stat
+		paste <(echo -e "$samp\t$lib\t$RAW_COUNT") <(awk '$2=="Pairs"{print $1;exit}' fastq/log.pairend.$lib.txt) <(awk '$2=="Merged"{print $1;exit}' fastq/log.pairend.$lib.txt) quality_check/$lib.stat
 	else
-		paste <(echo -e "$samp\t$lib") <(sed -n '1,/^Total/{/Total/{s/^.* //;s/,//g;p}}' libraries/fastq/log.cutadapt.$lib.fwd.txt) <(tac libraries/fastq/log.pairend.$lib.txt | grep -m 1 -P "STAT\tREADS" | cut -f 4) <(tac libraries/fastq/log.pairend.$lib.txt | grep -m 1 -P "STAT\tOK\t" | cut -f 4) quality_check/$lib.stat
+		paste <(echo -e "$samp\t$lib\t$RAW_COUNT") <(tac libraries/fastq/log.pairend.$lib.txt | grep -m 1 -P "STAT\tREADS" | cut -f 4) <(tac libraries/fastq/log.pairend.$lib.txt | grep -m 1 -P "STAT\tOK\t" | cut -f 4) quality_check/$lib.stat
 	fi
 done < config/lib3.list | cat <(paste <(echo -e "Sample\tLibrary\tRaw\tPrimer detected\tPair-end") <(seq $MINQUAL 30 | sed 's/\(.*\)/Trimmed at \1 Phred score/' | tr "\n" "\t" | sed 's/$/\n/')) - > quality_check/$SUBPROJECT.lib_counts.tsv
 cd quality_check
@@ -58,7 +59,7 @@ do
 		cat min_depth.$i.test
 		echo ""
 		echo "Aborting"
-		awk 'BEGIN{FS="\t";OFS="\t"};{print $1,$2,$3,$4,$5}' $SUBPROJECT.sample_counts.tsv > $SUBPROJECT.summary.stat.tsv
+		awk 'BEGIN{FS=OFS="\t"};{print $1,$2,$3,$4,$5}' $SUBPROJECT.sample_counts.tsv > $SUBPROJECT.summary.stat.tsv
 		dd if=$SUBPROJECT.summary.stat.tsv of=../archives/$SUBPROJECT.outputs/$SUBPROJECT.summary.stat.tsv bs=1M
 		. $BIN/list_step_files.sh
 		exit 100

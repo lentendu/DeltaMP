@@ -38,8 +38,8 @@ then
 	sed '1d' ${COUNT_OTUS}.count_table | sort -k 1,1 | join -1 2 <(cut -f 1 ${NAMES_OTUS}.names | nl -n rz -w ${#NBOTUS} | sort -k 2,2) - | sed 's/ / Otu/' | sort -k 2,2 | join -1 2 - <(sed '1d' $CTAXO.taxonomy) | awk -v L=$SAMP_SIZE '{printf "%s",$1; for(i=4;i<=L+3;i++){printf "\t%s",$i};printf "\t%s\t%s\t%s\t%s\n",$(NF-2),$(NF-1),$NF,$2}' | cat <(head -1 ${COUNT_OTUS}.count_table | cut -f 3- | sed 's/^/OTU\t/;s/$/\ttaxonomy\tsimilarity\treference\trepseq/') - > $SUBPROJECT.${LABELS[0]}_OTUs.tsv
 fi
 awk -v M=$MIN_DOM -v S=$MIN_SAMP -v L=$SAMP_SIZE '{if(NR==1){print $0} else {seq=0;sam=0;for(i=2;i<=L+1;i++){if($i>0){seq+=$i;sam+=1}};if(seq>=M && sam>=S){print $0}}}' $SUBPROJECT.${LABELS[0]}_OTUs.tsv > $SUBPROJECT.${LABELS[1]}_OTUs.tsv
-grep -P "[\t;_:]$TARG_ORG;" $SUBPROJECT.${LABELS[0]}_OTUs.tsv | cat <(sed -n '1p' $SUBPROJECT.${LABELS[0]}_OTUs.tsv) - > $SUBPROJECT.${LABELS[2]}_OTUs.tsv
-grep -P "[\t;_:]$TARG_ORG;" $SUBPROJECT.${LABELS[1]}_OTUs.tsv | cat <(sed -n '1p' $SUBPROJECT.${LABELS[0]}_OTUs.tsv) - > $SUBPROJECT.${LABELS[3]}_OTUs.tsv
+grep -P "[\t;_:]$TARG_ORG[()0-9]*;" $SUBPROJECT.${LABELS[0]}_OTUs.tsv | cat <(sed -n '1p' $SUBPROJECT.${LABELS[0]}_OTUs.tsv) - > $SUBPROJECT.${LABELS[2]}_OTUs.tsv
+grep -P "[\t;_:]$TARG_ORG[()0-9]*;" $SUBPROJECT.${LABELS[1]}_OTUs.tsv | cat <(sed -n '1p' $SUBPROJECT.${LABELS[0]}_OTUs.tsv) - > $SUBPROJECT.${LABELS[3]}_OTUs.tsv
 
 # retrieve BioProject sample's associated metadata
 if [[ $LIB_DIR != "/"* ]]
@@ -71,38 +71,42 @@ fi
 # biom format (all OTUs only)
 if [ $CLASSIF == "bayesian" ]
 then
-	sed '/\tTaxonomy/s/^/#/;s/NA;/NA(0);/g;s/)*;\t/\t/' $SUBPROJECT.${LABELS[0]}_OTUs.tsv | awk -v S=$SAMP_SIZE 'BEGIN{FS=OFS="\t"}{if(NR==1){print $1,$NF,$(S+2),"bootstrap"} else {l=split($(S+2),a,");");tax="";boot="";for(i=1;i<=l;i++){split(a[i],b,"(");tax=tax""b[1]";";boot=boot""b[2]";"};print $1,$NF,tax,boot}}' > $CTAXO.taxo
+	sed 's/^OTU\t/#OTU\t/;s/NA;/NA(0);/g;s/)*;\t/\t/' $SUBPROJECT.${LABELS[0]}_OTUs.tsv | awk -v S=$SAMP_SIZE 'BEGIN{FS=OFS="\t"}{if(NR==1){print $1,$NF,$(S+2),"bootstrap"} else {l=split($(S+2),a,");");tax="";boot="";for(i=1;i<=l;i++){split(a[i],b,"(");tax=tax""b[1]";";boot=boot""b[2]";"};print $1,$NF,tax,boot}}' | sed 's/;\t/\t/;s/;$//' > $CTAXO.taxo
 elif [ $CLASSIF == "vsearch" ]
 then
-	sed '/\tTaxonomy/s/^/#/;s/NA;/NA(0);/g;s/)*;\t/\t/' $SUBPROJECT.${LABELS[0]}_OTUs.tsv | awk -v S=$SAMP_SIZE 'BEGIN{FS=OFS="\t"}{if(NR==1){print $1,$NF,$(S+2),"bootstrap",$(NF-2),$(NF-1)} else {l=split($(S+2),a,");");tax="";boot="";for(i=1;i<=l;i++){split(a[i],b,"(");tax=tax""b[1]";";boot=boot""b[2]";"};print $1,$NF,tax,boot,$(NF-2),$(NF-1)}}' > $CTAXO.taxo
+	sed 's/^OTU\t/#OTU\t/;s/NA;/NA(0);/g;s/)*;\t/\t/' $SUBPROJECT.${LABELS[0]}_OTUs.tsv | awk -v S=$SAMP_SIZE 'BEGIN{FS=OFS="\t"}{if(NR==1){print $1,$NF,$(S+2),"bootstrap",$(NF-2),$(NF-1)} else {l=split($(S+2),a,");");tax="";boot="";for(i=1;i<=l;i++){split(a[i],b,"(");tax=tax""b[1]";";boot=boot""b[2]";"};print $1,$NF,tax,boot,$(NF-2),$(NF-1)}}' | sed 's/;\t/\t/g' > $CTAXO.taxo
 fi
+
 # Functional assignment
 if [ $TARG == "ITS" ] && [ FUNCT == "yes" ]
 then
 	cut -f 1,3 $CTAXO.taxo | sed '1d;s/;/ /g' | awk '{for(i=2;i<=NF;i++){print $1,i,$i}}' | sort -k 3,3 | join -1 3 -o 0,1.1,1.2,2.2 -a 1 -e "NA" - <(cut -f 1,3-6 $DBFOLD/FUNGuild.tsv | sed '1d;s/ /_/g;s/\t/ /;s/\t/#/g' | sort -k 1,1) | sort -k 2,2 -k 3,3n | awk '{if(NR==1){prev=$2;printf "%s %s",prev,$4} else {if($2==prev){printf " %s",$4} else {prev=$2;printf "\n%s %s",prev,$4}}}END{printf "\n"}' | awk '{for(i=NF;i>=2;i--){if($i!="NA"){print $1,i-1,$i;break};if(i==2){print $1,"0","NA#NA#NA#NA"}}}' | join <(sed '1d' $CTAXO.taxo) - | sed 's/ /\t/g;s/#/\t/g' | cat <(paste <(head -1 $CTAXO.taxo) <(echo "functional_assignment_level") <(head -1 $DBFOLD/FUNGuild.tsv | cut -f 3-6)) - > tmp.$CTAXO
 	mv tmp.$CTAXO $CTAXO.taxo
 fi
-biom convert -i $LIST.otu -o $LIST.json.biom  --table-type="OTU table" --to-json
+
+cut -f 1-$((SAMP_SIZE + 1)) $SUBPROJECT.${LABELS[0]}_OTUs.tsv > $CTAXO.otu
+biom convert -i $CTAXO.otu -o $CTAXO.json.biom  --table-type="OTU table" --to-json
+
 if [[ $LIB_DIR != "/"* ]]
 then
 	while read var val; do read -a $var <<<`echo $val` ; done < <(transpose_tab $LIB_DIR.metadata.txt | sed 's/\"//g' | awk 'NR>1{sum=0;for(i=2;i<=NF;i++){if($i!=$i+0){next}};n=$1;sub("^[^\t]*\t","",$0);if($0 ~ /\./){f=f","n} else j=j","n}END{printf "FLOAT\t%s\nINTEGER\t%s\n", f,j}' | sed 's/\t,/\t/;s/,$//')
-	biom add-metadata -i $LIST.json.biom -o $SUBPROJECT.json.biom --output-as-json --observation-metadata-fp $CTAXO.taxo --sample-metadata-fp $LIB_DIR.metadata.txt --sc-separated taxonomy,bootstrap ${INTEGER/#/--int-fields } ${FLOAT/#/--float-fields }
+	biom add-metadata -i $CTAXO.json.biom -o $SUBPROJECT.json.biom --output-as-json --observation-metadata-fp $CTAXO.taxo --sample-metadata-fp $LIB_DIR.metadata.txt --sc-separated taxonomy,bootstrap ${INTEGER/#/--int-fields } ${FLOAT/#/--float-fields }
 else
-	biom add-metadata -i $LIST.json.biom -o $SUBPROJECT.json.biom --output-as-json --observation-metadata-fp $CTAXO.taxo --sc-separated taxonomy,bootstrap
+	biom add-metadata -i $CTAXO.json.biom -o $SUBPROJECT.json.biom --output-as-json --observation-metadata-fp $CTAXO.taxo --sc-separated taxonomy,bootstrap
 fi
-rm $LIST.json.biom
+rm $CTAXO.taxo $CTAXO.otu $CTAXO.json.biom
 
 # Representative sequences
 twofasta $FASTA_OTUS.fasta > $SUBPROJECT.${LABELS[0]}_repseq.fasta
-obigrep --without-progress-bar --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[1]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[1]}_repseq.fasta
-obigrep --without-progress-bar --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[2]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[2]}_repseq.fasta
-obigrep --without-progress-bar --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[3]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[3]}_repseq.fasta
+obigrep --without-progress-bar --uppercase --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[1]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[1]}_repseq.fasta
+obigrep --without-progress-bar --uppercase --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[2]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[2]}_repseq.fasta
+obigrep --without-progress-bar --uppercase --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[3]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[3]}_repseq.fasta
 
 # Sequences stat
 for i in "${LABELS[@]}"
 do
-	sed '1d' $SUBPROJECT.${i}_OTUs.tsv | awk '{for(i=2;i<=(NF-2);i++){sum[i]+=$i}}END{for(i=2;i<=(NF-2);i++){print sum[i]}}' | tr "\n" "\t" | sed 's/$/\n/'
-done | cat <(sed -n '1p' $SUBPROJECT.all_OTUs.tsv | sed 's/^OTU\t//;s/\ttaxonomy\trepseq//') - | transpose | sort -k 1,1 | mimato | cat <(echo ${LABELS[@]} | sed 's/ /_OTUs /g;s/$/_OTUs/;s/^/Sample /') - | tr " " "\t" | sed '/^Sample/s/_/ /g' | cut -f 2- | paste ../quality_check/$SUBPROJECT.summary.stat.tsv - > $SUBPROJECT.read_counts.tsv
+	awk -v L=$SAMP_SIZE 'NR>1{for(i=2;i<=(L+1);i++){sum[i]+=$i}}END{for(i=2;i<=(L+1);i++){printf "%s\t", sum[i]}}' $SUBPROJECT.${i}_OTUs.tsv | sed 's/\t$/\n/'
+done | cat <(sed -n '1p' $SUBPROJECT.all_OTUs.tsv | awk -v L=$SAMP_SIZE '{for(i=2;i<=L+1;i++){printf "%s\t", $i}}' | sed 's/\t$/\n/') - | transpose | sort -k 1,1 | mimato | cat <(echo ${LABELS[@]} | sed 's/ /_OTUs /g;s/$/_OTUs/;s/^/Sample /') - | tr " " "\t" | sed '/^Sample/s/_/ /g' | cut -f 2- | paste ../quality_check/$SUBPROJECT.summary.stat.tsv - > $SUBPROJECT.read_counts.tsv
 
 # Copy to output folders
 OUT_LIST=(`ls $SUBPROJECT.* | grep "tsv$\|repseq\|biom$"`)
