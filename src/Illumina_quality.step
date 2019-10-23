@@ -60,7 +60,7 @@ do
 		echo ""
 		echo "Aborting"
 		awk 'BEGIN{FS=OFS="\t"};{print $1,$2,$3,$4,$5}' $SUBPROJECT.sample_counts.tsv > $SUBPROJECT.summary.stat.tsv
-		dd if=$SUBPROJECT.summary.stat.tsv of=../archives/$SUBPROJECT.outputs/$SUBPROJECT.summary.stat.tsv bs=1M
+		ln -s $PWD/$SUBPROJECT.summary.stat.tsv $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.read_counts.tsv
 		. $BIN/list_step_files.sh
 		exit 100
 	else
@@ -74,7 +74,7 @@ tac $SUBPROJECT.sample_counts.tsv | sed '1,4d' | tac | transpose_tab | sed '1,4d
 rm ref.tmp
 QUAL=`cat optimized.quality.txt`
 cut -f 1-4,$(($QUAL - $MINQUAL + 5)) $SUBPROJECT.sample_counts.tsv > $SUBPROJECT.summary.stat.tsv
-dd if=$SUBPROJECT.summary.stat.tsv of=../archives/$SUBPROJECT.outputs/$SUBPROJECT.read_counts.tsv bs=1M
+ln -s $PWD/$SUBPROJECT.summary.stat.tsv $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.read_counts.tsv
 
 # Merge raw stat statistics
 cd $EXEC

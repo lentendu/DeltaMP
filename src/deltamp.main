@@ -753,7 +753,7 @@ else
 	if [ $REF_SUBPROJECT == "no" ]
 	then
 		mkdir archives archives/$SUBPROJECT.outputs archives/$SUBPROJECT.processing processing libraries quality_check
-		cp config/configuration.$SUBPROJECT.tsv archives/$SUBPROJECT.outputs
+		ln -s $EXEC/config/configuration.$SUBPROJECT.tsv $EXEC/archives/$SUBPROJECT.outputs
 	fi
 	#paste <(date +%F -d @$START_TIME) <(date +%T -d @$START_TIME) <(echo -e "${VERSION[DELTAMP]}\t$USER\t$INIT_DIR\t$ARGUMENTS\t$SUBPROJECT") >> ${DELTAMP_BUILD%/*}/history
 	echo "###"

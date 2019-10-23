@@ -112,8 +112,8 @@ done | cat <(sed -n '1p' $SUBPROJECT.all_OTUs.tsv | awk -v L=$SAMP_SIZE '{for(i=
 OUT_LIST=(`ls $SUBPROJECT.* | grep "tsv$\|repseq\|biom$"`)
 PROC_LIST=(`ls $SUBPROJECT.* | join -v 1 - <(echo ${OUT_LIST[@]} | tr " " "\n")`)
 
-for i in "${OUT_LIST[@]}"; do dd if=$i of=../archives/$SUBPROJECT.outputs/$i bs=1M ; done
-for i in "${PROC_LIST[@]}"; do dd if=$i of=../archives/$SUBPROJECT.processing/$i bs=1M ; done
+for i in "${OUT_LIST[@]}"; do ln -s $PWD/$i $EXEC/archives/$SUBPROJECT.outputs/$i ; done
+for i in "${PROC_LIST[@]}"; do ln -s $PWD/$i $EXEC/archives/$SUBPROJECT.processing/$i ; done
 
 # logs
 cd $EXEC/log

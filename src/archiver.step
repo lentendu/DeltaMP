@@ -52,7 +52,7 @@ else
 fi
 
 # archiving
-tar cz $DATA -b 2048 | dd of="$ARCHIVE" obs=1M 2> /dev/null
+tar czh $DATA -b 2048 | dd of="$ARCHIVE" obs=1M 2> /dev/null
 
 # check internal checksum
 dd if="$ARCHIVE" ibs=1M 2> /dev/null | archive-sum -d md5 - | tee "$ARCHIVE"-internal.md5 | parallel -j ${NCPUS:-1} --pipe -N 1 md5sum -c
