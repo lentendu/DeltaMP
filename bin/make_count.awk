@@ -1,10 +1,5 @@
 BEGIN{
 	l=split(S,h)
-	printf "Representative_Sequence\ttotal"
-	for (i=1;i<=l;i++){
-		printf "\t%s",h[i]
-	}
-	printf "\n"
 }
 {
 	if(NR==1){
