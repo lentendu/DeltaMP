@@ -348,6 +348,7 @@ then
 		fi
 	fi
 fi
+eval $(sed 's/[\t ][\t ]*/[DB]=\"/;s/$/\"/' $DBFOLD/$DB.txt)
 
 # Chimera
 if [ $CHIMERA == "before" ] || [ $CHIMERA == "both" ]

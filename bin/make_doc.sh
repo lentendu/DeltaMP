@@ -142,7 +142,7 @@ then
 	echo "The average quality trimming parameter was optimised to $QUAL Phred score in order to keep at least $MIN_DEPTH trimmed reads per sample, considering all other provided trimming parameters."
 	LENGTH=$MINLEN
 fi
-TRIMAVG=`awk 'BEGIN{FS="\t"} {if(NR==1){for(i=1;i<=NF;i++){if($i~"^Trimmed")C=i}};if($1=="Average"){printf "%.0f\n", $C}}' quality_check/$SUBPROJECT.summary.stat.tsv`
+TRIMAVG=`awk '$1=="Average"{print $NF}' quality_check/$SUBPROJECT.summary.stat.tsv`
 if [ $TECH == "454" ] ; then if [ $DENOISE == "yes" ] ; then TRIMDEN="denoised and " ; else TRIMDEN="" ; fi ; else TRIMDEN="" ; fi
 echo "Each sample contains in average $TRIMAVG ${TRIMDEN}trimmed reads."
 echo ""
@@ -222,11 +222,11 @@ echo "The reads were dereplicated into $NBUNIQ unique sequences and then sorted 
 echo ""
 
 while read var val; do unset $var ; if [ $REF_SUBPROJECT == "no" ] ; then declare $var="$val" ; else declare $var="${val//$REF_SUBPROJECT/$SUBPROJECT}" ; fi ; done < config/OTU_env.txt
-if [ -s processing/$ACCNOS.accnos ]
+if [ $CHIMERA2 == "yes" ]
 then
-	NBCHIM=`sed -n '$=' processing/$ACCNOS.accnos`
-	NBOTUS=$(($(cut -f 2 processing/$LIST.list | sed '1d')+$NBCHIM))
-	NBRM=$(($NBREADS-$(cut -f 2 processing/$NAMES.names | tr "," "\n" | wc -l)))
+	NBCHIM=`grep "^Found " log/OTU.err | cut -d " " -f 2`
+	NBOTUS=$(($(sed -n '$=' processing/$COUNT_OTUS.count_table)+$NBCHIM))
+	NBRM=$(grep -A 1 "^Taking " log/OTU.err | sed -n '${s/ .*//;p}')
 	echo "The dereplicated reads were cluster into $NBOTUS OTUs using the $CLUST algorithm (version ${VERSION[CLUST]}, ${CITATION[CLUST]})."
 	if [ $CLUST == "cd-hit-est" ] && [ $PREV_PATH != "no" ]
 	then
@@ -234,11 +234,16 @@ then
 		echo "First, the $PREV_NB representative sequence of the previous subproject ${PREV_PATH##*/}, located in ${PREV_PATH%/*}, were used as OTU seed using cd-hit-est-2d."
 		echo "Then, reads which failed to cluster with previous subproject representative sequence were de-novo clustered into OTU with cd-hit-est and add to the previous OTUs, starting the at Otu$(( $PREV_NB + 1 ))."
 	fi
-	echo "$NBCHIM chimeras were detected among the OTU representative sequences using the UCHIME algorithm as implemented in MOTHUR (${CITATION[UCHIME]})."
-	echo "Those $NBCHIM OTUs, representing $NBRM sequences, were removed from the final dataset."
+	if [ $NBCHIM -gt 0 ]
+	then
+		echo "$NBCHIM chimeras were detected among the OTU representative sequences using the UCHIME algorithm as implemented in MOTHUR (${CITATION[UCHIME]})."
+		echo "Those $NBCHIM OTUs, representing $NBRM sequences, were removed from the final dataset."
+	else
+		echo "No chimeras could be detected among the OTU representative sequences using the UCHIME algorithm as implemented in MOTHUR (${CITATION[UCHIME]})."
+	fi
 	echo ""
 else
-	NBOTUS=`cut -f 2 processing/$LIST.list | sed '1d'`
+	NBOTUS=$(sed -n '$=' processing/$COUNT_OTUS.count_table)
 	echo "The dereplicated reads were cluster into $NBOTUS OTUs using the $CLUST algorithm (version ${VERSION[CLUST]}, ${CITATION[CLUST]})."
 	if [ $CLUST == "cd-hit-est" ] && [ $PREV_PATH != "no" ]
 	then
@@ -246,8 +251,6 @@ else
 		echo "First, the $PREV_NB representative sequence of the previous subproject ${PREV_PATH##*/}, located in ${PREV_PATH%/*}, were used as OTU seed using $CLUST-2d."
 		echo "Then, reads which failed to cluster with previous subproject representative sequence were de-novo clustered into OTU with $CLUST and add to the previous OTUs, starting at Otu$(( $PREV_NB + 1 ))."
 	fi
-	echo "No chimeras could be detected among the OTU representative sequences using the UCHIME algorithm as implemented in MOTHUR (${CITATION[UCHIME]})."
-	echo ""
 fi
 CIT+=(CLUST)
 if [ $ASSIGN_ALL == "yes" ]
