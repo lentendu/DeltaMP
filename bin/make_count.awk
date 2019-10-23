@@ -1,7 +1,10 @@
 BEGIN{
-	gsub(" ","\t",S)
 	l=split(S,h)
-	print "Representative_Sequence\ttotal\t"S
+	printf "Representative_Sequence\ttotal"
+	for (i=1;i<=l;i++){
+		printf "\t%s",h[i]
+	}
+	printf "\n"
 }
 {
 	if(NR==1){
