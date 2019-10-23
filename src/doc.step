@@ -20,6 +20,15 @@
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/prev.txt
 
+if [ $BATCH_QUEUE == "Slurm" ]
+then
+	sacct --format=jobid%20-,elapsed,ncpus,maxrss -j $(cut -d " " -f 1 config/jobid | tr "\n" "," | sed 's/,$//') | awk 'NR==1 || $1~"batch"{print}' > config/accounting
+	CPU_HOURS=$(awk 'NR>1{l=split($2,a,"-");if(l=1){day=0;time=a[1]} else {day=a[1];time=a[2]};h=split(time,b,":"); if(h=3){sec=day*24+b[1]+b[2]/60+b[3]/3600} else if(h=2){sec=b[1]/60+b[2]/3600} ; total+=sec*$3}END{printf "%.2f\n", total}' config/accounting)
+elif [ $BATCH_QUEUE == "GridEngine" ]
+then
+	qacct -j *.$SUBPROJECT | sort -k 1,1 | join - <(cut -d " " -f 1 config/jobid) | cat <(qacct -j *.$SUBPROJECT | head -1) - > config/accounting
+	CPU_HOURS=$(awk 'NR>1{sum+=$2*$4}END{print sum/3600}' config/accounting)
+fi
 . $BIN/make_doc.sh > $OUT/$SUBPROJECT.documentation.txt
 
 echo END

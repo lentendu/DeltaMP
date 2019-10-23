@@ -100,6 +100,7 @@ error_doc(){
 STIME=`date +%s`
 (set -o posix; set > /tmp/amp.$STIME.set)
 START_TIME=`date +%s`
+eval $(sed -n '/^BATCH_QUE/{s/\t/=/;p}' $(dirname $BIN)/config.txt)
 INIT_DIR=$PWD
 
 # Version
@@ -392,6 +393,11 @@ fi
 # pigz
 
 # Citations
+	# VSEARCH
+VERSION[VSEARCH]=`vsearch --version 2>&1 | sed -n '1s/vsearch v\([^_]*\)_.*$/\1/p'`
+CITATION[VSEARCH]="Rognes et al., 2016"
+FULLCITATION[VSEARCH]="Rognes, T., Flouri, T., Nichols, B., Quince, C., & Mahé, F. (2016). VSEARCH: a versatile open source tool for metagenomics (No. e2409v1). PeerJ Preprints. "
+	
 	# MOTHUR, UCHIME, classifier
 CITATION[MOTHUR]="Schloss et al., 2009"
 FULLCITATION[MOTHUR]="Schloss PD, Westcott SL, Ryabin T et al. (2009) Introducing mothur: Open-Source, Platform-Independent, Community-Supported Software for Describing and Comparing Microbial Communities. Applied and Environmental Microbiology, 75, 7537–7541."
@@ -469,9 +475,9 @@ then
 	FULLCITATION[CLUST]="van Dongen S (2000) Graph Clustering by Flow Simulation. University of Utrecht. http://micans.org/mcl/"
 elif [ $CLUST == "vsearch" ]
 then
-	VERSION[CLUST]=`vsearch --version 2>&1 | sed -n '1s/vsearch v\([^_]*\)_.*$/\1/p'`
-	CITATION[CLUST]="Rognes et al., 2016"
-	FULLCITATION[CLUST]="Rognes, T., Flouri, T., Nichols, B., Quince, C., & Mahé, F. (2016). VSEARCH: a versatile open source tool for metagenomics (No. e2409v1). PeerJ Preprints. "
+	VERSION[CLUST]=${VERSION[VSEARCH]}
+	CITATION[CLUST]="${CITATION[VSEARCH]}"
+	FULLCITATION[CLUST]="${FULLCITATION[VSEARCH]}"
 	CITATION[CLUST2]="Edgar, 2013"
 	FULLCITATION[CLUST2]="Edgar RC (2013) UPARSE: highly accurate OTU sequences from microbial amplicon reads. Nature Methods, 10, 996–998."
 elif [ $CLUST == "swarm" ]

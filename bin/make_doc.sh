@@ -53,16 +53,15 @@ echo ""
 printf '%'$((${#TITLE[1]}+8))'s\n' |tr " " "#"
 echo "### ${TITLE[1]} ###"
 printf '%'$((${#TITLE[1]}+8))'s\n' |tr " " "#"
-echo "The input sequences were analysed with DeltaMP version ${VERSION[DELTAMP]}, a metabarcode analysis pipeline for grid engines mainly based on MOTHUR (version ${VERSION[MOTHUR]}, ${CITATION[MOTHUR]}) and OBITools (version ${VERSION[OBI]}, ${CITATION[OBI]}) software suites."
-CIT=(MOTHUR OBI)
+echo "The input sequences were analysed with DeltaMP version ${VERSION[DELTAMP]}, a metabarcode analysis pipeline for grid engines mainly based on vsearch (version ${VERSION[VSEARCH]}, ${CITATION[VSEARCH]}), MOTHUR (version ${VERSION[MOTHUR]}, ${CITATION[MOTHUR]}) and OBITools (version ${VERSION[OBI]}, ${CITATION[OBI]}) software suites."
+CIT=(VSEARCH MOTHUR OBI)
 echo ""
 echo "The pipeline was executed from the directory $INIT_DIR with the following command:"
 echo "deltamp $ARGUMENTS"
 echo ""
 END_TIME=`date +%s`
 TIME_ELAPSED=$(($END_TIME-$START_TIME)) #it should be in seconds anyway
-CPU_HOURS=`qacct -j *.$SUBPROJECT | grep "^ru_wallclock\|^slots" | paste - - | awk '{sum+=$2*$4}END{print sum/3600}'`
-echo "The pipeline took $TIME_ELAPSED seconds to complete and used a total of $CPU_HOURS cpu-hours (contractual only if no benchmarking)."
+echo "The pipeline took $TIME_ELAPSED seconds to complete (real time, from submission to completion) and used a total of $CPU_HOURS cpu-hours."
 echo ""
 
 if [ $REF_SUBPROJECT != "no" ]
@@ -304,5 +303,5 @@ echo ""
 printf '%'$((${#TITLE[7]}+8))'s\n' |tr " " "#"
 echo "### ${TITLE[7]} ###"
 printf '%'$((${#TITLE[7]}+8))'s\n' |tr " " "#"
-for i in "${CIT[@]}"; do echo ${FULLCITATION[$i]} ; done | sort -k 1,1
+for i in "${CIT[@]}"; do echo ${FULLCITATION[$i]} ; done | sort -k 1,1 -u
 
