@@ -100,7 +100,6 @@ error_doc(){
 STIME=`date +%s`
 (set -o posix; set > /tmp/amp.$STIME.set)
 START_TIME=`date +%s`
-eval $(sed -n '/^BATCH_QUE/{s/\t/=/;p}' $(dirname $BIN)/config.txt)
 INIT_DIR=$PWD
 
 # Version
@@ -109,6 +108,7 @@ VERSION[DELTAMP]=
 DELTAMP_BUILD=
 DELTAMP_VER=deltamp${VERSION[DELTAMP]//./}
 BIN=$DELTAMP_BUILD/bin
+eval $(sed -n '/^BATCH_QUE/{s/\t/=/;p}' $DELTAMP_BUILD/config.txt)
 
 # Option's default value
 ARGUMENTS="$@"
