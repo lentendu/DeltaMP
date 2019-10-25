@@ -33,7 +33,7 @@ fi
 while read samp fwd rvs
 do
 	lib=$(echo $fwd $rvs | sed 's/\(.*\)[^ ]* \1.*$/\1/')
-	RAW_COUNT=$(grep " Recs " libraries/fastq/$lib.fwd.stats | awk '{print $1}')
+	RAW_COUNT=$(awk '{sum+=$2}END{print sum}' libraries/fastq/$lib.fwd.length)
 	if [ $PALG == "vsearch" ]
 	then
 		paste <(echo -e "$samp\t$lib\t$RAW_COUNT") <(awk '$2=="Pairs"{print $1;exit}' fastq/log.pairend.$lib.txt) <(awk '$2=="Merged"{print $1;exit}' fastq/log.pairend.$lib.txt) quality_check/$lib.stat
