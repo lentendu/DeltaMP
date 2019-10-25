@@ -34,9 +34,9 @@ fi
 echo "raw_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.${TECH}_${RAW_EXT}.$SUBPROJECT QUEUE_ARRAYS 1-${LIB3_SIZE}QUEUE_THREADMAX$MAX_TASK QUEUE_HOLD\${get_jobid}QUEUE_SEP\${demulti_jobid%.*} $BIN/${TECH}_${RAW_EXT}.sh)"
 if [ $TECH == "Illumina" ]
 then
-	echo "pair_end_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.${TECH}_pair_end.$SUBPROJECT QUEUE_ARRAYS 1-${LIB3_SIZE}QUEUE_THREADMAX$MAX_TASK QUEUE_HOLD\${raw_jobid%.*} $BIN/${TECH}_pair_end.sh)"
+	echo "pair_end_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.${TECH}_pair_end.$SUBPROJECT QUEUE_ARRAYS 1-${LIB3_SIZE}QUEUE_THREADMAX$MAX_TASK QUEUE_HOLD_ARRAY\${raw_jobid%.*} $BIN/${TECH}_pair_end.sh)"
 fi
-echo "opt_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.${TECH}_opt.$SUBPROJECT QUEUE_ARRAYS 1-${LIB3_SIZE}QUEUE_THREADMAX$MAX_TASK QUEUE_HOLD\${raw_jobid%.*}QUEUE_SEP\${pair_end_jobid%.*} $BIN/${TECH}_opt.sh)"
+echo "opt_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.${TECH}_opt.$SUBPROJECT QUEUE_ARRAYS 1-${LIB3_SIZE}QUEUE_THREADMAX$MAX_TASK QUEUE_HOLD_ARRAY\${raw_jobid%.*}QUEUE_SEP\${pair_end_jobid%.*} $BIN/${TECH}_opt.sh)"
 echo "qual_jobid=\$(QUEUE_SUBQUEUE_OPTIONS QUEUE_JOBNAME $DELTAMP_VER.${TECH}_quality.$SUBPROJECT QUEUE_HOLD\${opt_jobid%.*} $BIN/${TECH}_quality.sh)"
 
 ## Trim (,align (,subsample)) , and chimera check in array jobs
