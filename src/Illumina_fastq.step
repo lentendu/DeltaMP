@@ -75,10 +75,14 @@ else
 fi
 
 # raw reads stat
-vsearch --quiet --fastq_stats fastq/${LIB_NAME}.fwd.fastq.bz2 --log fastq/${LIB_NAME}.fwd.stats
-sed -n '/RatePct/,/^$/p' fastq/${LIB_NAME}.fwd.stats | sed '1,2d;$d' | awk '{print $3}' > raw_stat/${LIB_NAME}.fwd.meanposqual
-vsearch --quiet --fastq_stats fastq/${LIB_NAME}.rvs.fastq.bz2 --log fastq/${LIB_NAME}.rvs.stats
-sed -n '/RatePct/,/^$/p' fastq/${LIB_NAME}.rvs.stats | sed '1,2d;$d' | awk '{print $3}' > raw_stat/${LIB_NAME}.rvs.meanposqual
+for i in fwd rvs
+do
+	vsearch --quiet --fastq_stats fastq/${LIB_NAME}.$i.fastq.bz2 --log fastq/${LIB_NAME}.$i.stats
+	sed -n '/^Read length distribution/,/^$/{s/>=//;p}' fastq/${LIB_NAME}.$i.stats | awk '$3~"%"{print $1,$2}' | sort -k1,1n > raw_stat/$LIB_NAME.$i.length
+	sed -n '/^Q score distribution/,/^$/p' fastq/${LIB_NAME}.$i.stats | awk '$5~"%"{print $2,$4}' | sort -k 1,1 | join -a 1 -o 0,2.2 -e "0" <(seq 0 41 | sort -k 1,1) - | sort -k 1,1n | cut -d " " -f 2 > raw_stat/${LIB_NAME}.$i.meanqual
+	sed -n '/RatePct/,/^$/p' fastq/${LIB_NAME}.$i.stats | sed '1,2d;$d' | awk '{print $3}' > raw_stat/${LIB_NAME}.$i.meanposqual
+	rm fastq/${LIB_NAME}.$i.stats
+done
 
 # list files and directories
 . $BIN/list_step_files.sh

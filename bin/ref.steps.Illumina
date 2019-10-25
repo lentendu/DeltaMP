@@ -3,7 +3,6 @@ get
 Illumina_demulti
 Illumina_fastq
 Illumina_pair_end
-Illumina_raw_stat
 Illumina_opt
 Illumina_quality
 cut_db

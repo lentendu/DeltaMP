@@ -43,6 +43,7 @@ bunzip2 fastq/$LIB_NAME.pairend.fastq.bz2
 mothur "#set.dir(input=$EXEC/libraries/fastq, output=$EXEC/libraries/fasta);
 set.logfile(name=mothur.$LIB_NAME.logfile, append=T);
 fastq.info(fastq=$LIB_NAME.pairend.fastq)"
+bzip2 fastq/$LIB_NAME.pairend.fastq
 
 # Replace "-" by "_" in sequence identifiers
 sed '/>/s/-/_/g' fasta/$LIB_NAME.pairend.fasta > fasta/$LIB_NAME.pairend.tmp && mv fasta/$LIB_NAME.pairend.tmp fasta/$LIB_NAME.pairend.fasta
@@ -53,9 +54,12 @@ if [ $PALG != "vsearch" ]
 then
 	sed -n '/OVERLAPS/p' fastq/log.pairend.$LIB_NAME.txt | cut -f 4- | paste -d " " <(echo $LIB_NAME) - > raw_stat/$LIB_NAME.overlap.txt
 fi
-awk '$0!~"^>"{print length($1)}' fasta/$LIB_NAME.pairend.fasta > raw_stat/$LIB_NAME.pairend.length
-awk '$0!~"^>"{sum=0;for(i=1;i<=NF;i++){sum+=$i};print int(sum/NF)}' fasta/$LIB_NAME.pairend.qual > raw_stat/$LIB_NAME.pairend.meanqual
-awk '$0!~"^>"{for(i=1;i<=NF;i++){sum[i]+=$i;nb[i]+=1}}END{for(i=1;sum[i];i++){print int(sum[i]/nb[i])}}' fasta/$LIB_NAME.pairend.qual > raw_stat/$LIB_NAME.pairend.meanposqual
+#awk '$0!~"^>"{print length($1)}' fasta/$LIB_NAME.pairend.fasta > raw_stat/$LIB_NAME.pairend.length
+vsearch --quiet --fastq_stats fastq/${LIB_NAME}.pairend.fastq.bz2 --log fastq/${LIB_NAME}.pairend.stats
+sed -n '/^Read length distribution/,/^$/{s/>=//;p}' fastq/${LIB_NAME}.pairend.stats | awk '$3~"%"{print $1,$2}' | sort -k1,1n > raw_stat/$LIB_NAME.pairend.length
+sed -n '/^Q score distribution/,/^$/p' fastq/${LIB_NAME}.pairend.stats | awk '$5~"%"{print $2,$4}' | sort -k 1,1 | join -a 1 -o 0,2.2 -e "0" <(seq 0 41 | sort -k 1,1) - | sort -k 1,1n | cut -d " " -f 2 > raw_stat/${LIB_NAME}.pairend.meanqual
+sed -n '/RatePct/,/^$/p' fastq/${LIB_NAME}.pairend.stats | sed '1,2d;$d' | awk '{print $3}' > raw_stat/${LIB_NAME}.pairend.meanposqual
+rm fastq/${LIB_NAME}.pairend.stats
 
 # list files and directories
 . $BIN/list_step_files.sh

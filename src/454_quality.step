@@ -92,11 +92,25 @@ TRIM=`cat trimming.parameters.txt`
 awk -v T=$TRIM 'BEGIN{R=3;OFS="\t"} {if(NR==1){printf "%s\t%s" ,$1,$2; for (i=3;i<=NF;i++){if($i==T) {printf "\t%s %s\n", "Trimmed at",$i; R=i}}} else print $1,$2,$R}' $SUBPROJECT.quality.stat.txt > $SUBPROJECT.summary.stat.tsv
 ln -s $PWD/$SUBPROJECT.summary.stat.tsv $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.read_counts.tsv
 
-# Merge raw stat statistics
-cd ..
+# raw reads statistics
+cd $EXEC/libraries/raw_stat
 if [[ $LIB_DIR == "/"* ]]
 then
-	gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile=archives/$SUBPROJECT.outputs/$SUBPROJECT.raw_reads_statistics.pdf $(ls libraries/raw_stat/$SUBPROJECT.*.pdf)
+	for LIB_NAME in $(sed 's/\.sff.*//' $EXEC/config/lib2.list)
+		# cat length and quality statistics of all samples from a library
+		for j in length meanqual meanposqual
+		do
+			for i in $(ls *$LIB_NAME.$j)
+			do
+				cat <(echo $i | cut -d "." -f 1) $i | tr "\n" "\t" | sed 's/$/\n/'
+			done > $LIB_NAME.$j.tmp && mv $LIB_NAME.$j.tmp $LIB_NAME.$j
+		done
+		# Figures
+		Rscript --vanilla $BIN/Rscript_raw_stat_figures.R $SUBPROJECT $LIB_NAME $BIN
+	done
+	# merge all figures
+	gs -dBATCH -dNOPAUSE -q -sDEVICE=pdfwrite -sOutputFile=$EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.raw_reads_statistics.pdf $(ls $SUBPROJECT.*.pdf)
+	rm $SUBPROJECT.*.pdf
 fi
 
 # list files and directories

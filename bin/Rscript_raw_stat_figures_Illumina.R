@@ -1,152 +1,117 @@
 library(plyr)
 suppressMessages(library(dplyr))
+library(tidyr)
 library(tibble)
+library(foreach)
+library(ggplot2)
+suppressMessages(library(gridExtra))
 subp<-commandArgs()[7]
 bin<-commandArgs()[8]
 amp<-commandArgs()[9]
 lib<-commandArgs()[10]
 source(file.path(bin,"palette.R"))
 
-list2<-c(apply(expand.grid(c("fwd","rvs","pairend"),c("meanqual","meanposqual")),1,paste,collapse="."),"pairend.length","pairend.overlap")
- 
-# Read stat tables
-if (lib == "all") {
-  list1<-sub("\\.stat","",list.files(pattern="*\\.stat$"))
+list<-apply(expand.grid(c("fwd","rvs","pairend"),c("meanqual","meanposqual","length")),1,paste,collapse=".")
+
+if(lib=="all") {
+  files<-sub(paste0("\\.fwd\\.meanqual"),"",list.files(pattern="fwd.meanqual"))
+  samples<-files
   lname<-subp
-  proj<-paste0("Project: ",subp)
-  for (i in list1) {
-    assign(i, read.table(paste0(i,".stat"),h=T,check.names=F))
-  }
-  for (i in c("fwd","rvs","pairend")) {
-    assign(paste0(i,".meanqual"),Reduce(function(...) left_join(...,by=paste0(i,".meanqual")),llply(grep(paste0(i,".meanqual"),list1,value=T),get)))# %>% replace(., is.na(.), 0))
-    assign(paste0(i,".meanposqual"),Reduce(function(...) left_join(...,by=paste0(i,".meanposqual")),llply(grep(paste0(i,".meanposqual"),list1,value=T),function(x) get(x) %>% data.frame %>% rownames_to_column(paste0(i,".meanposqual"))))) # %>% replace(., is.na(.), 0))
-  }
-  pairend.length<-Reduce(function(...) left_join(...,by="pairend.length"),llply(grep("pairend.length",list1,value=T),get))
-  pairend.overlap<-Reduce(function(...) left_join(...,by="pairend.overlap"),llply(grep("pairend.overlap",list1,value=T),function(x) get(x) %>% data.frame %>% rownames_to_column("pairend.overlap") %>% mutate(`pairend.overlap`=as.numeric(`pairend.overlap`))))
-    
+  project<-paste0("Project: ",subp)
 } else {
-  list1<-sub("\\.stat","",list.files(pattern=paste0(lib,".*\\.stat$")))
-  lname<-lib
-  proj<-paste0("Project: ",subp,"\nLibrary: ",lib)
-  for (i in list1) {
-    assign(sub(paste0(lib,"\\."),"",i), read.table(paste0(i,".stat"),h=T,check.names=F))
+  files<-sub(paste0("\\.fwd\\.meanqual"),"",list.files(pattern=paste(lib,"fwd.meanqual",sep=".")))
+  samples<-sub(paste0("\\.",lib),"",files)
+  lname<-paste(subp,lib,sep=".")
+  project<-paste0("Project: ",subp,"\nLibrary: ",lib)
+}
+
+mycolors<-palette()[1:length(samples)]
+my_theme<-theme_bw() +
+  theme(strip.background=element_rect(fill="grey90",linetype=0),
+        strip.text=element_text(size=12),
+        panel.border=element_blank(),
+        axis.line=element_line(color="black"),
+        plot.title=element_text(size=16,hjust=0.5),
+        plot.subtitle=element_text(size=12,hjust=0.5),
+        plot.margin=margin(t=12, r=12, b=12, l=12, unit="pt"))
+theme_set(my_theme)
+
+types<-c("fwd","rvs","pairend")
+fulltypes<-c("forward reads","reverse reads","pair-end reads")
+
+meanqual<-foreach(x=types,.combine=rbind) %do% {
+  foreach(y=samples,.combine=rbind) %do% {
+    data.frame(type=x,sample=y,quality=0:41,reads=scan(paste(grep(y,files,value=T),x,"meanqual",sep="."),quiet=T))
   }
-  # Add position/length column if necessary
-  maxc<-max(aaply(list2,1,function(x) ncol(get(x))))
-  for (i in list2) {
-    if(ncol(get(i))<maxc) {
-      tmp<-cbind.data.frame(seq(1,nrow(get(i))),get(i))
-      colnames(tmp)[1]<-i
-      assign(i,tmp)
-    }
+} %>% mutate(type=mapvalues(type,types,fulltypes))
+
+meanposqual<-foreach(x=types,.combine=rbind) %do% {
+  foreach(y=samples,.combine=rbind) %do% {
+    data.frame(type=x,sample=y,quality=scan(paste(grep(y,files,value=T),x,"meanposqual",sep="."),quiet=T)) %>%
+      rownames_to_column("position")
   }
-}
+} %>% mutate(type=mapvalues(type,types,fulltypes),position=as.numeric(position))
 
-# sum
-for (i in list2) {
-  tmp<-cbind.data.frame(get(i)[,1],sum=round(apply(get(i)[,-1],1,function(x) sum(na.omit(x)))))
-  colnames(tmp)<-c(colnames(get(i))[1],"sum")
-  assign(paste0("sum.",i),tmp)
-}
-
-# Figures
-
-## Raw reads ##
-pdf(paste(lname,"raw_reads_with_primer_quality.pdf",sep="."),paper="a4",width=0,height=0) #,title=paste(subp,"raw reads quality"))
-layout(matrix(c(1:5),ncol=1),heights=c(1,4,4,4,4))
-# Title
-par(mar=c(0,2,0,0),cex=1)
-plot.new()
-text(0.5,0.85,"Raw reads quality (with primers)",font=2,xpd=T,cex=1.4)
-text(0,0.3,proj,adj=c(0,NA),font=2,xpd=T,cex=1)
-text(1,0.3,paste0(amp,"   ",Sys.Date()),adj=c(1,NA),xpd=T,cex=1)
-## raw forward and reverse ##
-labfr<-c(fwd="forward",rvs="reverse")
-# Mean sequence quality
-par(mar=c(3,3,1,0.5),mgp=c(1.8,0.6,0),tck=-0.05,cex.axis=0.8,las=1,xpd=T)
-for (i in c("fwd","rvs")) {
-  tmp_qual<-get(paste0(i,".meanqual"))
-  tmp_sum<-get(paste0("sum.",i,".meanqual"))
-  lmax<-max(tmp_sum[,2])
-  posx<-unique(floor(fwd.meanqual[,1]/5))*5
-  posy<-10^(1:nchar(lmax))
-  barplot(log(tmp_sum[,2]+1),axes=F,border=NA,space=0,ylim=c(0,log(posy[length(posy)]+1)),col="limegreen",xlab=paste(labfr[i],"average phred score"))
-  axis(1,at=seq(posx[1]-tmp_qual[1,1]+1,which(tmp_qual[,1]==posx[length(posx)]),5),labels=posx)
-  axis(2,at=log(c(0,posy)+1),labels=c(0,sub("\\+0","\\+",format(posy,scientific=T))))
-  mtext("Count",side=2,xpd=T,adj=0.5,padj=-3.7,las=0)
-  for (i in 2:ncol(tmp_qual)) {
-    points(seq(0.5,nrow(tmp_qual)-0.5,1),log(tmp_qual[,i]+1),type="l",col=palette()[i]) 
+seqlength<-foreach(x=types,.combine=rbind) %do% {
+  foreach(y=samples,.combine=rbind) %do% {
+    data.frame(type=x,sample=y,read.table(paste(grep(y,files,value=T),x,"length",sep="."),col.names=c("length","reads")))
   }
-}
-# Mean base quality per position
-for (i in c("fwd","rvs")) {
-  tmp_qual<-get(paste0(i,".meanposqual"))
-  plot(NULL,bty="n",xlim=c(0,nrow(tmp_qual)),ylim=c(floor(min(tmp_qual[,-1],na.rm=T)/10)*10,40),xlab=paste(labfr[i],"nucleotide position"),ylab="Phred score")
-  for (i in 2:ncol(tmp_qual)) {
-    points(tmp_qual[,1],tmp_qual[,i],type="l",col=palette()[i]) 
-  }
-}
-dev.off()
+} %>% mutate(type=mapvalues(type,types,fulltypes))
+
+# average quality
+plot_qual<-ggplot(meanqual,aes(quality,reads+1)) +
+  geom_bar(data=group_by(meanqual,type,quality) %>% summarize(reads=sum(reads)),stat="identity",fill="limegreen") +
+  geom_line(aes(color=sample),size=0.3,stat="identity",show.legend=F) +
+  geom_smooth() +
+  facet_wrap(~type,ncol=1) +
+  scale_color_manual(values=mycolors) +
+  scale_y_log10() +
+  labs(title="Raw reads quality",subtitle=paste0(project,"\n",amp,paste(rep(" ",58),collapse=" "),Sys.Date()),
+       x="quality score",y="read counts")
+ggsave(paste(lname,"quality","pdf",sep="."),plot_qual,width=210,height=297,units="mm")
+
+# average quality by position
+plot_pos_qual<-ggplot(meanposqual,aes(position,quality)) +
+  geom_line(aes(color=sample),size=0.3,stat="identity",show.legend=F) +
+  geom_smooth() +
+  facet_wrap(~type,ncol=1,scales="free_x") +
+  scale_color_manual(values=mycolors) +
+  labs(title="Length vs. quality distribution",x="nucleotide position",y="quality score")
+ggsave(paste(lname,"position_quality","pdf",sep="."),plot_pos_qual,width=210,height=297,units="mm")
 
 
-## Pair-end ##
-pdf(paste(lname,"pair-end_reads_quality.pdf",sep="."),paper="a4",width=0,height=0) #,title=paste(subp,"pair-end reads quality"))
-layout(matrix(c(1:5),ncol=1),heights=c(1,4,4,4,4))
-# Title
-par(mar=c(0,2,0,0),cex=1)
-plot.new()
-text(0.5,0.85,"Pair-end reads quality",font=2,xpd=T,cex=1.4)
-text(0,0.3,proj,adj=c(0,NA),font=2,xpd=T,cex=1)
-text(1,0.3,paste0(amp,"   ",Sys.Date()),adj=c(1,NA),xpd=T,cex=1)
-# Mean sequence quality
-par(mar=c(3,3,1,0.5),mgp=c(1.8,0.5,0),tck=-0.03,cex.axis=0.8,las=1,xpd=T)
-lmax<-max(sum.pairend.meanqual[,2])
-posx<-unique(floor(fwd.meanqual[,1]/5))*5
-posy<-10^(1:nchar(lmax))
-barplot(log(sum.pairend.meanqual[,2]+1),axes=F,border=NA,space=0,ylim=c(0,log(posy[length(posy)]+1)),col="limegreen",xlab="Average phred score")
-axis(1,at=seq(posx[1]-pairend.meanqual[1,1]+1,which(pairend.meanqual[,1]==posx[length(posx)]),5),labels=posx)
-axis(2,at=log(c(0,posy)+1),labels=c(0,sub("\\+0","\\+",format(posy,scientific=T))))
-mtext("Count",side=2,xpd=T,adj=0.5,padj=-3.7,las=0)
-for (i in 2:ncol(pairend.meanqual)) {
-  points(seq(0.5,nrow(pairend.meanqual)-0.5,1),log(pairend.meanqual[,i]+1),type="l",col=palette()[i]) 
-}
-# Mean base quality per position
-plot(NULL,bty="n",xlim=c(0,nrow(pairend.meanposqual)),ylim=c(floor(min(pairend.meanposqual[,-1],na.rm=T)/10)*10,40),xlab="nucleotide position",ylab="Phred score")
-for (i in 2:ncol(pairend.meanposqual)) {
-  points(pairend.meanposqual[,1],pairend.meanposqual[,i],type="l",col=palette()[i]) 
-}
-# Length
-lmax<-max(sum.pairend.length[,2])
-posx<-unique(round(pairend.length[,1]/50))*50
-posy<-ceiling(lmax/10^(nchar(lmax)-1))*10^(1:(nchar(lmax)-1))
-barplot(log(sum.pairend.length[,2]+1),axes=F,border=NA,space=0,ylim=c(0,log(posy[length(posy)]+1)),col="limegreen",xlab="Read length")
-axis(2,at=c(0,log(posy+1)),labels=c(0,sub("\\+0","\\+",format(posy,scientific=T))))
-axis(1,at=posx-pairend.length[1,1],labels=posx)
-mtext("Count",side=2,xpd=T,adj=0.5,padj=-3.7,las=0)
-for (i in 2:ncol(pairend.length)) {
- points(seq(0.5,nrow(pairend.length)-0.5,1),log(pairend.length[,i]+1),type="l",col=palette()[i]) 
-}
-# Overlap
-lmax<-max(sum.pairend.overlap[,2])
-posx<-unique(round(pairend.overlap[,1]/25))*25
-posy<-ceiling(lmax/10^(nchar(lmax)-1))*10^(1:(nchar(lmax)-1))
-barplot(log(sum.pairend.overlap[,2]+1),axes=F,border=NA,space=0,ylim=c(0,log(posy[length(posy)]+1)),col="limegreen",xlab="Overlap region length")
-axis(2,at=c(0,log(posy+1)),labels=c(0,sub("\\+0","\\+",format(posy,scientific=T))))
-axis(1,at=posx,labels=posx)
-mtext("Count",side=2,xpd=T,adj=0.5,padj=-3.7,las=0)
-for (i in 2:ncol(pairend.overlap)) {
-  points(seq(0.5,nrow(pairend.overlap)-0.5,1),log(pairend.overlap[,i]+1),type="l",col=palette()[i]) 
-}
-dev.off()
+# sequence length
+full_length<-filter(seqlength,type!="pair-end reads") %>%
+  select(-reads) %>%
+  spread(type,length) %>%
+  mutate(full=`forward reads`+`reverse reads`) %>%
+  select(sample,full)
+overlap<-filter(seqlength,type=="pair-end reads") %>%
+  left_join(full_length) %>%
+  mutate(overlap=full-length)
 
-
-## Legend ##
-pdf(paste(lname,"legend.pdf",sep="."),paper="a4",width=0,height=0) #,title=paste(subp,"sample legend"))
-layout(matrix(c(1,2),ncol=1),heights=c(1,20))
-par(mar=c(0,2,0,0),cex=1)
-plot.new()
-text(0.5,0.85,"Libraries legend",font=2,xpd=T,cex=1.4)
-par(mar=c(0,0,0,0),cex=1)
-plot.new()
-legend("top",colnames(fwd.meanqual)[-1],lty=1,col=palette()[2:ncol(fwd.meanqual)],ncol=2,bty="n",lwd=4,y.intersp=1.5,text.width=c(0.4,0.4))
+plot_length<-ggplot(overlap,aes(length,reads)) +
+  geom_bar(data=group_by(overlap,type,length) %>% summarize(reads=sum(reads)),stat="identity",fill="limegreen") +
+  geom_line(aes(color=sample),size=0.3,stat="identity",show.legend=F) +
+  geom_smooth() +
+  scale_color_manual(values=mycolors) +
+  scale_y_log10() +
+  labs(title="Pair-end length distribution",x="sequence length (nt)",y="read counts")
+plot_overlap<-ggplot(overlap,aes(overlap,reads)) +
+  geom_bar(data=group_by(overlap,type,overlap) %>% summarize(reads=sum(reads)),stat="identity",fill="limegreen") +
+  geom_line(aes(color=sample),size=0.3,stat="identity",show.legend=F) +
+  geom_smooth() +
+  scale_color_manual(values=mycolors) +
+  scale_y_log10() +
+  labs(x="sequence overlap (nt)",y="read counts")
+plot_line<-ggplot(overlap,aes(overlap,reads)) +
+  geom_line(aes(color=sample),size=1,stat="identity") +
+  scale_color_manual(values=mycolors,guide=guide_legend(ncol=4)) +
+  theme(legend.position="bottom",
+        legend.text=element_text(size=7),
+        legend.title=element_blank())
+plot_legend<-cowplot::get_legend(plot_line)
+pdf(paste(lname,"pair-end_length","pdf",sep="."),paper="a4",width=0,height=0)
+# grid.arrange(plot_length,plot_overlap,plot_legend,ncol=1)
+grid.arrange(plot_length,plot_legend,ncol=1,heights=c(1.1,1.9))
 dev.off()
