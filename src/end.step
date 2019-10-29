@@ -71,10 +71,10 @@ fi
 # biom format (all OTUs only)
 if [ $CLASSIF == "bayesian" ]
 then
-	sed 's/^OTU\t/#OTU\t/;s/NA;/NA(0);/g;s/)*;\t/\t/' $SUBPROJECT.${LABELS[0]}_OTUs.tsv | awk -v S=$SAMP_SIZE 'BEGIN{FS=OFS="\t"}{if(NR==1){print $1,$NF,$(S+2),"bootstrap"} else {l=split($(S+2),a,");");tax="";boot="";for(i=1;i<=l;i++){split(a[i],b,"(");tax=tax""b[1]";";boot=boot""b[2]";"};print $1,$NF,tax,boot}}' | sed 's/;\t/\t/;s/;$//' > $CTAXO.taxo
+	sed 's/^OTU\t/#OTU\t/;s/NA;/NA(0);/g;s/)*;\t/\t/;s/);/|/g;s/(/##/g' $SUBPROJECT.${LABELS[0]}_OTUs.tsv | awk -v S=$SAMP_SIZE 'BEGIN{FS=OFS="\t"}{if(NR==1){print $1,$NF,$(S+2),"bootstrap"} else {l=split($(S+2),a,"|");tax="";boot="";for(i=1;i<=l;i++){split(a[i],b,"##");tax=tax""b[1]";";boot=boot""b[2]";"};print $1,$NF,tax,boot}}' | sed 's/;\t/\t/;s/;$//' > $CTAXO.taxo
 elif [ $CLASSIF == "vsearch" ]
 then
-	sed 's/^OTU\t/#OTU\t/;s/NA;/NA(0);/g;s/)*;\t/\t/' $SUBPROJECT.${LABELS[0]}_OTUs.tsv | awk -v S=$SAMP_SIZE 'BEGIN{FS=OFS="\t"}{if(NR==1){print $1,$NF,$(S+2),"bootstrap",$(NF-2),$(NF-1)} else {l=split($(S+2),a,");");tax="";boot="";for(i=1;i<=l;i++){split(a[i],b,"(");tax=tax""b[1]";";boot=boot""b[2]";"};print $1,$NF,tax,boot,$(NF-2),$(NF-1)}}' | sed 's/;\t/\t/g' > $CTAXO.taxo
+	sed 's/^OTU\t/#OTU\t/;s/NA;/NA(0);/g;s/)*;\t/\t/;s/);/|/g;s/(/##/g' $SUBPROJECT.${LABELS[0]}_OTUs.tsv | awk -v S=$SAMP_SIZE 'BEGIN{FS=OFS="\t"}{if(NR==1){print $1,$NF,$(S+2),"bootstrap",$(NF-2),$(NF-1)} else {l=split($(S+2),a,"|");tax="";boot="";for(i=1;i<=l;i++){split(a[i],b,"##");tax=tax""b[1]";";boot=boot""b[2]";"};print $1,$NF,tax,boot,$(NF-2),$(NF-1)}}' | sed 's/;\t/\t/g' > $CTAXO.taxo
 fi
 
 # Functional assignment
