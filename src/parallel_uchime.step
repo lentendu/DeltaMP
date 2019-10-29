@@ -19,99 +19,35 @@
 # 
 
 ## two step parallelization of UCHIME with self reference ##
-mkdir temp_uchime && cd temp_uchime
-ln -s ../$FASTA.fasta ./
-ln -s ../$NAMES.names ./
-
-# serial
 start=`date +%s`
-awk -v N=$NAMES '{s=split($2,a,",");if(s>16){print > N".ab.names"} else {print > N".low.names"}}' $NAMES.names
+mkdir temp_uchime && cd temp_uchime
+twofasta ../$FASTA.fasta | awk '{print $1}' | paste - - | sed 's/^>//' | sort -k 1,1 | join - <(sort -k 1,1 ../$COUNT.count_table) | awk '{print ">"$1,"size="$3";\n"$2}' > $FASTA.fasta
 
-echo "# Serial chimera removal for reads with abundance above 16 ($(sed -n '$=' $NAMES.ab.names) reads)"
-
-obigrep --without-progress-bar --uppercase --id-list=<(cut -f 1 $NAMES.ab.names) $FASTA.fasta > $FASTA.ab.fasta
-
-mothur "#set.logfile(name=mothur.chimera.log);
-chimera.uchime(fasta=$FASTA.ab.fasta, name=$NAMES.ab.names, reference=self, processors=1)"
-if [ -s $FASTA.ab.denovo.uchime.accnos ]
-then
-	mothur "#set.logfile(name=mothur.chimera.log, append=T);
-	remove.seqs(accnos=$FASTA.ab.denovo.uchime.accnos, fasta=$FASTA.ab.fasta)"
-	nb=$(sed -n '$=' $FASTA.ab.denovo.uchime.accnos)
-else
-	ln -s $FASTA.ab.fasta $FASTA.ab.pick.fasta
-	nb=0
-fi
-end5=`date +%s`
-echo "# $nb chimera found in $((end5-start)) secondes"
+# serial chimera removal for reads with abundance above 16
+obigrep --without-progress-bar -p 'size>16' $FASTA.fasta | obisort -r -k 'size' --uppercase | vsearch --quiet --uchime_denovo - --nonchimeras $FASTA.ab.ok.fasta --chimeras $FASTA.ab.chim.fasta
 
 # parallel check for decreasing abundance intervals (2^4, 2^3, 2^2, 2^1 and 2^0)
-get_seeded_random() {
-  seed="$1"
-  openssl enc -aes-256-ctr -pass pass:"$seed" -nosalt </dev/zero 2>/dev/null
-}
-export -f get_seeded_random
-
-para_chimera() {
-	split=$1
-	obigrep --without-progress-bar --uppercase --id-list=<(awk -v S=$split '$2==S{print $1}' $NAMES.low$i.groups) $FASTA.low$i.fasta > $FASTA.low$i.s$split.fasta
-	mothur "#set.logfile(name=mothur.s$split.log);
-	chimera.uchime(fasta=$FASTA.low$i.s$split.fasta, reference=$FASTA.ref$i.fasta, processors=1)"
-	rm $FASTA.low$i.s$split.fasta $FASTA.low$i.s$split.fasta.uchime_formatted
-}
-export -f para_chimera
-
 for i in $(seq 4 -1 0)
 do
-	awk -v P=$i '{s=split($2,a,",");if(P>1){if(s>2^(P-1) && s<=2^P){print}} else {if(s==2^P){print}}}' $NAMES.low.names > $NAMES.low$i.names
-	obigrep --without-progress-bar --uppercase --id-list=<(cut -f 1 $NAMES.low$i.names) $FASTA.fasta > $FASTA.low$i.fasta
-	SIZE=$(sed -n '$=' $NAMES.low$i.names)
+	# merge all non-chimeric OTUs so far
+	cat $FASTA.*.ok.fasta > $FASTA.ref$i.fasta
 	if [ $i -le 1 ]
 	then
-		echo "# Parallel chimera removal for reads with abundance of $(echo 2^$i | bc) ($SIZE reads)"
+		obigrep --without-progress-bar --uppercase -p "size==2**$i" $FASTA.fasta | vsearch --quiet --threads $NCPUS --uchime_ref - --db $FASTA.ref$i.fasta --nonchimeras $FASTA.low${i}.ok.fasta --chimeras $FASTA.low${i}.chim.fasta
 	else
-		echo "# Parallel chimera removal for reads with abundance between $(echo 2^$((i-1))+1 | bc) and $(echo 2^$i | bc) ($SIZE reads)"
+		obigrep --without-progress-bar --uppercase -p "(size>2**($i-1)) and (size<=2**$i)" $FASTA.fasta | vsearch --quiet --threads $NCPUS --uchime_ref - --db $FASTA.ref$i.fasta --nonchimeras $FASTA.low${i}.ok.fasta --chimeras $FASTA.low${i}.chim.fasta
 	fi
-	# seed controled random distribution of reads among parallel jobs
-	seq 1 $SIZE | awk -v S=$SIZE -v N=$NCPUS '{x=$1/(S/N); if(x == int(x)){print x} else print int(x)+1}' | shuf --random-source=<(get_seeded_random 4) | paste <(cut -f 1 $NAMES.low$i.names) - > $NAMES.low$i.groups
-	# merge all non-chimeric OTUs so far
-	cat $FASTA.*.pick.fasta > $FASTA.ref$i.fasta
-	export i FASTA NAMES
-	seq 1 $NCPUS | parallel -j $NCPUS para_chimera
-	cat mothur.s*.log >> mothur.chimera.log && rm mothur.s*.log
-	cat $FASTA.low$i.s*.ref.uchime.accnos > $FASTA.low$i.ref.uchime.accnos && rm $FASTA.low$i.s*.ref.uchime.accnos
-	for j in $FASTA.low$i.s*.ref.uchime.chimeras; do sed '1d' $j ; done > $FASTA.low$i.ref.uchime.chimeras && rm $FASTA.low$i.s*.ref.uchime.chimeras
-	if [ -s $FASTA.low$i.ref.uchime.accnos ]
-	then
-		mothur "#set.logfile(name=mothur.chimera.log, append=T);
-		remove.seqs(accnos=$FASTA.low$i.ref.uchime.accnos, fasta=$FASTA.low$i.fasta)"
-		nb=$(sed -n '$=' $FASTA.low$i.ref.uchime.accnos)
-		rm $FASTA.low$i.fasta
-	else
-		mv $FASTA.low$i.fasta $FASTA.low$i.pick.fasta
-		nb=0
-	fi
-	rm $NAMES.low$i.names $FASTA.ref$i.fasta $NAMES.low$i.groups
-	declare end$i=`date +%s`
-	tmp1=end$((i+1))
-	tmp2=end$i
-	echo "# $nb chimera found in $((${!tmp2}-${!tmp1})) secondes"
 done
 
-# merge accnos and chimeras
-cat mothur.chimera.log >> ../$LOG
-if [ -s $FASTA.ab.denovo.uchime.accnos ]
+# merge non chimeric and chimeric sequences
+cat $FASTA.ab.ok.fasta $FASTA.low{4..0}.ok.fasta | twofasta > ../$FASTA.ok.fasta
+cat $FASTA.ab.chim.fasta $FASTA.low{4..0}.chim.fasta | twofasta > ../$FASTA.chim.fasta
+NBCHIM=$(grep -c "^>" ../$FASTA.chim.fasta)
+end=`date +%s`
+if [ $NBCHIM -gt 0 ]
 then
-	cat $FASTA.ab.denovo.uchime.accnos $FASTA.low{4..0}.ref.uchime.accnos > ../$FASTA.denovo.uchime.accnos
-	cat $FASTA.ab.denovo.uchime.chimeras $FASTA.low{4..0}.ref.uchime.chimeras > ../$FASTA.denovo.uchime.chimeras
+	echo "# The parrallel self reference UCHIME implementation took $((${end}-${start})) secondes to complete and detected a total of $NBCHIM chimeras in the file $FASTA.fasta."
 else
-	cat $FASTA.low{4..0}.ref.uchime.accnos > ../$FASTA.denovo.uchime.accnos
-	cat $FASTA.low{4..0}.ref.uchime.chimeras > ../$FASTA.denovo.uchime.chimeras
-fi
-if [ -s ../$FASTA.denovo.uchime.accnos ]
-then
-	echo "# The parrallel self reference UCHIME implementation detected a total of $(sed -n '$=' ../$FASTA.denovo.uchime.accnos) chimeras."
-else
-	echo "# The parrallel self reference UCHIME implementation did not detected any chimera."
+	echo "# The parrallel self reference UCHIME implementation took $((${end}-${start})) secondes to complete and did not detected any chimera in the file $FASTA.fasta."
 fi
 cd .. && rm -r temp_uchime

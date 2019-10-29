@@ -211,24 +211,21 @@ then
 	COUNT=`sed -n '/^count=/{s/.*=//;s/\.count_table//;p}' current_files.summary`
 elif [ $CHIMERA1 == "yes" ]
 then
-	unset ACCNOS
-	if [ $TECH == "454" ]
+	if [ $TECH == "454" ] || [ $(sed -n '$=' $COUNT.count_table) -lt 20000 ]
 	then
-		mothur "#set.logfile(name=$LOG, append=T);
-		chimera.uchime(fasta=$FASTA.fasta, count=$COUNT.count_table, reference=self, processors=$NCPUS);
-		get.current()"
-		ACCNOS=`sed -n '/^accnos=/{s/.*=//;s/\.accnos//;p}' current_files.summary`
+		twofasta $FASTA.fasta | awk '{print $1}' | paste - - | sed 's/^>//' | sort -k 1,1 | join - <(sort -k 1,1 $COUNT.count_table) | awk '{print ">"$1,"size="$3";\n"$2}' | vsearch --no_progress --uchime_denovo - --nonchimeras - | twofasta > $FASTA.ok.fasta
 	else
 		. $BIN/parallel_uchime.sh
-		ACCNOS=$FASTA.denovo.uchime
-		# vsearch --no_progress --uchime_denovo $FASTA.un.fasta --nonchimeras - | twofasta > $FASTA.un.ok.fasta
 	fi
-	if [ -s $ACCNOS.accnos ]
+	if [ $(grep -c "^>" $FASTA.fasta) -eq $(grep -c "^>" $FASTA.ok.fasta) ]
 	then
-		mothur "#set.logfile(name=$LOG, append=T);
-		remove.seqs(accnos=$ACCNOS.accnos, fasta=$FASTA.fasta, count=$COUNT.count_table);
-		get.current()"
+		ln -s $COUNT.count_table $COUNT.ok.count_table
+	else
+		grep "^>" $FASTA.ok.fasta | sed 's/>//' | sort | join - <(sed '1d' $COUNT.count_table | sort -k 1,1) | cat <(head -1 $COUNT.count_table) - > $COUNT.ok.count_table
 	fi
+	FASTA=$FASTA.ok
+	COUNT=$COUNT.ok
+	echo -e "fasta=$FASTA.fasta\ncount=$COUNT.count_table" > current_files.summary
 fi
 
 # list files and directories
