@@ -121,6 +121,7 @@ then
 else
 	ln -s $TRIMMED $SAMP.trim.fasta
 fi
+rm *scrap* *qual
 FASTA=$SAMP.trim
 
 # Reverse-complement

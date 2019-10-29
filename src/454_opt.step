@@ -60,6 +60,7 @@ do
 		done
 	done > $EXEC/quality_check/$LIB_NAME.stat
 	) &
+	rm $LIB_NAME.trim* $LIB_NAME.scrap*
 done
 wait
 
