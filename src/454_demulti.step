@@ -36,21 +36,25 @@ then
 	unset BDIFFS
 	BDIFFS=`barcode_mismatch_check.sh oligos.$LIB_NAME`
 	NBMID=`grep -c "barcode" oligos.$LIB_NAME`
-	echo "$LIB_NAME $BDIFFS $NBMID" >> ../../processing/bdiffs.$SUBPROJECT
+	echo "$LIB_NAME $BDIFFS $NBMID" >> $EXEC/processing/bdiffs.$SUBPROJECT
 fi
 
 #Split library over the different samples
 mothur "#set.dir(input=$EXEC/libraries, output=$EXEC/libraries/demultiplex);
-sffinfo(sff=$LIB_NAME.sff);
-set.dir(input=$EXEC/libraries/demultiplex, output=$EXEC/libraries/demultiplex);
-trim.seqs(fasta=current, oligos=oligos.$LIB_NAME, bdiffs=$BDIFFS, pdiffs=$((${#FWD} / 3)), minlength=1, maxlength=1000, maxambig=50, maxhomop=20, processors=$NCPUS)"
+sffinfo(sff=$LIB_NAME.sff)"
+
+# cutadapt with 5' anchored adaptors
+BLENGTH=$(grep -o -m 1 -E "[ATCG]+" fasta/oligos.${LIB_NAME} | awk '{print length($1)}')
+BDISS=$(awk -v L=$BLENGTH -v D=$BDIFFS 'BEGIN{printf "%.2g\n", D/L}')
+grep barcode oligos.${LIB_NAME} | awk '{print ">"$3"\n^"$2}' > oligos.${LIB_NAME}.fasta
+cutadapt -g file:oligos.${LIB_NAME}.fasta -e ${BDISS} -O $BLENGTH --no-indels --trimmed-only -o {name}.$LIB_NAME.fasta $LIB_NAME.fasta> log_cutadapt.demultiplex.${LIB_NAME}.txt
 
 # create list of sequences to extract from main sff and oligo file per sample
-cut -f 2 $LIB_NAME.groups | sort | uniq > $LIB_NAME.groups.list
+sed -n '/>/{s/>//;p}' $EXEC/libraries/fasta/oligos.$LIB_NAME > $LIB_NAME.groups.list
 while read group
 do
 	mkdir $group.$LIB_NAME
-	awk -v G=$group '$2==G{print $1}' $LIB_NAME.groups > $group.$LIB_NAME/$group.$LIB_NAME.txt
+	sed -n '/^>/{s/>//;s/[ \t].*//;p}' $group.$LIB_NAME.fasta > $group.$LIB_NAME/$group.$LIB_NAME.txt
 	awk -v G=$group 'NR<=2{print $0} ; $3==G{print $0}' oligos.$LIB_NAME > ../fasta/oligos.$group.$LIB_NAME
 done < $LIB_NAME.groups.list
 
@@ -59,7 +63,8 @@ parallel -a $LIB_NAME.groups.list -j $NCPUS "make_per_library_sff.py -i ../$LIB_
 
 # move demultiplexed sff in sff directory
 parallel -a $LIB_NAME.groups.list -j $NCPUS "dd if={}.$LIB_NAME/{}.$LIB_NAME.sff of=../$RAW_EXT/{}.$LIB_NAME.sff bs=1M"
-parallel -a $LIB_NAME.groups.list -j $NCPUS "rm -r {}.$LIB_NAME"
+parallel -a $LIB_NAME.groups.list -j $NCPUS "rm -r {}.$LIB_NAME {}.$LIB_NAME.fasta"
+rm $LIB_NAME.flow $LIB_NAME.fasta $LIB_NAME.qual
 
 # list files and directories
 . $BIN/list_step_files.sh
