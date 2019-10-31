@@ -680,7 +680,7 @@ cd $SUBPROJECT
 while read reg
 do
 	sed 's/QUEUE_SEP${'$reg'[^}]*}//' config/steps.final > config/steps.final.tmp && mv config/steps.final.tmp config/steps.final
-done < <(sed -n '/^#/!s/^.*QUEUE_HOLD\([^ ]*\).*$/\1/p' config/steps.final | sed 's/QUEUE_SEP/\n/' | sed 's/^[^a-z]*\([a-z_]*\)[^a-z]*$/\1/' | sed '/^$/d' | sort -u | join -v 1 - <(sed -n '/^#/!s/=.*$//p' config/steps.final | sort))
+done < <(sed -n '/^#/!{s/^.*QUEUE_HOLD\([^ ]*\).*$/\1/p;s/^.*QUEUE_HARRAY\([^ ]*\).*$/\1/p}' config/steps.final | sed 's/QUEUE_SEP/\n/' | sed 's/^[^a-z]*\([a-z_]*\)[^a-z]*$/\1/' | sed '/^$/d' | sort -u | join -v 1 - <(sed -n '/^#/!s/=.*$//p' config/steps.final | sort))
 
 # Add account/project name to queuing commands
 if [ ! -z $DELTAMP_ACCOUNT ]
