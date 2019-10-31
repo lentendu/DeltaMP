@@ -45,7 +45,7 @@ do
 		LENGTH=`cut -d "." -f 1 $EXEC/quality_check/trimming.parameters.txt`
 		if [ $DENOISE == "yes" ]
 		then
-			#trim flows with FlowClus, using all set of primers allowed by PDIFFS mismatches as detected by cutadapt (also work with MOTHUR trim.seqs) because FlowClust does not take into account homopolymers extension in primer mismatches (which append quite often for ITS4)
+			#trim flows with FlowClus, using all set of primers allowed by PDIFFS mismatches as detected by cutadapt (also work with MOTHUR trim.seqs) because FlowClust does not take into account homopolymers extension in primer mismatches (which append quite often for example for ITS4)
 			if [ $DEMULTI == "no" ]
 			then
 				process_sff.py -i $EXEC/libraries/sff/$i.sff -f -o ./ 
@@ -59,13 +59,14 @@ do
 			while read name samp mid
 			do
 				MID_E=$(awk -v F=${#mid} -v B=$BDIFFS 'BEGIN{printf "%.2f",B/F+0.005}')
-				awk '{print $1}' $EXEC/libraries/fasta/$i.fasta | cutadapt -g ${mid} -e ${MID_E} --trimmed-only - | cutadapt -g ${FWD} -e ${FWD_E} --trimmed-only --info-file=cutadapt.${i}_$mid - > ${i}_$mid.cut.fasta
+				awk '{print $1}' $EXEC/libraries/fasta/$i.fasta | cutadapt -g ^${mid} -e ${MID_E} -O ${#mid} --no-indels --trimmed-only - | cutadapt -g ${FWD} -e ${FWD_E} --trimmed-only --info-file=cutadapt.${i}_$mid - > ${i}_$mid.cut.fasta
 				while read count prim
 				do
 					sed '1 s/,[^,]*$/_'$count','$prim'/' master.$i.csv
 				done < <(awk -v F=${#FWD} 'length($5)>=F{print $5}' cutadapt.${i}_$mid | sort -u | awk '{print NR,$1}') > master.all.$i.csv
 			done < <(grep "^midtag" master.$i.csv | tr "," "\t") > master.all.$i.csv
 			# Filter reads for each combination of barcode and primer variant into flows
+			MID=$(grep -m 1 midtag master.all.$i.csv | cut -d "," -f 3)
 			if [ $TARG == "ITS" ] && [ $ITSX != "no" ]
 			then
 				FlowClus -a -m master.all.$i.csv -i $i.txt -em $BDIFFS -ep 0 -r -er $PDIFFS -l $((LENGTH + ${#MID} + ${#FWD})) -n $MAXAMBIG -g $MAXHOMOP -s $QUAL -lf $MINFLOW -c FlowClus.$i.stat.txt #-Lf $MAXFLOW
@@ -91,24 +92,37 @@ do
 			mothur "#set.logfile(name=$LOG, append=T);
 			trim.seqs(fasta=$i.temp.fasta, name=$i.temp.names, maxambig=$MAXAMBIG, processors=$NCPUS)"
 			rm $i.txt $i.temp.scrap.fasta $i.temp*.qual $i.temp.fasta $i.temp.names
-			
 		else
 			if [ $TARG == "ITS" ] && [ $ITSX != "no" ]
 			then
 				mothur "#set.logfile(name=$LOG, append=T);
-				set.dir(input=$EXEC/libraries/fasta, output=$EXEC/processing/$SAMP);
+				set.dir(input=$EXEC/libraries/fasta, output=./);
 				trim.seqs(fasta=$i.fasta, oligos=oligos.$i, qfile=$i.qual, qaverage=$QUAL, bdiffs=$BDIFFS, pdiffs=$PDIFFS, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$LENGTH, processors=$NCPUS)"
+				if [ $SEQ_DIR == "both" ]
+				then
+					awk -v R=$RVS 'BEGIN{print "forward\t"R} NR>2{print}' $EXEC/libraries/fasta/oligos.$i > oligos.rev.$i
+					mothur "#set.logfile(name=$LOG, append=T);
+					trim.seqs(fasta=$i.scrap.fasta, qfile=$i.scrap.qual, oligos=oligos.rev.$i, average=$QUAL, bdiffs=$BDIFFS, pdiffs=$PDIFFS, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$LENGTH, processors=$NCPUS, flip=T)"
+					cat $i.trim.fasta $i.scrap.trim.fasta > tmp.$i.fasta && mv tmp.$i.fasta $i.trim.fasta
+				fi
 			else
 				mothur "#set.logfile(name=$LOG, append=T);
-				set.dir(input=$EXEC/libraries/fasta, output=$EXEC/processing/$SAMP);
+				set.dir(input=$EXEC/libraries/fasta, output=./);
 				trim.seqs(fasta=$i.fasta, oligos=oligos.$i, qfile=$i.qual, qaverage=$QUAL, bdiffs=$BDIFFS, pdiffs=$PDIFFS, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$LENGTH, keepfirst=$LENGTH, processors=$NCPUS)"
+				if [ $SEQ_DIR == "both" ]
+				then
+					awk -v R=$RVS 'BEGIN{print "forward\t"R} NR>2{print}' $EXEC/libraries/fasta/oligos.$i > oligos.rev.$i
+					mothur "#set.logfile(name=$LOG, append=T);
+					trim.seqs(fasta=$i.scrap.fasta, qfile=$i.scrap.qual, oligos=oligos.rev.$i, average=$QUAL, bdiffs=$BDIFFS, pdiffs=$PDIFFS, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$LENGTH, keepfirst=$LENGTH, processors=$NCPUS, flip=T)"
+					cat $i.trim.fasta $i.scrap.trim.fasta > tmp.$i.fasta && mv tmp.$i.fasta $i.trim.fasta
+				fi
 			fi
 		fi
 	elif [ $TECH == "Illumina" ]
 	then
 		QUAL=`cat $EXEC/quality_check/optimized.quality.txt`
 		mothur "#set.logfile(name=$LOG, append=T);
-		set.dir(input=$EXEC/libraries/fasta, output=$EXEC/processing/$SAMP);
+		set.dir(input=$EXEC/libraries/fasta, output=./);
 		trim.seqs(fasta=$i.pairend.fasta, qfile=$i.pairend.qual, qaverage=$QUAL, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$MINLEN, maxlength=$MAXLEN, processors=$NCPUS)"
 	fi
 done

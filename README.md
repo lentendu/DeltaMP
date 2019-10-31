@@ -211,7 +211,7 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Reverse primer sequence (5' to 3')__: the sequence of the biological reverse primer. The default is “TCCTCCGCTTATTGATATGC”.
 
-+ __Sequencing direction__: *454 specific parameter*, “forward” or “reverse” for forward libraries (column 3 of [SAMPLES section](#samples-section)) predominently orientated in the forward or reverse primer direction, respectively. The default is “forward”.
++ __Sequencing direction__: *454 specific parameter*, “forward”, “reverse” or "both" for forward libraries (column 3 of [SAMPLES section](#samples-section)) predominently orientated in the forward or reverse primer direction or for bi-directional sequencing, respectively. The default is “forward”.
 
 
 ### PAIR-END section

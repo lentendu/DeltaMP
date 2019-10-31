@@ -1,4 +1,4 @@
-SEQ_DIR	forward	Sequencing direction	forward reverse
+SEQ_DIR	forward	Sequencing direction	forward reverse both
 DENOISE	no	Denoising	no yes
 MINFLOW	360	Minimum number of flows	^[0-9]+$
 MAXFLOW	720	Maximum number of flows	^[0-9]+$

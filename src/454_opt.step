@@ -47,7 +47,14 @@ do
 	fi
 	
 	# For each sample in each library create a trimmed stat file
-	mothur "#trim.seqs(fasta=$LIB_NAME.fasta, qfile=$LIB_NAME.qual, oligos=oligos.$LIB_NAME, bdiffs=$BDIFFS, pdiffs=$PDIFFS)"
+	mothur "#trim.seqs(fasta=$LIB_NAME.fasta, qfile=$LIB_NAME.qual, oligos=oligos.$LIB_NAME, bdiffs=$BDIFFS, pdiffs=$PDIFFS, processors=$NCPUS)"
+	if [ $SEQ_DIR == "both" ]
+	then
+		awk -v R=$RVS 'BEGIN{print "forward\t"R} NR>2{print}' oligos.$LIB_NAME > oligos.rev.$LIB_NAME
+		mothur "#trim.seqs(fasta=$LIB_NAME.scrap.fasta, qfile=$LIB_NAME.scrap.qual, oligos=oligos.rev.$LIB_NAME, bdiffs=$BDIFFS, pdiffs=$PDIFFS, processors=$NCPUS, flip=T)"
+		cat $LIB_NAME.trim.fasta $LIB_NAME.scrap.trim.fasta > tmp.$LIB_NAME.fasta && mv tmp.$LIB_NAME.fasta $LIB_NAME.trim.fasta
+		cat $LIB_NAME.trim.qual $LIB_NAME.scrap.trim.qual > tmp.$LIB_NAME.qual && mv tmp.$LIB_NAME.qual $LIB_NAME.trim.qual
+	fi
 	paste <(twofasta $LIB_NAME.trim.fasta) <(twofasta $LIB_NAME.trim.qual) | grep -v "^>" > $LIB_NAME.trim2.qual
 	
 	# Count reads with increasing length, and then check the required quality, maxhomop and maxambig parameters on this fixed length sub-fragment

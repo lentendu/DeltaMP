@@ -279,8 +279,15 @@ then
 		FLIP=true
 		read FWD RVS <<<"$RVS $FWD"
 		read FWD_NAME RVS_NAME <<<"$RVS_NAME $FWD_NAME"
+	elif [ $SEQ_DIR == "both" ]
+	then
+		if [ $DENOISE == "yes" ]
+		then
+			error_doc "cannot denoise for sequencing in both directions"
+		fi
+		FLIP=false
 	else
-		error_doc "sequencing direction should be either forward or reverse, not ${SEQ_DIR}."
+		error_doc "sequencing direction should be either forward, reverse or both, not ${SEQ_DIR}."
 	fi
 elif [ $TECH == "Illumina" ]
 then
