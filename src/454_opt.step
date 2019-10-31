@@ -51,7 +51,7 @@ do
 	if [ $SEQ_DIR == "both" ]
 	then
 		awk -v R=$RVS 'BEGIN{print "forward\t"R} NR>2{print}' oligos.$LIB_NAME > oligos.rev.$LIB_NAME
-		mothur "#trim.seqs(fasta=$LIB_NAME.scrap.fasta, qfile=$LIB_NAME.scrap.qual, oligos=oligos.rev.$LIB_NAME, bdiffs=$BDIFFS, pdiffs=$PDIFFS, processors=$NCPUS, flip=T)"
+		mothur "#trim.seqs(fasta=$LIB_NAME.scrap.fasta, qfile=$LIB_NAME.scrap.qual, oligos=oligos.rev.$LIB_NAME, bdiffs=$BDIFFS, pdiffs=$PDIFFS, processors=$NCPUS)"
 		cat $LIB_NAME.trim.fasta $LIB_NAME.scrap.trim.fasta > tmp.$LIB_NAME.fasta && mv tmp.$LIB_NAME.fasta $LIB_NAME.trim.fasta
 		cat $LIB_NAME.trim.qual $LIB_NAME.scrap.trim.qual > tmp.$LIB_NAME.qual && mv tmp.$LIB_NAME.qual $LIB_NAME.trim.qual
 	fi
