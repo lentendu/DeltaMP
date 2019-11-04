@@ -50,7 +50,7 @@ grep barcode oligos.${LIB_NAME} | awk '{print ">"$3"\n^"$2}' > oligos.${LIB_NAME
 cutadapt -g file:oligos.${LIB_NAME}.fasta -e ${BDISS} -O $BLENGTH --no-indels --trimmed-only -o {name}.$LIB_NAME.fasta $LIB_NAME.fasta> log_cutadapt.demultiplex.${LIB_NAME}.txt
 
 # create list of sequences to extract from main sff and oligo file per sample
-sed -n '/>/{s/>//;p}' oligos.$LIB_NAME > $LIB_NAME.groups.list
+sed -n '/>/{s/>//;p}' oligos.$LIB_NAME.fasta > $LIB_NAME.groups.list
 while read group
 do
 	mkdir $group.$LIB_NAME
