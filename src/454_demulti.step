@@ -44,7 +44,7 @@ mothur "#set.dir(input=$EXEC/libraries, output=./);
 sffinfo(sff=$LIB_NAME.sff)"
 
 # cutadapt with 5' anchored adaptors
-BLENGTH=$(grep -o -m 1 -E "[ATCG]+" oligos.${LIB_NAME} | awk '{print length($1)}')
+BLENGTH=$(grep -m 1 barcode oligos.${LIB_NAME} | awk '{print length($2)}')
 BDISS=$(awk -v L=$BLENGTH -v D=$BDIFFS 'BEGIN{printf "%.2g\n", D/L}')
 grep barcode oligos.${LIB_NAME} | awk '{print ">"$3"\n^"$2}' > oligos.${LIB_NAME}.fasta
 cutadapt -g file:oligos.${LIB_NAME}.fasta -e ${BDISS} -O $BLENGTH --no-indels --trimmed-only -o {name}.$LIB_NAME.fasta $LIB_NAME.fasta> log_cutadapt.demultiplex.${LIB_NAME}.txt
