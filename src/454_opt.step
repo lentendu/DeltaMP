@@ -52,9 +52,12 @@ do
 	if [ $SEQ_DIR == "both" ]
 	then
 		awk -v R=$RVS 'BEGIN{print "forward\t"R} NR>2{print}' oligos.$LIB_NAME > oligos.rev.$LIB_NAME
-		mothur "#trim.seqs(fasta=$LIB_NAME.scrap.fasta, qfile=$LIB_NAME.scrap.qual, oligos=oligos.rev.$LIB_NAME, bdiffs=$BDIFFS, pdiffs=$PDIFFS, processors=1)"
-		cat $LIB_NAME.trim.fasta $LIB_NAME.scrap.trim.fasta > tmp.$LIB_NAME.fasta && mv tmp.$LIB_NAME.fasta $LIB_NAME.trim.fasta
-		cat $LIB_NAME.trim.qual $LIB_NAME.scrap.trim.qual > tmp.$LIB_NAME.qual && mv tmp.$LIB_NAME.qual $LIB_NAME.trim.qual
+		mkdir rev.$LIB_NAME
+		mothur "#set.dir(input=./, output=rev.$LIB_NAME);
+		trim.seqs(fasta=$LIB_NAME.fasta, qfile=$LIB_NAME.qual, oligos=oligos.rev.$LIB_NAME, bdiffs=$BDIFFS, pdiffs=$PDIFFS, processors=1)"
+		cat $LIB_NAME.trim.fasta rev.$LIB_NAME/$LIB_NAME.trim.fasta > tmp.$LIB_NAME.fasta && mv tmp.$LIB_NAME.fasta $LIB_NAME.trim.fasta
+		cat $LIB_NAME.trim.qual rev.$LIB_NAME/$LIB_NAME.trim.qual > tmp.$LIB_NAME.qual && mv tmp.$LIB_NAME.qual $LIB_NAME.trim.qual
+		rm -r rev.$LIB_NAME/
 	fi
 	paste <(twofasta $LIB_NAME.trim.fasta) <(twofasta $LIB_NAME.trim.qual) | grep -v "^>" > $LIB_NAME.trim2.qual
 	
@@ -67,7 +70,7 @@ do
 			awk -v L=$i -v Q=$j -v A=$MAXAMBIG '{if(length($1)>=L){QS=0;for(i=2;i<=(L+1);i++){QS+=$i};if(QS>=Q){seq=substr($1,1,L);gsub(/[ATCGatcg]*/,"",seq);if(length(seq)<=A){print substr($1,1,L)}}}}' $LIB_NAME.trim2.qual | grep -c -v "A\{$H,\}\|C\{$H,\}\|G\{$H,\}\|T\{$H,\}"
 		done
 	done > $EXEC/quality_check/$LIB_NAME.stat
-	rm $LIB_NAME.trim* $LIB_NAME.scrap*
+	rm $LIB_NAME.trim* $LIB_NAME.scrap* $LIB_NAME.groups
 	) &
 done
 wait
