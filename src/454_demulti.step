@@ -64,7 +64,7 @@ parallel -a $LIB_NAME.groups.list -j $NCPUS "make_per_library_sff.py -i ../$LIB_
 # move demultiplexed sff in sff directory
 parallel -a $LIB_NAME.groups.list -j $NCPUS "dd if={}.$LIB_NAME/{}.$LIB_NAME.sff of=../$RAW_EXT/{}.$LIB_NAME.sff bs=1M"
 parallel -a $LIB_NAME.groups.list -j $NCPUS "rm -r {}.$LIB_NAME {}.$LIB_NAME.fasta"
-rm $LIB_NAME.flow $LIB_NAME.fasta $LIB_NAME.qual
+rm $LIB_NAME.flow $LIB_NAME.qual
 
 # list files and directories
 . $BIN/list_step_files.sh

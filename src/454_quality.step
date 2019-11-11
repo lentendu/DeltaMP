@@ -97,6 +97,7 @@ cd $EXEC/libraries/raw_stat
 if [[ $LIB_DIR == "/"* ]]
 then
 	for LIB_NAME in $(sed 's/\.sff.*//' $EXEC/config/lib2.list)
+	do
 		# cat length and quality statistics of all samples from a library
 		for j in length meanqual meanposqual
 		do
