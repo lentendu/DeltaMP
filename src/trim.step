@@ -103,7 +103,7 @@ do
 					mkdir rev.$i
 					mothur "#set.logfile(name=$LOG, append=T);
 					set.dir(input=$EXEC/libraries/fasta, output=rev.$i);
-					trim.seqs(fasta=$i.scrap.fasta, qfile=$i.scrap.qual, oligos=oligos.rev.$i, average=$QUAL, bdiffs=$BDIFFS, pdiffs=$PDIFFS, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$LENGTH, processors=$NCPUS, flip=T)"
+					trim.seqs(fasta=$i.fasta, oligos=oligos.rev.$i, qfile=$i.qual, qaverage=$QUAL, bdiffs=$BDIFFS, pdiffs=$PDIFFS, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$LENGTH, processors=$NCPUS, flip=T)"
 					cat $i.trim.fasta rev.$i/$i.trim.fasta > tmp.$i.fasta && mv tmp.$i.fasta $i.trim.fasta
 					rm -r rev.$i/
 				fi
@@ -116,7 +116,7 @@ do
 					mkdir rev.$i
 					mothur "#set.logfile(name=$LOG, append=T);
 					set.dir(input=$EXEC/libraries/fasta, output=rev.$i);
-					trim.seqs(fasta=$i.scrap.fasta, qfile=$i.scrap.qual, oligos=oligos.rev.$i, average=$QUAL, bdiffs=$BDIFFS, pdiffs=$PDIFFS, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$LENGTH, keepfirst=$LENGTH, processors=$NCPUS, flip=T)"
+					trim.seqs(fasta=$i.fasta, oligos=oligos.rev.$i, qfile=$i.qual, qaverage=$QUAL, bdiffs=$BDIFFS, pdiffs=$PDIFFS, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$LENGTH, keepfirst=$LENGTH, processors=$NCPUS, flip=T)"
 					cat $i.trim.fasta rev.$i/$i.trim.fasta > tmp.$i.fasta && mv tmp.$i.fasta $i.trim.fasta
 					rm -r rev.$i/
 				fi
