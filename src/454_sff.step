@@ -31,14 +31,24 @@ for LIB_NAME in "${LIB_CHUNK[@]}"
 do
 	sleep 1
 	(
+	LOG=mothur.$LIB_NAME.logfile
 	# sff to fasta + qual
 	if [ $DEMULTI == "yes" ]
 	then
-		mothur "#set.dir(input=$EXEC/libraries, output=$EXEC/libraries/fasta);
-		sffinfo(sff=$LIB_NAME.sff)"
+		mothur "#set.dir(input=./, output=fasta);
+		set.logfile(name=$LOG);
+		sffinfo(sff=$LIB_NAME.sff, flow=F)"
 	else
-		mothur "#set.dir(input=$EXEC/libraries/sff, output=$EXEC/libraries/fasta);
-		sffinfo(sff=$LIB_NAME.sff)"
+		mothur "#set.dir(input=sff, output=fasta);
+		set.logfile(name=$LOG);
+		sffinfo(sff=$LIB_NAME.sff, flow=F)"
+	fi
+	
+	if [ $CLIPPING == "both" ]
+	then
+		mothur "#set.dir(input=fasta, output=fasta);
+		set.logfile(name=$LOG, append=T);
+		make.fastq(fasta=$LIB_NAME.fasta, qfile=$LIB_NAME.qual)"
 	fi
 	
 	# Stat for figures

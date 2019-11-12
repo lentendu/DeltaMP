@@ -40,14 +40,18 @@ fi
 
 # Quality check for each sample in each library
 cd quality_check
-
-for i in $(seq $MINLEN 5 $MAXLEN)
-do
-	for j in $(seq $MINQUAL 30)
+if [ $CLIPPING == "both" ]
+then
+	paste <(echo -e "Sample\tLibrary\tRaw") <(seq $MINQUAL 30 | sed 's/\(.*\)/Trimmed at \1 Phred score/' | tr "\n" "\t" | sed 's/$/\n/') > header
+else
+	for i in $(seq $MINLEN 5 $MAXLEN)
 	do
-		echo "$i.$j"
-	done
-done | tr "\n" "\t" | paste <(echo "Sample") <(echo "Library") <(echo "Raw") - > header
+		for j in $(seq $MINQUAL 30)
+		do
+			echo "$i.$j"
+		done
+	done | tr "\n" "\t" | paste <(echo -e "Sample\tLibrary\tRaw") - > header
+fi
 
 while read NAME LIB
 do
@@ -84,12 +88,17 @@ done
 # Select best trimming criteria (at least $MIN_DEPTH and 75 % of $MINLEN.$MINQUAL for each sample)
 echo "$MINLEN.$MINQUAL" > trimming.parameters.txt
 cut -f 3 $SUBPROJECT.quality.stat.txt | tac | sed '1,4d' | tac | transpose | awk '{print "x",$0}'> ref.tmp
-tac $SUBPROJECT.quality.stat.txt | sed '1,4d' | tac | transpose | grep -v "Raw\|Denoise" | awk '{split($1,a,".");print a[1]*a[2],$0}' | sort -k 1,1nr -k 2,2n | cat ref.tmp - | awk -v M=$MIN_DEPTH '{if(NR==1){for(i=2;i<=NF;i++){ref[i]=$i}} else {i=3; while($i>M && ($i/ref[i])>0.75) {i++ ; if(i==NF){print $2; exit}}}}' > trimming.parameters.txt
+if [ $CLIPPING == "both" ]
+then
+	tac $SUBPROJECT.sample_counts.tsv | sed '1,4d' | tac | transpose_tab | sed '1,4d;/^$/d' | tac | cat ref.tmp - | awk -v M=$MIN_DEPTH 'BEGIN{FS="\t"} {if(NR==1){for(i=2;i<=NF;i++){ref[i]=$i};next} ; for(i=2;i<=NF;i++){if($i<M || $i<ref[i]*0.75){next}};print $1;exit}' | sed "s/Trimmed at /$MINLEN\./;s/ Phred score//" > trimming.parameters.txt
+	QUAL=`cut -d "." -f 2 trimming.parameters.txt`
+	cut -f 1-2,$(($QUAL - $MINQUAL + 3)) $SUBPROJECT.sample_counts.tsv > $SUBPROJECT.summary.stat.tsv
+else
+	tac $SUBPROJECT.quality.stat.txt | sed '1,4d' | tac | transpose | grep -v "Raw\|Denoise" | awk '{split($1,a,".");print a[1]*a[2],$0}' | sort -k 1,1nr -k 2,2n | cat ref.tmp - | awk -v M=$MIN_DEPTH '{if(NR==1){for(i=2;i<=NF;i++){ref[i]=$i}} else {i=3; while($i>M && ($i/ref[i])>0.75) {i++ ; if(i==NF){print $2; exit}}}}' > trimming.parameters.txt
+	TRIM=`cat trimming.parameters.txt`
+	awk -v T=$TRIM 'BEGIN{R=3;OFS="\t"} {if(NR==1){printf "%s\t%s" ,$1,$2; for (i=3;i<=NF;i++){if($i==T) {printf "\t%s %s\n", "Trimmed at",$i; R=i}}} else print $1,$2,$R}' $SUBPROJECT.quality.stat.txt > $SUBPROJECT.summary.stat.tsv
+fi
 rm ref.tmp
-
-# Summary
-TRIM=`cat trimming.parameters.txt`
-awk -v T=$TRIM 'BEGIN{R=3;OFS="\t"} {if(NR==1){printf "%s\t%s" ,$1,$2; for (i=3;i<=NF;i++){if($i==T) {printf "\t%s %s\n", "Trimmed at",$i; R=i}}} else print $1,$2,$R}' $SUBPROJECT.quality.stat.txt > $SUBPROJECT.summary.stat.tsv
 ln -s $PWD/$SUBPROJECT.summary.stat.tsv $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.read_counts.tsv
 
 # raw reads statistics

@@ -35,6 +35,7 @@ do
 	(
 	sleep $i
 	LIB_NAME=${LIB_CHUNK[$i]}
+	LOG=mothur.$LIB_NAME.logfile
 	# get bdiffs
 	if [ $BDIFFS == "a" ]
 	then
@@ -47,30 +48,58 @@ do
 		fi
 	fi
 	
-	# For each sample in each library create a trimmed stat file
-	mothur "#trim.seqs(fasta=$LIB_NAME.fasta, qfile=$LIB_NAME.qual, oligos=oligos.$LIB_NAME, bdiffs=$BDIFFS, pdiffs=$PDIFFS, processors=1)"
-	if [ $SEQ_DIR == "both" ]
+	if [ $CLIPPING == "both" ]
 	then
-		awk -v R=$RVS 'BEGIN{print "forward\t"R} NR>2{print}' oligos.$LIB_NAME > oligos.rev.$LIB_NAME
-		mkdir rev.$LIB_NAME
-		mothur "#set.dir(input=./, output=rev.$LIB_NAME);
-		trim.seqs(fasta=$LIB_NAME.fasta, qfile=$LIB_NAME.qual, oligos=oligos.rev.$LIB_NAME, bdiffs=$BDIFFS, pdiffs=$PDIFFS, processors=1)"
-		cat $LIB_NAME.trim.fasta rev.$LIB_NAME/$LIB_NAME.trim.fasta > tmp.$LIB_NAME.fasta && mv tmp.$LIB_NAME.fasta $LIB_NAME.trim.fasta
-		cat $LIB_NAME.trim.qual rev.$LIB_NAME/$LIB_NAME.trim.qual > tmp.$LIB_NAME.qual && mv tmp.$LIB_NAME.qual $LIB_NAME.trim.qual
-		rm -r rev.$LIB_NAME/
-	fi
-	paste <(twofasta $LIB_NAME.trim.fasta) <(twofasta $LIB_NAME.trim.qual) | grep -v "^>" > $LIB_NAME.trim2.qual
-	
-	# Count reads with increasing length, and then check the required quality, maxhomop and maxambig parameters on this fixed length sub-fragment
-	H=$(($MAXHOMOP+1))
-	for i in $(seq $MINLEN 5 $MAXLEN)
-	do
-		for j in $(seq $MINQUAL 30)
+		# use cutadapt to remove the barcode then the linked primers
+		awk '$1=="barcode"{print ">"$3"\n"$2}' oligos.$LIB_NAME > oligos.$LIB_NAME.fasta
+		BLENGTH=$(awk '$0!~"^>"{print length($1); exit}' oligos.${LIB_NAME}.fasta)
+		BDISS=$(awk -v L=$BLENGTH -v D=$BDIFFS 'BEGIN{printf "%.2g\n", D/L}')
+		RVS_RC=$(echo -e ">rvs\n$RVS" | obicomplement --without-progress-bar --uppercase | tail -1)
+		DISS=`awk -v F=${#FWD} -v R=${#RVS} -v D=$PDIFFS 'BEGIN{DISS=D/F;if(D/R>DISS){DISS=D/R};printf "%.2g\n", DISS}'`
+		cutadapt -g file:oligos.${LIB_NAME}.fasta -e ${BDISS} -O $BLENGTH --no-indels --trimmed-only $LIB_NAME.fastq 2> log.cutadapt.$LIB_NAME | cutadapt -a $FWD...$RVS_RC -e $DISS --no-indels --trimmed-only -o $LIB_NAME.trim.fastq - >> log.cutadapt.$LIB_NAME
+		if [ $SEQ_DIR == "both" ]
+		then
+			FWD_RC=$(echo -e ">fwd\n$FWD" | obicomplement --without-progress-bar --uppercase | tail -1)
+			cutadapt -g file:oligos.${LIB_NAME}.fasta -e ${BDISS} -O $BLENGTH --no-indels --trimmed-only $LIB_NAME.fastq 2>> log.cutadapt.$LIB_NAME | cutadapt -a $RVS...$FWD_RC -e $DISS --no-indels --trimmed-only -o $LIB_NAME.trim.rev.fastq - >> log.cutadapt.$LIB_NAME
+			cat $LIB_NAME.trim.fastq $LIB_NAME.trim.rev.fastq > tmp.$LIB_NAME.fastq && mv tmp.$LIB_NAME.fastq $LIB_NAME.trim.fastq
+		fi
+		# Count reads with the required min and max length, max homopolymer length and max ambiguities parameters and for increasing quality
+		mothur "#set.logfile(name=$LOG, append=T);
+		fastq.info(fastq=$LIB_NAME.trim.fastq)"
+		Ns=$(($MAXAMBIG+1))
+		paste <(twofasta $LIB_NAME.trim.fasta) <(twofasta $LIB_NAME.trim.qual) | grep -v "^>\|A\{$H,\}\|C\{$H,\}\|G\{$H,\}\|T\{$H,\}\|\(N[ATCG]\)\{$Ns,\}" | awk -v m=$MINLEN -v M=$MAXLEN 'length($1)>=m && length($1)<=M {sum=0;for(i=2;i<=NF;i++){sum+=$i};print sum/NF}' > $LIB_NAME.trim.qual.stat
+		for i in $(seq $MINQUAL 30)
 		do
-			awk -v L=$i -v Q=$j -v A=$MAXAMBIG '{if(length($1)>=L){QS=0;for(i=2;i<=(L+1);i++){QS+=$i};if(QS>=Q){seq=substr($1,1,L);gsub(/[ATCGatcg]*/,"",seq);if(length(seq)<=A){print substr($1,1,L)}}}}' $LIB_NAME.trim2.qual | grep -c -v "A\{$H,\}\|C\{$H,\}\|G\{$H,\}\|T\{$H,\}"
-		done
-	done > $EXEC/quality_check/$LIB_NAME.stat
-	rm $LIB_NAME.trim* $LIB_NAME.scrap* $LIB_NAME.groups
+			awk -v I=$i 'BEGIN{sum=0} $1>=I{sum+=1}END{print sum}' $LIB_NAME.trim.qual.stat
+		done > ../../quality_check/$LIB_NAME.stat
+	else
+		# For each sample in each library create a trimmed stat file
+		mothur "#set.logfile(name=$LOG, append=T);
+		trim.seqs(fasta=$LIB_NAME.fasta, qfile=$LIB_NAME.qual, oligos=oligos.$LIB_NAME, bdiffs=$BDIFFS, pdiffs=$PDIFFS, processors=1)"
+		if [ $SEQ_DIR == "both" ]
+		then
+			awk -v R=$RVS 'BEGIN{print "forward\t"R} NR>2{print}' oligos.$LIB_NAME > oligos.rev.$LIB_NAME
+			mkdir rev.$LIB_NAME
+			mothur "#set.logfile(name=$LOG, append=T);
+			set.dir(input=./, output=rev.$LIB_NAME);
+			trim.seqs(fasta=$LIB_NAME.fasta, qfile=$LIB_NAME.qual, oligos=oligos.rev.$LIB_NAME, bdiffs=$BDIFFS, pdiffs=$PDIFFS, processors=1)"
+			cat $LIB_NAME.trim.fasta rev.$LIB_NAME/$LIB_NAME.trim.fasta > tmp.$LIB_NAME.fasta && mv tmp.$LIB_NAME.fasta $LIB_NAME.trim.fasta
+			cat $LIB_NAME.trim.qual rev.$LIB_NAME/$LIB_NAME.trim.qual > tmp.$LIB_NAME.qual && mv tmp.$LIB_NAME.qual $LIB_NAME.trim.qual
+			rm -r rev.$LIB_NAME/
+		fi
+		paste <(twofasta $LIB_NAME.trim.fasta) <(twofasta $LIB_NAME.trim.qual) | grep -v "^>" > $LIB_NAME.trim2.qual
+		
+		# Count reads with increasing length, and then check the required quality, maxhomop and maxambig parameters on this fixed length sub-fragment
+		H=$(($MAXHOMOP+1))
+		for i in $(seq $MINLEN 5 $MAXLEN)
+		do
+			for j in $(seq $MINQUAL 30)
+			do
+				awk -v L=$i -v Q=$j -v A=$MAXAMBIG '{if(length($1)>=L){QS=0;for(i=2;i<=(L+1);i++){QS+=$i};if(QS>=Q){seq=substr($1,1,L);gsub(/[ATCGatcg]*/,"",seq);if(length(seq)<=A){print substr($1,1,L)}}}}' $LIB_NAME.trim2.qual | grep -c -v "A\{$H,\}\|C\{$H,\}\|G\{$H,\}\|T\{$H,\}"
+			done
+		done > $EXEC/quality_check/$LIB_NAME.stat
+		rm $LIB_NAME.trim* $LIB_NAME.scrap* $LIB_NAME.groups
+	fi
 	) &
 done
 wait

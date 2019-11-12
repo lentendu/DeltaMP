@@ -211,13 +211,13 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Reverse primer sequence (5' to 3')__: the sequence of the biological reverse primer. The default is “TCCTCCGCTTATTGATATGC”.
 
-+ __Sequencing direction__: *454 specific parameter*, “forward”, “reverse” or "both" for forward libraries (column 3 of [SAMPLES section](#samples-section)) predominently orientated in the forward or reverse primer direction or for bi-directional sequencing, respectively. The default is “forward”.
++ __Sequencing direction__: *454 specific parameter*, “forward”, “reverse” or "both" for libraries (column 3 of [SAMPLES section](#samples-section)) predominently orientated in the forward or reverse primer direction or for bi-directional sequencing, respectively. The default is “forward”.
+
++ __Remove primers at reads ends__: "no", "3prime", "5prime" or "both". Using cutadapt, "3prime" remove non-anchored reverse-complemented reverse and forward primers from 3'-end of forward and reverse libraries, respectively; "5prime" remove non-anchored forward and reverse primers from 5'-end of forward and reverse libraries, respectively; "both" combined both previous removal using the [linked adapter strategy](https://cutadapt.readthedocs.io/en/stable/guide.html#linked-adapters-combined-5-and-3-adapter) with anchored 5' adapter; value "no" avoid primer clipping. For "3prime", "5prime" and "both" values, unmatched reads are checked against the opposite primer/linked-adapter to allow for biderectionnal sequencing strategy detection, and the reads matched in this second step are reverse-complemented and append to the reads match at the first step. The default is "5prime".
 
 
 ### PAIR-END section
 *all Illumina-specific parameters*
-
-+ __Remove primers at reads ends__: "no", "3prime", "5prime" or "both". Using cutadapt, "3prime" remove non-anchored reverse-complemented reverse and forward primers from 3'-end of forward and reverse libraries, respectively; "5prime" remove non-anchored forward and reverse primers from 5'-end of forward and reverse libraries, respectively; "both" combined both previous removal using the [linked adapter strategy](https://cutadapt.readthedocs.io/en/stable/guide.html#linked-adapters-combined-5-and-3-adapter) with anchored 5' adapter; value "no" avoid primer clipping. For "3prime", "5prime" and "both" values, unmatched reads are checked against the opposite primer/linked-adapter to allow for biderectionnal sequencing strategy detection, and the reads matched in this second step are reverse-complemented and append to the reads match at the first step. The default is "5prime".
 
 + __Pair-end algorithm__: "vsearch", "simple_bayesian", "ea_util", "flash", "pear", "rdp_mle", "stitch" or "uparse" . Either using the vsearch "--fastq_mergepairs" option or any algorithm of PandaSeq. See the [PandaSeq manual](https://storage.googleapis.com/pandaseq/pandaseq.html) (or `man pandaseq`) for algorithm descriptions. The default is “simple_bayesian”.
 

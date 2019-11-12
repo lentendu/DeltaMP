@@ -12,6 +12,7 @@ FWD_NAME	fITS7	Forward primer name	^.+$
 FWD	GTGARTCATCGAATCTTTG	Forward primer sequence (5' to 3')	^[GATCRYSWKMBDHVNgatcryswkmbdhvn]{10,30}$
 RVS_NAME	ITS4	Reverse primer name	^.+$
 RVS	TCCTCCGCTTATTGATATGC	Reverse primer sequence (5' to 3')	^[GATCRYSWKMBDHVNgatcryswkmbdhvn]{10,30}$
+CLIPPING	5prime	Remove primers at reads ends	no 5prime 3prime both
 BDIFFS	1	Number of mismatches allowed on the barcode sequence	^[0-9a]+$
 PDIFFS	6	Number of mismatches allowed on the primer sequence	^[0-9]+$
 MAXAMBIG	0	Maximum number of ambiguities allowed in the sequence	^[0-9]+$

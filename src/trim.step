@@ -107,6 +107,23 @@ do
 					cat $i.trim.fasta rev.$i/$i.trim.fasta > tmp.$i.fasta && mv tmp.$i.fasta $i.trim.fasta
 					rm -r rev.$i/
 				fi
+			elif [ $CLIPPING == "both" ]
+			then
+				# ensure reverse primer is removed at 5' end
+				BLENGTH=$(awk '$0!~"^>"{print length($1); exit}' $EXEC/libraries/fasta/oligos.${LIB_NAME}.fasta)
+				BDISS=$(awk -v L=$BLENGTH -v D=$BDIFFS 'BEGIN{printf "%.2g\n", D/L}')
+				RVS_RC=$(echo -e ">rvs\n$RVS" | obicomplement --without-progress-bar --uppercase | tail -1)
+				DISS=`awk -v F=${#FWD} -v R=${#RVS} -v D=$PDIFFS 'BEGIN{DISS=D/F;if(D/R>DISS){DISS=D/R};printf "%.2g\n", DISS}'`
+				cutadapt -g file:$EXEC/libraries/fasta/oligos.${LIB_NAME}.fasta -e ${BDISS} -O $BLENGTH --no-indels --trimmed-only $EXEC/libraries/fasta/$LIB_NAME.fastq 2> log.cutadapt.$LIB_NAME | cutadapt -a $FWD...$RVS_RC -e $DISS --no-indels --trimmed-only -m $LENGTH -M $MAXLEN -o $LIB_NAME.fastq - >> log.cutadapt.$LIB_NAME
+				if [ $SEQ_DIR == "both" ]
+				then
+					FWD_RC=$(echo -e ">fwd\n$FWD" | obicomplement --without-progress-bar --uppercase | tail -1)
+					cutadapt -g file:$EXEC/libraries/fasta/oligos.${LIB_NAME}.fasta -e ${BDISS} -O $BLENGTH --no-indels --trimmed-only $EXEC/libraries/fasta/$LIB_NAME.fastq 2>> log.cutadapt.$LIB_NAME | cutadapt -a $RVS...$FWD_RC -e $DISS --no-indels --trimmed-only -m $LENGTH -M $MAXLEN - 2>> log.cutadapt.$LIB_NAME | vsearch --quiet --fastx_revcomp - --fastqout $LIB_NAME.rev.fastq
+					cat $LIB_NAME.fastq $LIB_NAME.rev.fastq > tmp.$LIB_NAME.fastq && mv tmp.$LIB_NAME.fastq $LIB_NAME.fastq
+				fi
+				mothur "#set.logfile(name=$LOG, append=T);
+				fastq.info(fastq=$LIB_NAME.fastq);
+				trim.seqs(fasta=current, qfile=current, qaverage=$QUAL, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, processors=$NCPUS)"
 			else
 				mothur "#set.logfile(name=$LOG, append=T);
 				set.dir(input=$EXEC/libraries/fasta, output=./);
