@@ -109,7 +109,7 @@ for i in $AVOID; do sed 's/QUEUE_SEP'$i'//' steps.tmp > steps.tmp2 && mv steps.t
 echo "###"
 echo "execution of deltamp version ${VERSION[DELTAMP]} for the SUBPROJECT $SUBPROJECT, restarting at step $RESTART"
 echo "###"
-bash <(sed 's/ QUEUE_HOLD* / /;/^#/!{p;s/^\([^=]*\)=\$(.*QUEUE_JOBNAME \([^ ]*\) .*$/echo $\1 \2/}' steps.tmp) > jobid.tmp
+bash <(sed 's/ QUEUE_HOLD* / /;s/ QUEUE_HARRAY* / /;/^#/!{p;s/^\([^=]*\)=\$(.*QUEUE_JOBNAME \([^ ]*\) .*$/echo $\1 \2/}' steps.tmp) > jobid.tmp
 
 # rewrite jobid and store old jobids
 TIME=$(date +"%s")
