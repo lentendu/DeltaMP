@@ -22,6 +22,7 @@ module load DeltaMP/DELTAMP_VERSION
 # Define Variables
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
 . $BIN/check_previous_step
+H=$(($MAXHOMOP+1))
 
 # Library to analyse
 LIB_CHUNK=(`sed -n $ARRAY_TASK,$(($ARRAY_TASK+9))p config/lib3.list | cut -f 2`)
@@ -36,6 +37,7 @@ do
 	sleep $i
 	LIB_NAME=${LIB_CHUNK[$i]}
 	LOG=mothur.$LIB_NAME.logfile
+	
 	# get bdiffs
 	if [ $BDIFFS == "a" ]
 	then
@@ -67,7 +69,7 @@ do
 		mothur "#set.logfile(name=$LOG, append=T);
 		fastq.info(fastq=$LIB_NAME.trim.fastq)"
 		Ns=$(($MAXAMBIG+1))
-		paste <(twofasta $LIB_NAME.trim.fasta) <(twofasta $LIB_NAME.trim.qual) | grep -v "^>\|A\{$H,\}\|C\{$H,\}\|G\{$H,\}\|T\{$H,\}\|\(N[ATCG]\)\{$Ns,\}" | awk -v m=$MINLEN -v M=$MAXLEN 'length($1)>=m && length($1)<=M {sum=0;for(i=2;i<=NF;i++){sum+=$i};print sum/NF}' > $LIB_NAME.trim.qual.stat
+		paste <(twofasta $LIB_NAME.trim.fasta) <(twofasta $LIB_NAME.trim.qual) | grep -v -P "^>|A{$H,}|C{$H,}|G{$H,}|T{$H,}|(N[ATCGatcg]*){$Ns,}" | awk -v m=$MINLEN -v M=$MAXLEN 'length($1)>=m && length($1)<=M {sum=0;for(i=2;i<=NF;i++){sum+=$i};print sum/NF}' > $LIB_NAME.trim.qual.stat
 		for i in $(seq $MINQUAL 30)
 		do
 			awk -v I=$i 'BEGIN{sum=0} $1>=I{sum+=1}END{print sum}' $LIB_NAME.trim.qual.stat
@@ -90,12 +92,11 @@ do
 		paste <(twofasta $LIB_NAME.trim.fasta) <(twofasta $LIB_NAME.trim.qual) | grep -v "^>" > $LIB_NAME.trim2.qual
 		
 		# Count reads with increasing length, and then check the required quality, maxhomop and maxambig parameters on this fixed length sub-fragment
-		H=$(($MAXHOMOP+1))
 		for i in $(seq $MINLEN 5 $MAXLEN)
 		do
 			for j in $(seq $MINQUAL 30)
 			do
-				awk -v L=$i -v Q=$j -v A=$MAXAMBIG '{if(length($1)>=L){QS=0;for(i=2;i<=(L+1);i++){QS+=$i};if(QS>=Q){seq=substr($1,1,L);gsub(/[ATCGatcg]*/,"",seq);if(length(seq)<=A){print substr($1,1,L)}}}}' $LIB_NAME.trim2.qual | grep -c -v "A\{$H,\}\|C\{$H,\}\|G\{$H,\}\|T\{$H,\}"
+				awk -v L=$i -v Q=$j -v A=$MAXAMBIG '{if(length($1)>=L){QS=0;for(i=2;i<=(L+1);i++){QS+=$i};if(QS>=Q){seq=substr($1,1,L);gsub(/[ATCGatcg]*/,"",seq);if(length(seq)<=A){print substr($1,1,L)}}}}' $LIB_NAME.trim2.qual | grep -c -v -P "A{$H,}|C{$H,}|G{$H,}|T{$H,}"
 			done
 		done > $EXEC/quality_check/$LIB_NAME.stat
 		rm $LIB_NAME.trim* $LIB_NAME.scrap* $LIB_NAME.groups
