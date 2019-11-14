@@ -112,11 +112,19 @@ then
 	printf '%'$((${#TITLE[8]}+8))'s\n' |tr " " "#"
 	echo "### ${TITLE[8]} ###"
 	printf '%'$((${#TITLE[8]}+8))'s\n' |tr " " "#"
-	FWDSIM=`awk -v F=${#FWD} -v D=$PDIFFS 'BEGIN{printf "%.2g\n", 1-D/F}'`
-	RVSSIM=`awk -v R=${#RVS} -v D=$PDIFFS 'BEGIN{printf "%.2g\n", 1-D/R}'`
-	echo "Read pairs were extracted from raw libraries if at least one of the two reads hold the expected primer (forward primer for forward library, reverse primer for reverse library) at its 5' end, with a similarity threshold of $FWDSIM and $RVSSIM for the forward and reverse primer, respectively."
-	CUTAVG=`grep -m 1 "Total read pairs processed:" libraries/fastq/log.cutadapt.* | awk '{gsub(",","",$NF);sum+=$NF}END{printf "%.0f\n", sum/NR}'`
-	echo "An average of $CUTAVG reads was extracted per pair of libraries."
+	if [ $TECH == "454" ] && [ $CLIPPING == "both" ]
+	then
+		DISS=`awk -v F=${#FWD} -v R=${#RVS} -v D=$PDIFFS 'BEGIN{DISS=D/F;if(D/R>DISS){DISS=D/R};printf "%.2g\n", DISS}'`
+		echo "Both primers were removed from reads using cutadapt (version ${VERSION[CUT]}, ${CITATION[CUT]}) allowing a dissimilarity of $DISS on the primer sequence."
+		CUTAVG=$(for i in libraries/fasta/log.cutadapt.EUK.*; do tac $i | sed -n '/Adapter 2/,/Summary/{s/,//g;p}' | awk '$0~"^Reads written"{s+=$5}END{print s}' ; done | awk '{s+=$1}END{printf "%.0f\n", s/NR}')
+		echo "An average of $CUTAVG reads was extracted per library."
+	elif [ $TECH == "Illumina" ]
+		FWDSIM=`awk -v F=${#FWD} -v D=$PDIFFS 'BEGIN{printf "%.2g\n", 1-D/F}'`
+		RVSSIM=`awk -v R=${#RVS} -v D=$PDIFFS 'BEGIN{printf "%.2g\n", 1-D/R}'`
+		echo "Read pairs were extracted from raw libraries if at least one of the two reads hold the expected primer (forward primer for forward library, reverse primer for reverse library) at its 5' end, with a similarity threshold of $FWDSIM and $RVSSIM for the forward and reverse primer, respectively."
+		CUTAVG=`grep -m 1 "Total read pairs processed:" libraries/fastq/log.cutadapt.* | awk '{gsub(",","",$NF);sum+=$NF}END{printf "%.0f\n", sum/NR}'`
+		echo "An average of $CUTAVG reads was extracted per pair of libraries."
+	fi
 	echo ""
 fi
 
@@ -128,7 +136,12 @@ then
 	if [ $DEMULTI == "yes" ] && [ $BDIFFS == "a" ] ; then BDIFFS=0 ; fi
 	QUAL=`cut -d "." -f 2 quality_check/trimming.parameters.txt`
 	LENGTH=`cut -d "." -f 1 quality_check/trimming.parameters.txt`
-	echo "The length and average quality trimming parameters were optimised to $LENGTH nt and $QUAL Phred score, respectively, in order to keep at least $MIN_DEPTH trimmed reads per sample, considering all other provided trimming parameters."
+	if [ $CLIPPING == "both" ]
+	then
+		echo "The average quality trimming parameter was optimised to $QUAL Phred score in order to keep at least $MIN_DEPTH trimmed reads per sample, considering all other provided trimming parameters."
+	else
+		echo "The length and average quality trimming parameters were optimised to $LENGTH nt and $QUAL Phred score, respectively, in order to keep at least $MIN_DEPTH trimmed reads per sample, considering all other provided trimming parameters."
+	fi
 	if [ $DENOISE == "yes" ]
 	then
 		echo "This optimisation does not take into account the loss of reads due to flow trimming and denoising"
@@ -151,7 +164,11 @@ printf '%'$((${#TITLE[5]}+8))'s\n' |tr " " "#"
 echo "### ${TITLE[5]} ###"
 printf '%'$((${#TITLE[5]}+8))'s\n' |tr " " "#"
 echo "The reads were then ${TRIMDEN}trimmed with the following parameters:"
-printf 'minimum length\t%s\nminimum average Phred score on the trimmed length\t%s\nmaximum number of ambiguities in the sequence\t%s\nmaximum length of homopolymers\t%s\n' "$LENGTH" "$QUAL" "$MAXAMBIG" "$MAXHOMOP" | column -t -s $'\t' 
+if [ $TECH == "454" ] && [ $CLIPPING != "both" ]
+then
+	printf 'minimum length\t%s\n' "$LENGTH" | column -t -s $'\t'
+fi
+printf 'minimum average Phred score\t%s\nmaximum number of ambiguities in the sequence\t%s\nmaximum length of homopolymers\t%s\n' "$QUAL" "$MAXAMBIG" "$MAXHOMOP" | column -t -s $'\t'
 if [ $TECH == "454" ]
 then
 	printf 'maximum number of mismatch(es) on the primer sequence\t%s\n' "$PDIFFS" | column -t -s $'\t' 
