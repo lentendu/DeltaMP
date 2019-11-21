@@ -83,4 +83,4 @@ $(test_config): test/%.tsv : %.config
 
 # clean rule
 clean :
-	rm -r $(deltamp) modulefiles $(steps) $(heads) $(arrays) $(highmems) $(batch_spec) $(test_config)
+	rm -r $(deltamp) $(steps) $(heads) $(arrays) $(highmems) $(batch_spec) $(test_config)
