@@ -42,7 +42,7 @@ $(modulefiles):
 # rule to build step scripts
 $(steps): bin/%.sh : | %.step
 	SEDSTEP=$$(sed 's/^/s@/;s/\t/@/;s/$$/@g/' lib/$(batch)/option_variables |  tr "\n" ";" | sed 's/^/sed "/;s/;$$/"/'); \
-	eval $$SEDSTEP $| | sed 's#/DELTAMP_VERSION#/$(version)#' | cat $< - | sed 's/log\/NAME/log\/'$*'/' > $@
+	eval $$SEDSTEP $| | sed 's#/DELTAMP_VERSION#/$(notdir module)#' | cat $< - | sed 's/log\/NAME/log\/'$*'/' > $@
 
 # header (type of job) specific dependencies
 bin/init.sh bin/454_quality.sh bin/Illumina_quality.sh bin/doc.sh bin/archiver.sh : serial.head
