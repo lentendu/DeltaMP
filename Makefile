@@ -3,7 +3,7 @@ version := 0.3
 SHELL := /bin/bash
 batch := $(shell grep BATCH_QUEUE config.txt | cut -f 2)
 modulefiles := $(shell grep MODULEFILES_DIR config.txt | cut -f 2)
-module := $(modulefiles)/$(shell grep MODULE_NAME config.txt | cut -f 2)
+module := $(shell grep MODULE_NAME config.txt | cut -f 2)
 module_load := $(shell grep MODULES_TO_BE_LOADED config.txt | cut -f 2)
 deltamp := $(patsubst src/%,bin/%,$(patsubst %.main,%,$(wildcard $(addsuffix *.main,src/))))
 batch_spec := $(addprefix bin/,$(notdir $(shell ls lib/$(batch)/deltamp.*)))
@@ -33,11 +33,11 @@ $(deltamp): bin/% : %.main | lib/$(batch)/option_variables
 # rule to build the module file of the current version
 $(module): src/deltamp.module | $(modulefiles)
 	 awk -v M="$(module_load)" '{if($$1=="LOAD"){split(M,a,";");for(i in a){print "module\t\tload\t"a[i]}} else print $$0}' $< |\
-	  sed 's#VERSION#$(version)#;s#PATH\tbin#PATH\t$(CURDIR)/bin#' > $@
+	  sed 's#VERSION#$(version)#;s#PATH\tbin#PATH\t$(CURDIR)/bin#' > $|/$@
 
 # rule to build the modulefiles directory
 $(modulefiles):
-	mkdir -p $@ $@/DeltaMP
+	mkdir -p $@ $@/$(dir $(module))
 
 # rule to build step scripts
 $(steps): bin/%.sh : | %.step
