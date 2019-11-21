@@ -51,7 +51,14 @@ else
 	wget -nv -O $LIB_DIR.txt "http://www.ebi.ac.uk/ena/data/warehouse/filereport?accession=$LIB_DIR&result=read_run&download=text"
 	if [ "$(sed -n '$=' $LIB_DIR.txt)" -gt 1 ]
 	then
-		parallel -j $NCPUS 'wget -nv -O - {} | dd of=$(basename {}) bs=1M' ::: ${ARCH[@]}
+		if [ ${ARCH[0]%%.*} == "ftp" ]
+		then
+			parallel -j $NCPUS 'wget -nv -O - {} | dd of=$(basename {}) bs=1M' ::: ${ARCH[@]}
+		elif [ ${ARCH[0]%%.*} == "fasp" ]
+		then
+			ASPERA_DIR=$(dirname $(which ascp) | sed 's@/bin$@@')
+			parallel -j $NCPUS "ascp -QT -l 300m -P33001 -i $ASPERA_DIR/etc/asperaweb_id_dsa.openssh era-fasp@{} ./" ::: ${ARCH[@]}
+		fi
 		ARCH=($(basename -a ${ARCH[@]}))
 	else
 		echo "The accession $LIB_DIR was not found at the European Nucleotide Archive (http://www.ebi.ac.uk/ena/data)"
@@ -95,8 +102,8 @@ if [[ "${ARCHIVES[@]}" != "no" ]]
 then
 my_extract2() {
 	case $@ in
-		*.bz2) bunzip2 $@ ;;
-		*.gz) dd if=$@ ibs=1M | unpigz -p 1 | dd of=${1%.*} obs=1M && rm $@ ;;
+		*.bz2) mv $@ ${@//-/_} ;;
+		*.gz) dd if=$@ ibs=1M | unpigz -p 1 | dd of=${@%.*} obs=1M && rm $@ ;;
 		*.tar) tar xf $@ ;;
 		*.zip) unzip $@ ;;
 	esac
@@ -126,14 +133,14 @@ do
 	fi
 done < $EXEC/config/lib1.list
 
-# Replace "-" by "_" in library names and compress
+# Replace "-" by "_" in library names and compress to bz2 if needed
 for i in *.$RAW_EXT
 do
 	if [[ $i =~ - ]]
 	then
-		bzip2 -c $i > ${i//-/_}.bz2
+		bzip2 -1 -c $i > ${i//-/_}.bz2
 	else
-		bzip2 $i
+		bzip2 -1 $i
 	fi
 done
 

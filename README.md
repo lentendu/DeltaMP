@@ -85,6 +85,7 @@ DeltaMP is intend to be used on a HPC with a job scheduler (i.e. batch-queuing s
 + [MCL](http://micans.org/mcl) (van Dongen, 2000)
 + [CD-HIT & cd-hit-454](http://weizhongli-lab.org/cd-hit/) for (pre-)clustering (Fu et al., 2012)
 + [ITSx](http://microbiology.se/software/itsx/) (Bengtsson‐Palme Johan et al. 2013)
++ [IBM Aspera Connect](https://downloads.asperasoft.com/connect2/) for faster download of raw reads libraries from the ENA SRA public database
 
 All this dependencies need to be available through the $PATH environmental variable or need to be loaded by the DeltaMP module file.
 
@@ -293,7 +294,7 @@ The default values for the optional parameters could be displayed by using the -
 
 Columns 3 and 4 accept libraies in fastq or sff format with most kinds of compression (.gz, .tar, .tar.gz, .tgz, .bz2, .tar.bz2, .tbz2, .zip).
 
-For ENA libraries, the column 2 have to match ENA "Submitter's sample name" field and column 3 to 4 have to match ENA full ftp URLs of a run accession as listed in ENA fields “Submitted files (FTP)” or "FASTQ files (FTP)".
+For ENA libraries, the column 2 have to match ENA "Submitter's sample name" field and column 3 to 4 have to match ENA full ftp or fasp (for aspera connect download) URLs of a run accession as listed in ENA fields “Submitted files (FTP)” or "FASTQ files (FTP)" or “Submitted files (Aspera)” or "FASTQ files (Aspera)".
 
 Example configuration files 'configuration_xxx.tsv' are available in the test/ directory after installation with `make`.
 
