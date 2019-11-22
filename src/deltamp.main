@@ -87,12 +87,14 @@ echo ""
 error_help(){
 	echo "#Error: $1"
 	show_help | fmt -s -w $(tput cols)
+	rm -f /tmp/amp.$STIME.set
 	exit 1
 } >&2
 
 error_doc(){
 	echo -e "#Error: $1"
 	show_doc | fmt -s -w $(tput cols)
+	rm -f /tmp/amp.$STIME.set
 	exit 1
 } >&2
 

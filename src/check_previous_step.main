@@ -20,7 +20,7 @@
 
 RAND=$(od -N 4 -t uL -An /dev/urandom | tr -d " ")
 WRONG=0
-(set -o posix; set > $RAND.set)
+#(set -o posix; set > $RAND.set)
 MY_JOB=`grep "\QUEUE_JOBNAME $QUEUE_INTERNAL_JOBNAME " config/steps.final`
 MY_HOLD=`echo $MY_JOB | grep -o -- "QUEUE_HOLD"`
 if [ -z "$MY_HOLD" ]
@@ -72,11 +72,11 @@ do
 done
 if [ $WRONG -eq 1 ]
 then
-	echo "additional environment"
-	comm -23 <(set -o posix; set | sort) <(sort $RAND.set) | grep -v "^i=\|^j=\|^WRONG="
-	rm $RAND.set
+	#echo "additional environment"
+	#comm -23 <(set -o posix; set | sort) <(sort $RAND.set) | grep -v "^i=\|^j=\|^WRONG="
+	#rm $RAND.set
 	exit 100
 else
 	echo "Previous job(s) $(echo ${PREV_JOB[@]} | grep -o " QUEUE_JOBNAME $DELTAMP_VER\.[^\.]*\.$SUBPROJECT" | sed '$!N;s/ QUEUE_JOBNAME //g;s/\n/ and /g') terminated correctly."
-	rm $RAND.set
+	#rm $RAND.set
 fi
