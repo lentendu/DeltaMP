@@ -28,17 +28,12 @@ then
 fi
 
 # Set archives/libraries array
-if [ -z "$ARCHIVES" ] || [[ "${ARCHIVES[@]}" == "no" ]]
+if [ $TECH == "454" ]
 then
-	if [ $TECH == "454" ]
-	then
-		ARCH=(`cat config/lib1.list`)
-	elif [ $TECH == "Illumina" ]
-	then
-		ARCH=(`paste <(awk '{print $1$2}' config/lib1.list) <(awk '{print $1$3}' config/lib1.list)`)
-	fi
-else
-	ARCH=(${ARCHIVES[@]})
+	ARCH=(`cat config/lib1.list`)
+elif [ $TECH == "Illumina" ]
+then
+	ARCH=(`awk '{print $1$2"\n"$1$3}' config/lib1.list`)
 fi
 
 # download or symlink raw data
@@ -68,48 +63,58 @@ else
 fi
 
 
-# Extract
-my_extract() {
-	if [[ -f "$@" ]]
-	then
-		if [[ "$@" != *$RAW_EXT ]]
-		then
-			mkdir tmp.$@
-			case $@ in
-				*.tar.bz2) tar xjvf $@ -C tmp.$@ ;;
-				*.tar.gz) tar xzvf $@ -C tmp.$@ ;;
-				*.bz2) bunzip2 -1 $@ ;;
-				*.gz) dd if=$@ ibs=1M | unpigz -p 1 | dd of=${@%.*} obs=1M && rm $@ ;;
-				*.tar) tar xf $@ -C tmp.$@ ;;
-				*.tbz2) tar xjvf $@ -C tmp.$@ ;;
-				*.tgz) tar xzvf $@ -C tmp.$@ ;;
-				*.zip) unzip -j $@ ;;
-				#*.7z) 7za e -o./tmp.$@ $@ && rm $@;;
-				*) echo "ERROR: '$@' cannot be extracted, unknown extension" && exit 100 ;;
-			esac
-			find ./tmp.$@ -type f -exec mv -i {} . \;
-			rm -r ./tmp.$@
-		fi
-	else
-		echo "ERROR: '$@' does not exist or is not a file" && exit 100
-	fi
-}
-export -f my_extract
-export RAW_EXT
-parallel -j $NCPUS my_extract ::: ${ARCH[@]}
-
-if [[ "${ARCHIVES[@]}" != "no" ]]
+# Extract group of libraries compressed together if any
+if [ -z "$ARCHIVES" ] || [[ "${ARCHIVES[@]}" == "no" ]]
 then
-my_extract2() {
-	case $@ in
-		*.bz2) mv $@ ${@//-/_} ;;
-		*.gz) dd if=$@ ibs=1M | unpigz -p 1 | dd of=${@%.*} obs=1M && rm $@ ;;
-		*.tar) tar xf $@ ;;
-		*.zip) unzip $@ ;;
-	esac
-}
-	export -f my_extract2
-	awk '{print $1$2"\n"$1$3}' ../config/lib1.list | parallel -j $NCPUS my_extract2
+	my_extract() {
+		if [[ -f "$@" ]]
+		then
+			if [[ "$@" != *$RAW_EXT ]]
+			then
+				mkdir tmp.$@
+				case $@ in
+					*.tar.bz2) tar xjvf $@ -C tmp.$@ ;;
+					*.tar.gz) tar xzvf $@ -C tmp.$@ ;;
+					*.bz2) bunzip2 -1 $@ ;;
+					*.gz) dd if=$@ ibs=1M | unpigz -p 1 | dd of=${@%.*} obs=1M && rm $@ ;;
+					*.tar) tar xf $@ -C tmp.$@ ;;
+					*.tbz2) tar xjvf $@ -C tmp.$@ ;;
+					*.tgz) tar xzvf $@ -C tmp.$@ ;;
+					*.zip) unzip -j $@ ;;
+					#*.7z) 7za e -o./tmp.$@ $@ && rm $@;;
+					*) echo "ERROR: '$@' cannot be extracted, unknown extension" && exit 100 ;;
+				esac
+				find ./tmp.$@ -type f -exec mv -i {} . \;
+				rm -r ./tmp.$@
+			fi
+		else
+			echo "ERROR: '$@' does not exist or is not a file" && exit 100
+		fi
+	}
+	export -f my_extract
+	export RAW_EXT
+	parallel -j $NCPUS my_extract ::: ${ARCHIVES[@]}
+fi
+
+# Extract individual libraries only if not uniformly compressed to gz or bz2, then re-compress uniformly to bz2 if needed
+if [ ${#COMP_EXT[@]} -eq 1 ] && [[ "gz bz2" == *${COMP_EXT[0]}* ]]
+then
+	parallel -j $NCPUS "i={} ; mv $i ${i//-/_}" ::: ${ARCH[@]}
+elif [ ${#COMP_EXT[@]} -gt 0 ]
+then
+	my_extract2() {
+		case $@ in
+			*.bz2) bunzip2 -1 $@ ;;
+			*.gz) dd if=$@ ibs=1M | unpigz -p 1 | dd of=${@%.*} obs=1M && rm $@ ;;
+			*.tar) tar xf $@ ;;
+			*.zip) unzip $@ ;;
+		esac
+	}
+	export -f my_extract my extract2
+	parallel -j $NCPUS my_extract2 ::: ${ARCH[@]}
+	parallel -j $NCPUS "i={} ; bzip2 -1 -c $i > ${i//-/_}.bz2" ::: ${ARCH[@]%.*}
+else
+	parallel -j $NCPUS "i={} ; bzip2 -1 -c $i > ${i//-/_}.bz2" ::: ${ARCH[@]}
 fi
 
 # Oligo files
@@ -132,17 +137,6 @@ do
 		awk -v I=$(echo "$lib$fwd") '$3==I{print ">"$2"\n^"$1}' $EXEC/config/barcodes.txt > fasta/oligos.${j//-/_}
 	fi
 done < $EXEC/config/lib1.list
-
-# Replace "-" by "_" in library names and compress to bz2 if needed
-for i in *.$RAW_EXT
-do
-	if [[ $i =~ - ]]
-	then
-		bzip2 -1 -c $i > ${i//-/_}.bz2
-	else
-		bzip2 -1 $i
-	fi
-done
 
 # list files and directories
 . $BIN/list_step_files.sh

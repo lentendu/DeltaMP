@@ -46,12 +46,14 @@ do
 		if [ $DENOISE == "yes" ]
 		then
 			#trim flows with FlowClus, using all set of primers allowed by PDIFFS mismatches as detected by cutadapt (also work with MOTHUR trim.seqs) because FlowClust does not take into account homopolymers extension in primer mismatches (which append quite often for example for ITS4)
-			if [ $DEMULTI == "no" ]
+			if [ $EXT == "bz2" ]
 			then
-				process_sff.py -i $EXEC/libraries/sff/$i.sff -f -o ./ 
+				bunzip2 -c $RAW_DIR/$i.sff.$EXT > $i.sff
 			else
-				process_sff.py -i $EXEC/libraries/$i.sff -f -o ./ 
+				unpigz -p 1 -c $RAW_DIR/$i.sff.$EXT > $i.sff
 			fi
+			process_sff.py -i $i.sff -f -o ./ 
+			rm $i.sff
 			ln -s $EXEC/libraries/fasta/oligos.$i ./
 			sed 's/forward/primer,'$i'/;s/^#//;s/barcode/midtag/' $EXEC/libraries/fasta/oligos.$i | awk '{if($1=="midtag"){print $1,$3,$2} else print $0}' | sed 's/ /,/g' > master.$i.csv
 			FWD_E=$(awk -v F=${#FWD} -v P=$PDIFFS 'BEGIN{printf "%.2f",P/F+0.005}')

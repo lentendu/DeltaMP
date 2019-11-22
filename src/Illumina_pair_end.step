@@ -31,19 +31,19 @@ cd libraries
 # Pair end
 if [ $PALG == "vsearch" ]
 then
-	ASCII=$(vsearch --fastq_chars fastq/$LIB_NAME.fwd.fastq.bz2 2>&1 | grep -m 1 "^Guess" | sed 's/.* //')
+	ASCII=$(vsearch --fastq_chars fastq/$LIB_NAME.fwd.fastq.$EXT 2>&1 | grep -m 1 "^Guess" | sed 's/.* //')
 	PCTTRESH=$(awk -v P=$PTRESH 'BEGIN{print (1-P)*100}')
-	vsearch --quiet --threads 1 --fastq_mergepairs fastq/$LIB_NAME.fwd.fastq.bz2 --reverse fastq/$LIB_NAME.rvs.fastq.bz2 --fastq_ascii $ASCII --fastq_minovlen $MIN_OV --fastq_maxdiffpct $PCTTRESH --fastq_allowmergestagger --fastqout - 2> fastq/log.pairend.$LIB_NAME.txt | bzip2 -c > fastq/$LIB_NAME.pairend.fastq.bz2
+	vsearch --quiet --threads 1 --fastq_mergepairs fastq/$LIB_NAME.fwd.fastq.$EXT --reverse fastq/$LIB_NAME.rvs.fastq.$EXT --fastq_ascii $ASCII --fastq_minovlen $MIN_OV --fastq_maxdiffpct $PCTTRESH --fastq_allowmergestagger --fastqout - 2> fastq/log.pairend.$LIB_NAME.txt | bzip2 -1 -c > fastq/$LIB_NAME.pairend.fastq.bz2
 else
-	pandaseq -f fastq/$LIB_NAME.fwd.fastq.bz2 -r fastq/$LIB_NAME.rvs.fastq.bz2 -g fastq/log.pairend.$LIB_NAME.txt -F -A $PALG -o $MIN_OV -t $PTRESH -T 1 -W fastq/$LIB_NAME.pairend.fastq.bz2
+	pandaseq -f fastq/$LIB_NAME.fwd.fastq.$EXT -r fastq/$LIB_NAME.rvs.fastq.$EXT -g fastq/log.pairend.$LIB_NAME.txt -F -A $PALG -o $MIN_OV -t $PTRESH -T 1 -W fastq/$LIB_NAME.pairend.fastq.bz2
 fi
 
 # Convert to fasta + qual
-bunzip2 fastq/$LIB_NAME.pairend.fastq.bz2
+bunzip2 -c fastq/$LIB_NAME.pairend.fastq.bz2 > fastq/$LIB_NAME.pairend.fastq
 mothur "#set.dir(input=$EXEC/libraries/fastq, output=$EXEC/libraries/fasta);
 set.logfile(name=mothur.$LIB_NAME.logfile, append=T);
 fastq.info(fastq=$LIB_NAME.pairend.fastq)"
-bzip2 fastq/$LIB_NAME.pairend.fastq
+rm fastq/$LIB_NAME.pairend.fastq
 
 # Replace "-" by "_" in sequence identifiers
 sed '/>/s/-/_/g' fasta/$LIB_NAME.pairend.fasta > fasta/$LIB_NAME.pairend.tmp && mv fasta/$LIB_NAME.pairend.tmp fasta/$LIB_NAME.pairend.fasta

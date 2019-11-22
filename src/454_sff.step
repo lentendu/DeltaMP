@@ -25,34 +25,30 @@ while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var
 
 # Library to analyse
 LIB_CHUNK=(`sed -n $ARRAY_TASK,$(($ARRAY_TASK+9))p config/lib3.list | cut -f 2`)
-cd libraries
+cd libraries/fasta
 
 for LIB_NAME in "${LIB_CHUNK[@]}"
 do
 	sleep 1
 	(
-	LOG=mothur.$LIB_NAME.logfile
-	# sff to fasta + qual
-	if [ $DEMULTI == "yes" ]
+	if [ $EXT == "bz2" ]
 	then
-		mothur "#set.dir(input=./, output=fasta);
-		set.logfile(name=$LOG);
-		sffinfo(sff=$LIB_NAME.sff, flow=F)"
+		bunzip2 -c $RAW_DIR/$LIB_NAME.sff.$EXT > $LIB_NAME.sff
 	else
-		mothur "#set.dir(input=sff, output=fasta);
-		set.logfile(name=$LOG);
-		sffinfo(sff=$LIB_NAME.sff, flow=F)"
+		unpigz -p 1 -c $RAW_DIR/$LIB_NAME.sff.$EXT > $LIB_NAME.sff
 	fi
-	
+	# sff to fasta + qual
+	LOG=mothur.$LIB_NAME.logfile
+	mothur "#set.logfile(name=$LOG);
+	sffinfo(sff=$LIB_NAME.sff, flow=F)"
+	rm $LIB_NAME.sff
 	if [ $CLIPPING == "both" ]
 	then
-		mothur "#set.dir(input=fasta, output=fasta);
-		set.logfile(name=$LOG, append=T);
+		mothur "#set.logfile(name=$LOG, append=T);
 		make.fastq(fasta=$LIB_NAME.fasta, qfile=$LIB_NAME.qual)"
 	fi
 	
 	# Stat for figures
-	cd fasta
 	twofasta $LIB_NAME.fasta | grep -v "^>" | awk '{print length($1)}' > ../raw_stat/$LIB_NAME.length
 	twofasta $LIB_NAME.qual | grep -v "^>" | awk '{sum=0;for(i=1;i<=NF;i++){sum+=$i};print sum/NF}' > ../raw_stat/$LIB_NAME.meanqual
 	twofasta $LIB_NAME.qual | grep -v "^>" | awk '{for(i=1;i<=NF;i++){sum[i]+=$i;nb[i]+=1}}END{for(i=1;sum[i];i++){printf "%s\t",sum[i]/nb[i]}}' | sed 's/\t$/\n/' > ../raw_stat/$LIB_NAME.meanposqual

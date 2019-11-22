@@ -40,8 +40,15 @@ then
 fi
 
 #Split library over the different samples
+if [ $EXT == "bz2" ]
+then
+	bunzip2 -c $LIB_NAME.sff.$EXT > $LIB_NAME.sff
+else
+	unpigz -c -p 1 $LIB_NAME.sff.$EXT > $LIB_NAME.sff
+fi
 mothur "#set.dir(input=$EXEC/libraries, output=./);
 sffinfo(sff=$LIB_NAME.sff)"
+rm $LIB_NAME.sff
 
 # cutadapt with 5' anchored adaptors
 BLENGTH=$(grep -m 1 barcode oligos.${LIB_NAME} | awk '{print length($2)}')
@@ -61,8 +68,13 @@ done < $LIB_NAME.groups.list
 # make per sample sff
 parallel -a $LIB_NAME.groups.list -j $NCPUS "make_per_library_sff.py -i ../$LIB_NAME.sff -l {}.$LIB_NAME"
 
-# move demultiplexed sff in sff directory
-parallel -a $LIB_NAME.groups.list -j $NCPUS "dd if={}.$LIB_NAME/{}.$LIB_NAME.sff of=../$RAW_EXT/{}.$LIB_NAME.sff bs=1M"
+# compress and move demultiplexed sff in sff directory
+if [ $EXT == "bz2" ]
+then
+	parallel -a $LIB_NAME.groups.list -j $NCPUS "bzip2 -1 -c {}.$LIB_NAME/{}.$LIB_NAME.sff > $RAW_EXT/{}.$LIB_NAME.sff.$EXT"
+else
+	parallel -a $LIB_NAME.groups.list -j $NCPUS "pigz -p 1 -c -b 1024 {}.$LIB_NAME/{}.$LIB_NAME.sff > ../$RAW_EXT/{}.$LIB_NAME.sff.$EXT"
+fi
 parallel -a $LIB_NAME.groups.list -j $NCPUS "rm -r {}.$LIB_NAME {}.$LIB_NAME.fasta"
 rm $LIB_NAME.flow $LIB_NAME.qual
 
