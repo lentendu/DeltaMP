@@ -522,7 +522,7 @@ EXEC=$EXEC_PATH/$SUBPROJECT
 
 # Store barcodes, libraries and sample lists into files
 sed '1,/^Barcode sequence/d;/^$/d;s/^\t/barcode\t/' config/$METADATA > config/barcodes.txt
-COMP_EXT=($(sed "s/.*${RAW_EXT}\([^ \t$]*\).*/\1/;s/\.//" barcodes.txt | sort -u))
+COMP_EXT=($(sed "s/.*${RAW_EXT}\([^ \t$]*\).*/\1/;s/\.//" config/barcodes.txt | sort -u))
 if [ ${#COMP_EXT[@]} -gt 1 ] || [ ${#COMP_EXT[@]} -eq 0 ] || [[ "gz bz2" != *${COMP_EXT[0]}* ]]
 then
 	EXT=bz2
