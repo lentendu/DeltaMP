@@ -46,15 +46,19 @@ while true; do
 done
 
 # delete job in the queue
-QUEUED_JOBS=$(QUEUE_STAT | awk 'NR>1{print $1}' | cut -d "_" -f 1 | sort -u | join - <(awk '{print $1}' $EXEC_PATH/$SUBPROJECT/config/jobid) | sort)
-if [ ! -z "$QUEUED_JOBS" ]
+if [ -d $EXEC_PATH/$SUBPROJECT ]
 then
-	QUEUE_DEL $QUEUED_JOBS
-fi
+	QUEUED_JOBS=$(QUEUE_STAT | awk 'NR>1{print $1}' | cut -d "_" -f 1 | sort -u | join - <(awk '{print $1}' $EXEC_PATH/$SUBPROJECT/config/jobid) | sort)
+	if [ ! -z "$QUEUED_JOBS" ]
+	then
+		QUEUE_DEL $QUEUED_JOBS
+	fi
 
 # delete files and directories
+	rm -r $EXEC_PATH/$SUBPROJECT
+fi
+
 cd $OUT_PATH
-rm -r $EXEC_PATH/$SUBPROJECT
 rm -r $PROUT/$SUBPROJECT
 if [ -z "$(ls -A $PROUT)" ]
 then
