@@ -614,7 +614,7 @@ if [ $CHECKP == "yes" ]
 then
 	if [ $REF_SUBPROJECT == "no" ]
 	then
-		PREV_LIST=(`ls -dt $PROJECT\_$TECH\_$TARG\_* | grep -v $SUBPROJECT`) # last first
+		PREV_LIST=(`ls -dtr $PROJECT\_$TECH\_$TARG\_* | grep -v $SUBPROJECT`) # oldest first
 	else
 		PREV_LIST=$REF_SUBPROJECT
 	fi
