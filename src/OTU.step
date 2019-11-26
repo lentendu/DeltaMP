@@ -51,7 +51,7 @@ NAMES=`sed -n '/^name=/{s/.*=//;s/\.names//;p}' current_files.summary`
 # count table
 tr "," " " < $NAMES.names | awk '{for(i=2;i<=NF;i++){print $i,$1}}' | sort --parallel=$NCPUS -k 1,1 | join -o 1.2,0,2.3,2.2 - <(sort --parallel=$NCPUS -k 1,1 $SUBPROJECT.groups) | sort --parallel=$NCPUS -k 1,1 -k 3,3 | awk '$1!=p{p=$1;sub("^",">",$1)} {print}' | parallel -j $NCPUS --recstart ">" --remove-rec-sep --pipe -k "awk -v S='$SAMP_NAME' -f $BIN/make_count.awk" | cat <(echo Representative_Sequence total $SAMP_NAME | tr " " "\t") - > $FASTA.count_table
 COUNT=$FASTA
-rm $SUPROJECT.fasta $SUBPROJECT.groups
+rm $SUBPROJECT.fasta $SUBPROJECT.groups
 
 # Functions
 ## to fix ##

@@ -622,9 +622,16 @@ then
 	if [ ! -z "$PREV_LIST" ]
 	then
 		unset TMP_SCRIPT TMP_DIF
-		declare -A TMP_SCRIPT TMP_DIF BAR_DIF TMP_PREV
+		declare -A TMP_SCRIPT TMP_DIF BAR_DIF TMP_PREV PREV_EXEC
 		for i in ${PREV_LIST[@]}
 		do
+			# check execution directory of previous subproject
+			if [ -d $EXEC_PATH/$i ]
+			then
+				PREV_EXEC[$i]=1
+			else
+				PREV_EXEC[$i]=0
+			fi
 			# which environmental variable(s) differ between the two SUBPROJECTs
 			TMP_DIF[$i]=$(comm -13 <(sort $i/config/env.txt) <(sort $SUBPROJECT/config/env.txt) | grep -v "$HASH\|TIME\|CLEAN\|REF_SUBPROJECT\|CITATION\|VERSION\|ARGUMENTS\|DRY\|CHIMERA " | awk '{print $1}' | tr "\n" "#" |  sed 's/#$//')
 			BAR_DIF[$i]=$(comm -3 <(sort $i/config/barcodes.txt) <(sort $SUBPROJECT/config/barcodes.txt) | head -1 | tr "\t" "#")
@@ -637,10 +644,10 @@ then
 				rm -r $SUBPROJECT
 				error_doc "the previous subproject $i have a different barcode and/or library list.\nTo avoid using $i as reference subproject, you can for example change the output directory (currently $OUT_PATH) in the configuration file."
 			fi
-			# in which step script(s) the differing variable(s) are found
-			unset MATCH_REGEX
-			MATCH_REGEX=$(grep $(echo ${TMP_DIF[$i]} | sed 's/#/[^A-Z_]\\\|$/g;s/^/$/;s/$/[^A-Z_]/') $(awk '$0~"QUEUE_SUB"{sub(")$","");print $NF}' $SUBPROJECT/config/steps | sort -u) | cut -d ":" -f 1 | sed 's/.*\///;s/\.sh$//' | sort -u | tr "\n" "|" | sed 's/|$//;s/|/\\\|/g')
-			if [ -z $MATCH_REGEX ]
+			# in which step script(s) of the new SUBPROJECT are the differing variable(s) found first
+			unset MATCH_STEP
+			MATCH_STEP=$(for j in $(awk '$0~"sbatch"{sub(")$","");print $NF}' $SUBPROJECT/config/steps); do TMP=$(grep -o -m 1 $(echo ${TMP_DIF[$i]} | sed 's/#/[^A-Z_]\\\|$/g;s/^/$/;s/$/[^A-Z_]/') $j) ; if [ ! -z $TMP ]; then basename $j | sed 's/\.sh//' && break ; fi ; done)
+			if [ -z $MATCH_STEP ]
 			then
 				if [ ${TMP_DIF[$i]} == "QUAL_ONLY" ]
 				then
@@ -649,30 +656,36 @@ then
 					TMP_SCRIPT[$i]=$(sed '1d;s/ QUEUE_HOLD[^ ]*//;s/ /_/g' $SUBPROJECT/config/steps | nl | sort -k 2,2 | join -v 1 -1 2 - <(sed 's/ QUEUE_HOLD[^ ]*//;s/'$i'/'$SUBPROJECT'/g;s/ /_/g' $i/config/steps.final | sort) | sort -k 2,2n | head -1 | sed 's/^.*\///;s/ .*$//')
 				fi
 			else
-				TMP_SCRIPT[$i]=$(awk '$0!~"^#"{print $NF}' $SUBPROJECT/config/steps | grep -m 1 -o $MATCH_REGEX)
+				TMP_SCRIPT[$i]=$MATCH_STEP
 			fi
 			# which was the last step executed before the differing step
 			TMP_PREV[$i]=$(awk '$0!~"^#"{print $NF}' $i/config/steps.final | tac | grep -o -m 1 $(sed '/'"${TMP_SCRIPT[$i]}"'/,$d' $BIN/ref.steps.$TECH | tr "\n" " " | sed 's/ $/\n/;s/ /\\\|/g'))
 		done
-		# the previous SUBPROJECT which has the most number of steps in common with the current SUBPROJECT is set as seed
-		REF_SUBPROJECT=`for i in "${PREV_LIST[@]}"; do sed -n '/'"${TMP_PREV[$i]}"'/=' $BIN/ref.steps.$TECH | paste <(echo $i) <(stat -c "%Y" $i) - ; done | sort -k 3,3nr -k 2,2nr | cut -f 1 | head -1`
-		FIRST_STEP=${TMP_SCRIPT[$REF_SUBPROJECT]}
-		LAST_REF=${TMP_PREV[$REF_SUBPROJECT]}
-		# the steps to be queued are updated accordingly: start with init, hold on previous subproject last step (avoid if not anymore in the queue), jump till FIRST_STEP and make it dependent on init step completion
-		LAST_REF_JOBID=$(deltamp.queue | grep ${DELTAMP_VER}.${LAST_REF}.${REF_SUBPROJECT} | awk 'NR==1{print $1}')
-		if [ -z $LAST_REF_JOBID ]
+		# check if any subproject still have their execution directory or avoid checkpointing
+		if [ $(echo ${PREV_EXEC[@]} | awk '{for(i=1;i<=NF;i++){s+=$i};print s}') -gt 0 ]
 		then
-			awk -v F=$FIRST_STEP 'BEGIN{p=0} {if($NF~F".sh)$"){p=1} ; if(p || NR==1){print} else {print "#"$0}}' $SUBPROJECT/config/steps | awk -v V=$DELTAMP_VER -v S=$SUBPROJECT 'BEGIN{c=0} {if(NR>1 && $0!~"^#" && c==0){sub("QUEUE_HOLD[^ ]* ","QUEUE_HOLD${init_jobid} ");c+=1};print}' > $SUBPROJECT/config/steps.final
+			# the previous SUBPROJECT which has the most number of steps in common with the current SUBPROJECT is set as seed
+			REF_SUBPROJECT=`for i in "${PREV_LIST[@]}"; do if [ ${PREV_EXEC[$i]} == 1 ] ; then sed -n '/'"${TMP_PREV[$i]}"'/=' $BIN/ref.steps.$TECH | paste <(echo $i) <(stat -c "%Y" $i) - ; fi ; done | sort -k 3,3nr -k 2,2nr | cut -f 1 | head -1`
+			FIRST_STEP=${TMP_SCRIPT[$REF_SUBPROJECT]}
+			LAST_REF=${TMP_PREV[$REF_SUBPROJECT]}
+			# the steps to be queued are updated accordingly: start with init, hold on previous subproject last step (avoid if not anymore in the queue), jump till FIRST_STEP and make it dependent on init step completion
+			LAST_REF_JOBID=$(grep ${DELTAMP_VER}.${LAST_REF}.${REF_SUBPROJECT} $EXEC_PATH/$REF_SUBPROJECT/config/jobid | awk '{print $1}')
+			if [ -z $(deltamp.queue | grep $LAST_REF_JOBID) ]
+			then
+				awk -v F=$FIRST_STEP 'BEGIN{p=0} {if($NF~F".sh)$"){p=1} ; if(p || NR==1){print} else {print "#"$0}}' $SUBPROJECT/config/steps | awk -v V=$DELTAMP_VER -v S=$SUBPROJECT 'BEGIN{c=0} {if(NR>1 && $0!~"^#" && c==0){sub("QUEUE_HOLD[^ ]* ","QUEUE_HOLD${init_jobid} ");c+=1};print}' > $SUBPROJECT/config/steps.final
+			else
+				awk -v F=$FIRST_STEP 'BEGIN{p=0} {if($NF~F".sh)$"){p=1} ; if(p || NR==1){print} else {print "#"$0}}' $SUBPROJECT/config/steps | awk -v V=$DELTAMP_VER -v S=$SUBPROJECT -v L=$LAST_REF_JOBID 'BEGIN{c=0} {if(NR==1){sub(V".init."S" ",V".init."S" QUEUE_HOLD"L" ")} else {if($0!~"^#" && c==0){sub("QUEUE_HOLD[^ ]* ","QUEUE_HOLD${init_jobid} ");c+=1}};print}' > $SUBPROJECT/config/steps.final
+			fi
+			# Check archiving of raw reads in previous subproject
+			if [ $TECH == "454" ] && [ $DEMULTI == "no" ]
+			then
+				for i in "" -internal.md5 .md5
+				do
+					ln -s $OUT_PATH/$PROJECT/$REF_SUBPROJECT/$REF_SUBPROJECT.$RAW_EXT.tar.gz$i $OUT/$SUBPROJECT.$RAW_EXT.tar.gz$i
+				done
+			fi
 		else
-			awk -v F=$FIRST_STEP 'BEGIN{p=0} {if($NF~F".sh)$"){p=1} ; if(p || NR==1){print} else {print "#"$0}}' $SUBPROJECT/config/steps | awk -v V=$DELTAMP_VER -v S=$SUBPROJECT -v L=$LAST_REF_JOBID 'BEGIN{c=0} {if(NR==1){sub(V".init."S" ",V".init."S" QUEUE_HOLD"L" ")} else {if($0!~"^#" && c==0){sub("QUEUE_HOLD[^ ]* ","QUEUE_HOLD${init_jobid} ");c+=1}};print}' > $SUBPROJECT/config/steps.final
-		fi
-		# Check archiving of raw reads in previous subproject
-		if [ $TECH == "454" ] && [ $DEMULTI == "no" ]
-		then
-			for i in "" -internal.md5 .md5
-			do
-				ln -s $OUT_PATH/$PROJECT/$REF_SUBPROJECT/$REF_SUBPROJECT.$RAW_EXT.tar.gz$i $OUT/$SUBPROJECT.$RAW_EXT.tar.gz$i
-			done
+			sed '/^init_jobid/s/^/#/;/get.sh)$/s/ QUEUE_HOLD[^ ]* / /' $SUBPROJECT/config/steps > $SUBPROJECT/config/steps.final
 		fi
 	else
 		# if there is no previous SUBPROJECT, the init step is skipped
