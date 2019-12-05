@@ -78,7 +78,7 @@ then
 	if [ $PREV_PATH == "no" ]
 	then
 		cd-hit-est -T $NCPUS -M 0 -c $SIM -r 0 -g 1 -d 0 -i $FASTA.sort.fasta -o $FASTA.cdhit.fasta
-		awk '{if($1~">"){otu=$2} else print $3,$4,otu}' $FASTA.cdhit.fasta.clstr | sed 's/>//;s/\.\.\.//;s/*/S/;s/at/H/' | sort -k 1,1 | join - <(sed '1d' $COUNT.count_table | sort -k 1,1) | sort -k 3,3n -k 2,2r | cut -d " " -f 1,3- | awk -f sum_count.awk | cat <(head -1 $COUNT.count_table) - > $COUNT.cdhit.count_table
+		awk '{if($1~">"){otu=$2} else print $3,$4,otu}' $FASTA.cdhit.fasta.clstr | sed 's/>//;s/\.\.\.//;s/*/S/;s/at/H/' | sort -k 1,1 | join - <(sed '1d' $COUNT.count_table | sort -k 1,1) | sort -k 3,3n -k 2,2r | cut -d " " -f 1,3- | awk -f $BIN/sum_count.awk | cat <(head -1 $COUNT.count_table) - > $COUNT.cdhit.count_table
 		sed 's/\.\.\.//;s/>//' $FASTA.cdhit.fasta.clstr | awk '{if($4~"\\*"){print $3"\t"$3} else if($4=="at"){print ","$3}}' | sed -e :a -e '$!N;s/\n,/,/;ta' -e 'P;D' > $FASTA.cdhit.names
 		rm $FASTA.cdhit.fasta.clstr
 	else
