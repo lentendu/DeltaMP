@@ -172,7 +172,7 @@ fi
 # Chimera recheck
 if [ $CHIMERA2 == "yes" ]
 then
-	twofasta $FASTA_OTUS.fasta | paste - - | sed 's/^>//' | nl | sort -k 2,2 | join -1 2 - <(sed '1d' $COUNT_OTUS.count_table | cut -f 1,2 | sort -k 1,1) | sort -k4,4nr -k2,2n | awk '{print ">"$1";size="$4"\n"$3}' > $FASTA_OTUS.sort.fasta
+	awk '{print $1}' $FASTA_OTUS.fasta | twofasta | paste - - | sed 's/^>//' | nl | sort -k 2,2 | join -1 2 - <(sed '1d' $COUNT_OTUS.count_table | cut -f 1,2 | sort -k 1,1) | sort -k4,4nr -k2,2n | awk '{print ">"$1";size="$4"\n"$3}' > $FASTA_OTUS.sort.fasta
 	vsearch --no_progress --uchime_denovo $FASTA_OTUS.sort.fasta --xsize --nonchimeras - | twofasta > $FASTA_OTUS.nochim.fasta
 	sed -n '/^>/{s/>//;p}' $FASTA_OTUS.nochim.fasta | nl -s $'\t' -n ln | sort -k 2,2 -t $'\t' | join -t $'\t' -1 2 - <(sed '1d' $COUNT_OTUS.count_table | sort -k 1,1 -t $'\t') | sort -k 2,2n -t $'\t' | cut -f 1,3- | cat <(head -1 $COUNT_OTUS.count_table) - | tee $COUNT_OTUS.nochim.count_table | awk 'NR>1{print $1}' > $COUNT_OTUS.nochim.accnos
 	mothur "#get.seqs(accnos=$COUNT_OTUS.nochim.accnos, name=$NAMES_OTUS.names);
