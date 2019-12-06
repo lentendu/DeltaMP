@@ -106,7 +106,7 @@ then
 	paste - - < $FASTA.fasta | sed 's/>//;s/ size=[^ \t]*//' | sort -k 1,1 | join - <(sed '1d' $COUNT.count_table | cut -f 1,2 | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1" count="$3";\n"$2}' > $FASTA.sort.fasta
 	sumaclust -t $SIM -p $NCPUS -e -O $FASTA.suma.map $FASTA.sort.fasta | obigrep --without-progress-bar -a cluster_center:True | obisort -k cluster_weight -r | obiannotate --uppercase -C > $FASTA.suma.fasta
 	sed 's/\t/###/;s/\t/,/g;s/###/\t/' $FASTA.suma.map | sort -k 1,1 | join -1 2 <(sed -n '/>/{s/>//;p}' $FASTA.suma.fasta | nl | sort -k 2,2) - | sort -k 2,2n | awk '{print $1"\t"$3}' > $FASTA.suma.names
-	awk '{print $2,"S",NR;for(i=3;i<=NF;i++){print $i,"H",NR}}' $FASTA.suma.map | sort -k 1,1 | join - <(sed '1d' $COUNT.count_table | sort -k 1,1) | sort -k 3,3n -k 2,2r | cut -d " " -f 1,3- | awk -f sum_count.awk | cat <(head -1 $COUNT.count_table) - > $COUNT.suma.count_table
+	awk '{print $2,"S",NR;for(i=3;i<=NF;i++){print $i,"H",NR}}' $FASTA.suma.map | sort -k 1,1 | join - <(sed '1d' $COUNT.count_table | sort -k 1,1) | sort -k 3,3n -k 2,2r | cut -d " " -f 1,3- | awk -f $BIN/sum_count.awk | cat <(head -1 $COUNT.count_table) - > $COUNT.suma.count_table
 	FASTA_OTUS=$FASTA.suma
 	NAMES_OTUS=$FASTA.suma
 	COUNT_OTUS=$COUNT.suma
@@ -117,7 +117,7 @@ then
 	sumatra -t $SIM -p $NCPUS -g $FASTA.fasta > $FASTA.simil
 	mcxload -abc $FASTA.simil -write-tab $FASTA.mcl.dico -o $FASTA.mcl.load
 	mcl $FASTA.mcl.load -I 1.2 -te $NCPUS -o $FASTA.mcl.clust
-	mcxdump -imx $FASTA.mcl.clust -tabr $FASTA.mcl.dico --lazy-tab --no-values -o - | sort -k 2,2 | join -1 2 - <(sort -k 1,1 $COUNT.count_table) | sort -k 2,2n -k 3,3nr | awk -f ./sum_count.awk | cat <(head -1 $COUNT.count_table) - > $COUNT.mcl.count_table
+	mcxdump -imx $FASTA.mcl.clust -tabr $FASTA.mcl.dico --lazy-tab --no-values -o - | sort -k 2,2 | join -1 2 - <(sort -k 1,1 $COUNT.count_table) | sort -k 2,2n -k 3,3nr | awk -f $BIN/sum_count.awk | cat <(head -1 $COUNT.count_table) - > $COUNT.mcl.count_table
 	mcxdump -icl $FASTA.mcl.clust -tabr $FASTA.mcl.dico --lazy-tab --no-values -o - | tr "\t" "," | paste <(sed '1d' $COUNT.mcl.count_table | cut -f 1) - > $FASTA.mcl.names
 	obigrep --without-progress-bar --uppercase --id-list=<(sed '1d' $COUNT.mcl.count_table | cut -f 1) $FASTA.fasta | twofasta > $FASTA.mcl.fasta
 	FASTA_OTUS=$FASTA.mcl
