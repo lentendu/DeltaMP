@@ -11,7 +11,7 @@ amp<-commandArgs()[9]
 lib<-commandArgs()[10]
 source(file.path(bin,"palette.R"))
 
-list<-apply(expand.grid(c("fwd","rvs","pairend"),c("meanqual","meanposqual","length")),1,paste,collapse=".")
+list<-apply(expand.grid(c("fwd","rvs","pairend","pairend_trim"),c("meanqual","meanposqual","length")),1,paste,collapse=".")
 
 if(lib=="all") {
   files<-sub(paste0("\\.fwd\\.meanqual"),"",list.files(pattern="fwd.meanqual"))
@@ -36,27 +36,37 @@ my_theme<-theme_bw() +
         plot.margin=margin(t=12, r=12, b=12, l=12, unit="pt"))
 theme_set(my_theme)
 
-types<-c("fwd","rvs","pairend")
-fulltypes<-c("forward reads","reverse reads","pair-end reads")
+types<-c("fwd","rvs","pairend","pairend_trim")
+fulltypes<-c("forward reads","reverse reads","pair-end reads","minimal quality paired reads")
 
 meanqual<-foreach(x=types,.combine=rbind) %do% {
   foreach(y=samples,.combine=rbind) %do% {
-    data.frame(type=x,sample=y,quality=0:41,reads=scan(paste(grep(y,files,value=T),x,"meanqual",sep="."),quiet=T))
+    tmp<-paste(grep(paste0("^",y,"$"),files,value=T),x,"meanqual",sep=".")
+    if(file.exists(tmp)) {
+      data.frame(type=x,sample=y,quality=0:41,reads=scan(tmp,quiet=T))
+    }
   }
 } %>% mutate(type=mapvalues(type,types,fulltypes))
 
 meanposqual<-foreach(x=types,.combine=rbind) %do% {
   foreach(y=samples,.combine=rbind) %do% {
-    data.frame(type=x,sample=y,quality=scan(paste(grep(y,files,value=T),x,"meanposqual",sep="."),quiet=T)) %>%
-      rownames_to_column("position")
+    tmp<-paste(grep(paste0("^",y,"$"),files,value=T),x,"meanposqual",sep=".")
+    if(file.exists(tmp)) {
+      data.frame(type=x,sample=y,quality=scan(tmp,quiet=T)) %>%
+        rownames_to_column("position") 
+    }
   }
 } %>% mutate(type=mapvalues(type,types,fulltypes),position=as.numeric(position))
 
 seqlength<-foreach(x=types,.combine=rbind) %do% {
   foreach(y=samples,.combine=rbind) %do% {
-    data.frame(type=x,sample=y,read.table(paste(grep(y,files,value=T),x,"length",sep="."),col.names=c("length","reads")))
+    tmp<-paste(grep(paste0("^",y,"$"),files,value=T),x,"length",sep=".")
+    if(file.exists(tmp)) {
+      data.frame(type=x,sample=y,read.table(tmp,col.names=c("length","reads")))
+    }
   }
-} %>% mutate(type=mapvalues(type,types,fulltypes))
+} %>% mutate(type=mapvalues(type,types,fulltypes)) %>%
+  filter(length>0)
 
 # average quality
 plot_qual<-ggplot(meanqual,aes(quality,reads+1)) +
@@ -81,37 +91,27 @@ ggsave(paste(lname,"position_quality","pdf",sep="."),plot_pos_qual,width=210,hei
 
 
 # sequence length
-full_length<-filter(seqlength,type!="pair-end reads") %>%
-  select(-reads) %>%
-  spread(type,length) %>%
-  mutate(full=`forward reads`+`reverse reads`) %>%
-  select(sample,full)
-overlap<-filter(seqlength,type=="pair-end reads") %>%
-  left_join(full_length) %>%
-  mutate(overlap=full-length)
+plot_length<-ggplot(seqlength,aes(length,reads)) +
+  geom_bar(data=group_by(seqlength,length,type) %>%
+             summarize(reads=sum(reads)),stat="identity",fill="limegreen") +
+  geom_line(aes(color=sample),size=0.3,stat="identity",show.legend=F) +
+  geom_smooth() +
+  facet_wrap(~type,ncol=1,scales="free_x") +
+  scale_color_manual(values=mycolors) +
+  scale_y_log10() +
+  labs(title="length distribution",x="sequence length (nt)",y="read counts")
+ggsave(paste(lname,"length","pdf",sep="."),plot_length,width=210,height=297,units="mm")
 
-plot_length<-ggplot(overlap,aes(length,reads)) +
-  geom_bar(data=group_by(overlap,type,length) %>% summarize(reads=sum(reads)),stat="identity",fill="limegreen") +
-  geom_line(aes(color=sample),size=0.3,stat="identity",show.legend=F) +
-  geom_smooth() +
-  scale_color_manual(values=mycolors) +
-  scale_y_log10() +
-  labs(title="Pair-end length distribution",x="sequence length (nt)",y="read counts")
-plot_overlap<-ggplot(overlap,aes(overlap,reads)) +
-  geom_bar(data=group_by(overlap,type,overlap) %>% summarize(reads=sum(reads)),stat="identity",fill="limegreen") +
-  geom_line(aes(color=sample),size=0.3,stat="identity",show.legend=F) +
-  geom_smooth() +
-  scale_color_manual(values=mycolors) +
-  scale_y_log10() +
-  labs(x="sequence overlap (nt)",y="read counts")
-plot_line<-ggplot(overlap,aes(overlap,reads)) +
-  geom_line(aes(color=sample),size=1,stat="identity") +
-  scale_color_manual(values=mycolors,guide=guide_legend(ncol=4)) +
+# legend
+plot_line<-ggplot(seqlength,aes(length,reads)) +
+  geom_line(aes(color=sample),stat="identity") +
+  scale_color_manual(values=mycolors,guide=guide_legend(ncol=2)) +
   theme(legend.position="bottom",
-        legend.text=element_text(size=7),
-        legend.title=element_blank())
+        legend.text=element_text(size=12),
+        legend.title=element_blank(),
+        legend.spacing.x=unit(5, 'mm'),
+        legend.key.size=unit(5,'mm'))
 plot_legend<-cowplot::get_legend(plot_line)
-pdf(paste(lname,"pair-end_length","pdf",sep="."),paper="a4",width=0,height=0)
-# grid.arrange(plot_length,plot_overlap,plot_legend,ncol=1)
-grid.arrange(plot_length,plot_legend,ncol=1,heights=c(1.1,1.9))
+pdf(paste(lname,"legend","pdf",sep="."),paper="a4",width=0,height=0)
+plot(plot_legend)
 dev.off()
