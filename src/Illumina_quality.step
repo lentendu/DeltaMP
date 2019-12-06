@@ -81,15 +81,16 @@ cd $EXEC/libraries/raw_stat
 if [ $DEMULTI == "yes" ]
 then
 	Rscript --vanilla $BIN/Rscript_raw_stat_figures_Illumina.R $SUBPROJECT $BIN $(echo "DeltaMP_${VERSION[DELTAMP]}") all
-	gs -q -sDEVICE=pdfwrite -o $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.raw_and_pair-end_reads_statistics.pdf $SUBPROJECT.quality.pdf $SUBPROJECT.position_quality.pdf $SUBPROJECT.pair-end_length.pdf
+	gs -q -sDEVICE=pdfwrite -o $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.raw_and_pair-end_reads_statistics.pdf $SUBPROJECT.length.pdf $SUBPROJECT.quality.pdf $SUBPROJECT.position_quality.pdf $SUBPROJECT.legend.pdf
 else
 	for LIB_NAME in $(cut -f 1 $EXEC/config/lib2.list)
 	do
 		Rscript --vanilla $BIN/Rscript_raw_stat_figures_Illumina.R $SUBPROJECT $BIN $(echo "DeltaMP_${VERSION[DELTAMP]}") $LIB_NAME
-		gs -q -sDEVICE=pdfwrite -o $LIB_NAME.raw_and_pair-end_reads_statistics.pdf ${LIB_NAME}.raw_reads_with_primer_quality.pdf ${LIB_NAME}.pair-end_reads_quality.pdf ${LIB_NAME}.legend.pdf
-		rm ${LIB_NAME}.raw_reads_with_primer_quality.pdf ${LIB_NAME}.pair-end_reads_quality.pdf ${LIB_NAME}.legend.pdf
+		gs -q -sDEVICE=pdfwrite -o $LIB_NAME.raw_and_pair-end_reads_statistics.pdf ${LIB_NAME}.length.pdf ${LIB_NAME}.quality.pdf ${LIB_NAME}.position_quality.pdf ${LIB_NAME}.legend.pdf
+		rm ${LIB_NAME}.length.pdf ${LIB_NAME}.quality.pdf ${LIB_NAME}.position_quality.pdf ${LIB_NAME}.legend.pdf
 	done
-	gs -q -sDEVICE=pdfwrite -o archives/$SUBPROJECT.outputs/$SUBPROJECT.raw_and_pair-end_reads_statistics.pdf libraries/raw_stat/*.raw_and_pair-end_reads_statistics.pdf
+	gs -q -sDEVICE=pdfwrite -o $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.raw_and_pair-end_reads_statistics.pdf *.raw_and_pair-end_reads_statistics.pdf
+	rm *.raw_and_pair-end_reads_statistics.pdf
 fi
 
 # list files and directories
