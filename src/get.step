@@ -99,7 +99,7 @@ fi
 # Extract individual libraries only if not uniformly compressed to gz or bz2, then re-compress uniformly to bz2 if needed
 if [ ${#COMP_EXT[@]} -eq 1 ] && [[ "gz bz2" == *${COMP_EXT[0]}* ]]
 then
-	parallel -j $NCPUS "i={} ; if [[ $i == *'-'* ]] ; then mv $i ${i//-/_} ; fi" ::: ${ARCH[@]}
+	parallel -j $NCPUS 'i={} ; if [[ $i == *"-"* ]] ; then mv $i ${i//-/_} ; fi' ::: ${ARCH[@]}
 elif [ ${#COMP_EXT[@]} -gt 0 ]
 then
 	my_extract2() {
