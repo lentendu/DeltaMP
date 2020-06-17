@@ -563,6 +563,25 @@ then
 	if [ $DEMULTI == "no" ]
 	then
 		sed 's/\.'$RAW_EXT'[^\t$]*//g;s/-/_/g;s/ftp\.sra[^\t]*\///g' config/barcodes.txt | awk '{print $2"\t"$2"."$3"\t"$2"."$4}' | sort -u > config/lib3.list
+		# control potential dual indexing
+		if [ $(cut -f 1 config/barcodes.txt | grep -c "^[ATCG]*,[ATCG]*$") -gt 0 ]
+		then
+			if [ $(cut -f 1 config/barcodes.txt | grep -c "^[ATCG]*,[ATCG]*$") -eq $(sed -n '$=' config/barcodes.txt) ]
+			then
+				DUALID=yes
+			else
+				cd .. && rm -r $SUBPROJECT
+				if [ ! "$(ls -A)" ] ; then cd .. && rmdir $PROJECT ; fi
+				error_doc "not all samples have dual indexes in the barcode list. Demultiplexing does not support mixing of single and dual indexing."
+			fi
+		else
+			if [ $BINDBP == "yes" ]
+			then
+				cd .. && rm -r $SUBPROJECT
+				if [ ! "$(ls -A)" ] ; then cd .. && rmdir $PROJECT ; fi
+				error_doc "the option 'Bind barcode to primer for demultiplexing' is set to 'yes' but no dual index was detectected in the barcode list."
+			fi
+		fi
 	else
 		if [ $(cut -f 2 config/barcodes.txt | sort -u | wc -l) -gt $(cut -f 3 config/barcodes.txt | sort -u | wc -l) ]
 		then
@@ -588,7 +607,7 @@ rm -f /tmp/amp.$STIME.set
 # Steps to queue (avoid archiving for already demultiplexed libraries)
 if [ $DEMULTI_ONLY == "yes" ]
 then
-	. $BIN/pipeline_master | sed '/^raw_jobid/,{s/^/#/};/^#raw_arch/s/^#//}' > config/steps
+	. $BIN/pipeline_master | sed '/^raw_jobid/,${s/^/#/};/^#raw_arch/{s/^#//}' > config/steps
 elif [ $QUAL_ONLY == "yes" ]
 then
 	if [ $DEMULTI == "no" ]

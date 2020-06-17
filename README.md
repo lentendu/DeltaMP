@@ -197,6 +197,8 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Libraries already demultiplexed__: “yes” or “no”. If the libraries are not demultiplexed, one fastq/sff file per sample in each library will be produced. An archive containing all demultiplexed libraries and labeled with "raw_fastq"/“raw_sff” will be created in the output directory. The default is “yes” for libraries already demultiplexed.
 
++ __Bind barcode to primer for demultiplexing__: *Illumina specific parameter*, "yes" or "no". For dual-indexing, control binding of barcodes with the forward/reverse primer to increase demultiplexing accuracy. The first barcode in a pair is only search associated with the forward primer at 5'-end and the second barcode is only search associated with the reverse primer at 5'-end, in both paired libraries. The default is “no”.
+
 
 ### TARGET section
 
@@ -290,7 +292,7 @@ The default values for the optional parameters could be displayed by using the -
 
 + __454 libraries__: the columns 1 to 3 have to be filled with barcode sequences, sample names and library filenames or URLs, respectively. If the same barcode was used to sequence in both forward and reverse directions, the library containing the reverse primer at its 5'-end have to be provided in the fourth column.
 
-+ __Illumina libraries__: the columns 2 to 4 have to be filled with sample names, filename or URL of the forward libraries and the filename or URL of the reverse libraries, respectively. The column 1 have to remain empty has only delmultiplexed Illumina libraries can currently be processed by DeltaMP.
++ __Illumina libraries__: the columns 1 to 4 have to be filled with barcodes, sample names, the filename or URL of the forward libraries and the filename or URL of the reverse libraries, respectively. The column 1 can remain empty when libraries are already delmultiplexed. Dual index demultiplexing is turn on when a comma separated pair of barcodes is provided for every sample in column 1.
 
 Columns 3 and 4 accept libraies in fastq or sff format with most kinds of compression (.gz, .tar, .tar.gz, .tgz, .bz2, .tar.bz2, .tbz2, .zip).
 

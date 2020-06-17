@@ -36,12 +36,45 @@ then
 	ARCH=(`awk '{print $1$2"\n"$1$3}' config/lib1.list`)
 fi
 
-# download or symlink raw data
+# extract, symlink or download raw data
 cd libraries
 
 if [[ $LIB_DIR == "/"* ]]
 then
-	parallel -j $NCPUS 'if [ -f {1}/{2} ]; then ln -s {1}/{2} {2} ; fi' ::: ${LIB_DIR[@]} ::: ${ARCH[@]}
+	# Extract group of libraries compressed together if any
+	if [[ "${ARCHIVES[@]}" != "no" ]]
+	then
+		my_extract() {
+			if [[ -f "$@" ]]
+			then
+				if [[ "$@" != *$RAW_EXT ]]
+				then
+					mkdir tmp.$@
+					case $@ in
+						*.tar.bz2) tar xjvf $@ -C tmp.$@ ;;
+						*.tar.gz) tar xzvf $@ -C tmp.$@ ;;
+						*.bz2) bunzip2 -1 $@ ;;
+						*.gz) dd if=$@ ibs=1M | unpigz -p 1 | dd of=${@%.*} obs=1M && rm $@ ;;
+						*.tar) tar xf $@ -C tmp.$@ ;;
+						*.tbz2) tar xjvf $@ -C tmp.$@ ;;
+						*.tgz) tar xzvf $@ -C tmp.$@ ;;
+						*.zip) unzip -j $@ ;;
+						#*.7z) 7za e -o./tmp.$@ $@ && rm $@;;
+						*) echo "ERROR: '$@' cannot be extracted, unknown extension" && exit 100 ;;
+					esac
+					find ./tmp.$@ -type f -exec mv -i {} . \;
+					rm -r ./tmp.$@
+				fi
+			else
+				echo "ERROR: '$@' does not exist or is not a file" && exit 100
+			fi
+		}
+		export -f my_extract
+		export RAW_EXT
+		parallel -j $NCPUS my_extract ::: ${ARCHIVES[@]}
+	else
+		parallel -j $NCPUS 'if [ -f {1}/{2} ]; then ln -s {1}/{2} {2} ; fi' ::: ${LIB_DIR[@]} ::: ${ARCH[@]}
+	fi
 else
 	wget -nv -O $LIB_DIR.txt "http://www.ebi.ac.uk/ena/data/warehouse/filereport?accession=$LIB_DIR&result=read_run&download=text"
 	if [ "$(sed -n '$=' $LIB_DIR.txt)" -gt 1 ]
@@ -62,39 +95,6 @@ else
 	fi
 fi
 
-
-# Extract group of libraries compressed together if any
-if [ -z "$ARCHIVES" ] || [[ "${ARCHIVES[@]}" == "no" ]]
-then
-	my_extract() {
-		if [[ -f "$@" ]]
-		then
-			if [[ "$@" != *$RAW_EXT ]]
-			then
-				mkdir tmp.$@
-				case $@ in
-					*.tar.bz2) tar xjvf $@ -C tmp.$@ ;;
-					*.tar.gz) tar xzvf $@ -C tmp.$@ ;;
-					*.bz2) bunzip2 -1 $@ ;;
-					*.gz) dd if=$@ ibs=1M | unpigz -p 1 | dd of=${@%.*} obs=1M && rm $@ ;;
-					*.tar) tar xf $@ -C tmp.$@ ;;
-					*.tbz2) tar xjvf $@ -C tmp.$@ ;;
-					*.tgz) tar xzvf $@ -C tmp.$@ ;;
-					*.zip) unzip -j $@ ;;
-					#*.7z) 7za e -o./tmp.$@ $@ && rm $@;;
-					*) echo "ERROR: '$@' cannot be extracted, unknown extension" && exit 100 ;;
-				esac
-				find ./tmp.$@ -type f -exec mv -i {} . \;
-				rm -r ./tmp.$@
-			fi
-		else
-			echo "ERROR: '$@' does not exist or is not a file" && exit 100
-		fi
-	}
-	export -f my_extract
-	export RAW_EXT
-	parallel -j $NCPUS my_extract ::: ${ARCHIVES[@]}
-fi
 
 # Extract individual libraries only if not uniformly compressed to gz or bz2, then re-compress uniformly to bz2 if needed
 if [ ${#COMP_EXT[@]} -eq 1 ] && [[ "gz bz2" == *${COMP_EXT[0]}* ]]
@@ -117,9 +117,13 @@ else
 	parallel -j $NCPUS "i={} ; bzip2 -1 -c $i > ${i//-/_}.bz2" ::: ${ARCH[@]}
 fi
 
+
 # Oligo files
 mkdir $RAW_EXT raw_stat fasta
-cat <(echo "forward $FWD") <(echo "reverse $RVS") > fasta/oligos.$FWD_NAME.$RVS_NAME
+if [ $TECH == "454" ]
+then
+	cat <(echo "forward $FWD") <(echo "reverse $RVS") > fasta/oligos.$FWD_NAME.$RVS_NAME
+fi
 
 while read lib fwd rvs
 do
@@ -134,7 +138,13 @@ do
 		awk -v I=$lib 'BEGIN{OFS="\t"}$3==I{print "barcode",$1,$2}' $EXEC/config/barcodes.txt | cat fasta/oligos.$FWD_NAME.$RVS_NAME - | sed 's/reverse/#reverse/;s/-/_/g' > fasta/oligos.${j//-/_}
 	elif [ $TECH == "Illumina" ]
 	then
-		awk -v I=$(echo "$lib$fwd") '$3==I{print ">"$2"\n^"$1}' $EXEC/config/barcodes.txt > fasta/oligos.${j//-/_}
+		if [ -z $DUALID ]
+		then
+			awk -v I=$(echo "$lib$fwd") '$3==I{print ">"$2"\n^"$1}' $EXEC/config/barcodes.txt > fastq/oligos.${j//-/_}
+		else
+			awk -v I=$(echo "$lib$fwd") '$3==I{split($1,a,",");print a[1]}' $EXEC/config/barcodes.txt | sort -u | awk '{print ">F"NR"\n^"$1}' > fastq/oligos.F.${j//-/_}
+			awk -v I=$(echo "$lib$fwd") '$3==I{split($1,a,",");print a[2]}' $EXEC/config/barcodes.txt | sort -u | awk '{print ">R"NR"\n^"$1}' > fastq/oligos.R.${j//-/_}
+		fi
 	fi
 done < $EXEC/config/lib1.list
 

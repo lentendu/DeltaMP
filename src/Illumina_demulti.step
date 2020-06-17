@@ -30,18 +30,85 @@ RVS_LIB=${LIB_NAME}${RVS_SUF/.$RAW_EXT.*/}
 cd libraries
 
 #Define barcode difference allowed for the library
-if [ $BDIFFS == "a" ]
+if [ -z $DUALID ]
 then
-	unset BDIFFS
-	grep -v ">" fasta/oligos.$LIB_NAME | awk '{sub("\\^","");print "barcode "$1}' > MID.$LIB_NAME
-	BDIFFS=`barcode_mismatch_check.sh MID.$LIB_NAME`
-	rm MID.$LIB_NAME
+	if [ $BDIFFS == "a" ]
+	then
+		unset BDIFFS
+		grep -v ">" fastq/oligos.$LIB_NAME | awk '{sub("\\^","");print "barcode "$1}' > MID.$LIB_NAME
+		BDIFFS=$(barcode_mismatch_check.sh MID.$LIB_NAME)
+		rm MID.$LIB_NAME
+	fi
+else
+	if [ $BDIFFS == "a" ]
+	then
+		grep -v ">" fastq/oligos.F.$LIB_NAME | awk '{sub("\\^","");print "barcode "$1}' > MID.F.$LIB_NAME
+		FBDIFFS=$(barcode_mismatch_check.sh MID.F.$LIB_NAME)
+		grep -v ">" fastq/oligos.R.$LIB_NAME | awk '{sub("\\^","");print "barcode "$1}' > MID.R.$LIB_NAME
+		RBDIFFS=$(barcode_mismatch_check.sh MID.R.$LIB_NAME)
+		rm MID.F.$LIB_NAME MID.R.$LIB_NAME
+	else
+		FBDIFFS=$BDIFFS
+		RBDIFFS=$BDIFFS
+	fi
 fi
 
 # cutadapt with 5' anchored adaptors
-BLENGTH=$(grep -o -m 1 -E "[ATCG]+" fasta/oligos.${LIB_NAME} | awk '{print length($1)}')
-BDISS=$(awk -v L=$BLENGTH -v D=$BDIFFS 'BEGIN{printf "%.2g\n", D/L}')
-cutadapt -g file:fasta/oligos.${LIB_NAME} -G file:fasta/oligos.${LIB_NAME} -e ${BDISS} -O $BLENGTH --no-indels --trimmed-only --pair-adapters -o fastq/{name}.${FWD_LIB}.fastq.$EXT -p fastq/{name}.${RVS_LIB}.fastq.$EXT ${FWD_LIB}.fastq.$EXT ${RVS_LIB}.fastq.$EXT > fastq/log_cutadapt.demultiplex.${LIB_NAME}.txt
+if [ -z $DUALID ]
+then
+	awk -v B=$BDIFFS '{if($1~"^>"){print} else {if(B==0){print $1";o="length($1)-1";e=0"} else {print $1";o="length($1)-1";e="(int(B/(length($1)-1)*100)+1)/100}}}' fastq/oligos.$LIB_NAME > oligos.$LIB_NAME.param
+	cutadapt -g file:oligos.${LIB_NAME}.param -G file:oligos.${LIB_NAME}.param --no-indels --trimmed-only --pair-adapters -o fastq/{name}.${FWD_LIB}.fastq.$EXT -p fastq/{name}.${RVS_LIB}.fastq.$EXT ${FWD_LIB}.fastq.$EXT ${RVS_LIB}.fastq.$EXT > fastq/log_cutadapt.demultiplex.${LIB_NAME}.txt
+	rm oligos.$LIB_NAME.param
+else
+	awk -v F=$FBDIFFS '{if($1~"^>"){print} else {if(F==0){print $1";o="length($1)-1";e=0"} else {print $1";o="length($1)-1";e="(int(F/(length($1)-1)*100)+1)/100}}}' fastq/oligos.F.$LIB_NAME > oligos.F.$LIB_NAME.param
+	awk -v R=$RBDIFFS '{if($1~"^>"){print} else {if(R==0){print $1";o="length($1)-1";e=0"} else {print $1";o="length($1)-1";e="(int(R/(length($1)-1)*100)+1)/100}}}' fastq/oligos.R.$LIB_NAME > oligos.R.$LIB_NAME.param
+	if [ $BINDBP == "yes" ]
+	then
+		FPDIFFS=$(awk -v P=$PDIFFS -v F=${#FWD} 'BEGIN{print (int(P/F*100)+1)/100}')
+		RPDIFFS=$(awk -v P=$PDIFFS -v R=${#RVS} 'BEGIN{print (int(P/R*100)+1)/100}')
+		cutadapt --no-indels --action=none -g "$FWD;o=$((${#FWD}-2));e=$FPDIFFS" -G "$RVS;o=$((${#RVS}-2));e=$RPDIFFS" --untrimmed-output unt.${FWD_LIB}.fastq.$EXT --untrimmed-paired-output unt.${RVS_LIB}.fastq.$EXT -o ${FWD_NAME}.${FWD_LIB}.fastq.$EXT -p ${RVS_NAME}.${RVS_LIB}.fastq.$EXT ${FWD_LIB}.fastq.$EXT ${RVS_LIB}.fastq.$EXT > fastq/log_cutadapt.demultiplex.raw_primers.FR.${LIB_NAME}.txt
+		cutadapt --no-indels --trimmed-only --action=none -g "$RVS;o=$((${#RVS}-2));e=$RPDIFFS" -G "$FWD;o=$((${#FWD}-2));e=$FPDIFFS" -o ${RVS_NAME}.${FWD_LIB}.fastq.$EXT -p ${FWD_NAME}.${RVS_LIB}.fastq.$EXT unt.${FWD_LIB}.fastq.$EXT unt.${RVS_LIB}.fastq.$EXT > fastq/log_cutadapt.demultiplex.raw_primers.RF.${LIB_NAME}.txt
+		cutadapt --no-indels --trimmed-only -g file:oligos.F.$LIB_NAME.param -G file:oligos.R.$LIB_NAME.param -o fastq/{name1}-{name2}.${FWD_LIB}.fastq.$EXT -p fastq/{name1}-{name2}.${RVS_LIB}.fastq.$EXT ${FWD_NAME}.${FWD_LIB}.fastq.$EXT ${RVS_NAME}.${RVS_LIB}.fastq.$EXT > fastq/log_cutadapt.demultiplex.FR.${LIB_NAME}.txt
+		cutadapt --no-indels --trimmed-only -g file:oligos.R.$LIB_NAME.param -G file:oligos.F.$LIB_NAME.param -o fastq/{name1}-{name2}.${FWD_LIB}.fastq.$EXT -p fastq/{name1}-{name2}.${RVS_LIB}.fastq.$EXT ${RVS_NAME}.${FWD_LIB}.fastq.$EXT ${FWD_NAME}.${RVS_LIB}.fastq.$EXT > fastq/log_cutadapt.demultiplex.RF.${LIB_NAME}.txt
+		rm ${FWD_NAME}.${FWD_LIB}.fastq.$EXT ${RVS_NAME}.${RVS_LIB}.fastq.$EXT ${RVS_NAME}.${FWD_LIB}.fastq.$EXT ${FWD_NAME}.${RVS_LIB}.fastq.$EXT unt.${FWD_LIB}.fastq.$EXT unt.${RVS_LIB}.fastq.$EXT
+	else
+		cutadapt --no-indels --trimmed-only -g file:oligos.F.$LIB_NAME.param -G file:oligos.R.$LIB_NAME.param -o fastq/{name1}-{name2}.${FWD_LIB}.fastq.$EXT -p fastq/{name1}-{name2}.${RVS_LIB}.fastq.$EXT ${FWD_LIB}.fastq.$EXT ${RVS_LIB}.fastq.$EXT > fastq/log_cutadapt.demultiplex.FR.${LIB_NAME}.txt
+		cutadapt --no-indels --trimmed-only -g file:oligos.R.$LIB_NAME.param -G file:oligos.F.$LIB_NAME.param -o fastq/{name1}-{name2}.${FWD_LIB}.fastq.$EXT -p fastq/{name1}-{name2}.${RVS_LIB}.fastq.$EXT ${FWD_LIB}.fastq.$EXT ${RVS_LIB}.fastq.$EXT > fastq/log_cutadapt.demultiplex.RF.${LIB_NAME}.txt
+	fi
+	# merge reads per sample
+	sed 's/^[>\^]//' fastq/oligos.F.$LIB_NAME | paste - - | sort -k 2,2 | join -1 2 - <(awk -v L=${LIB_NAME}$FWD_SUF 'BEGIN{FS="\t"} $3==L{split($1,a,",");print a[1],a[2],$2}' $EXEC/config/barcodes.txt | sort -k 1,1) | sort -k 3,3 | join -1 3 -2 2 - <(sed 's/^[>\^]//' fastq/oligos.R.$LIB_NAME | paste - - | sort -k 2,2) | awk '{print $4,$3,$5}' | sort -k 1,1 > fastq/oligo_pairs.${LIB_NAME}.txt
+	if [ $EXT == "gz" ]; then COMP="gzip" ; DECOMP="gunzip" ; elif [ $EXT == "bz2" ] ; then COMP="bzip2" ; DECOMP="bunzip2" ; fi
+	while read sam bf br
+	do
+		fwdlib=$(ls fastq/${bf}-${br}.${FWD_LIB}.fastq.$EXT fastq/${br}-${bf}.${FWD_LIB}.fastq.$EXT)
+		rvslib=$(ls fastq/${br}-${bf}.${RVS_LIB}.fastq.$EXT fastq/${bf}-${br}.${RVS_LIB}.fastq.$EXT)
+		if [ ! -z "$fwdlib" ]
+		then
+			$DECOMP -c $fwdlib | $COMP -c > fastq/$sam.${FWD_LIB}.fastq.$EXT
+			$DECOMP -c $rvslib | $COMP -c > fastq/$sam.${RVS_LIB}.fastq.$EXT
+			rm $fwdlib $rvslib
+		fi
+	done < fastq/oligo_pairs.${LIB_NAME}.txt
+	# demultiplexing stat and report on other barcode pairs found (potential tag-jumping)
+	NBFB=$(grep -c "^>" fastq/oligos.F.$LIB_NAME)
+	NBRB=$(grep -c "^>" fastq/oligos.R.$LIB_NAME)
+	NBS=$(sed -n '$=' fastq/oligo_pairs.${LIB_NAME}.txt)
+	OKS=($(ls fastq/*.${FWD_LIB}.fastq.$EXT | join - <(cut -d " " -f 1 fastq/oligo_pairs.${LIB_NAME}.txt | sed "s@^@fastq/@;s@\$@\.${FWD_LIB}\.fastq\.$EXT@" | sort)))
+	READALL=$(gunzip -ck ${FWD_LIB}.fastq.$EXT | sed -n '1~4p' | sed -n '$=')
+	READOKS=$(for i in ${OKS[@]} ; do gunzip -ck $i | sed -n '1~4p' | sed -n '$=' ; done | awk -v A=$READALL '{s+=$1}END{printf "%.2f", s/A*100}')
+	UNP=($(ls fastq/*.${FWD_LIB}.fastq.$EXT | join -v 1 - <(cut -d " " -f 1 fastq/oligo_pairs.${LIB_NAME}.txt | sed "s@^@fastq/@;s@\$@\.${FWD_LIB}\.fastq\.$EXT@" | sort)))
+	cat << EOF > fastq/demultiplexing_info.$LIB_NAME.txt
+There was $NBFB forward and $NBRB reverse barcodes provided for demultiplexing the $NBS samples in the library $LIB_NAME (${FWD_LIB}.fastq.$EXT ${RVS_LIB}.fastq.$EXT)
+From the $(($NBFB*$NBRB)) possible barcode pairs, ${#OKS[@]} pairs from the $NBS samples were found, representing ~ $READOKS % of the original $READALL total read count of $LIB_NAME.
+EOF
+	if [ ${#UNP[@]} -gt 0 ]
+	then
+		READUNP=$(for i in ${UNP[@]} ; do gunzip -ck $i | sed -n '1~4p' | sed -n '$=' ; done | awk -v A=$READALL '{s+=$1}END{printf "%.4f", s/A*100}')
+		echo "${#UNP[@]} unexpected pairs were also found, accounting for $READUNP % of the original $LIB_NAME reads." >> fastq/demultiplexing_info.$LIB_NAME.txt
+	else
+		echo "None of the $(($NBFB*$NBRB-$NBS)) unexpected pairs were found." >> fastq/demultiplexing_info.$LIB_NAME.txt
+	fi
+fi
 
 # list files and directories
 . $BIN/list_step_files.sh

@@ -26,85 +26,43 @@ if [ -z "$1" ]; then
 fi
 
 OLIGO=$1 ; shift
-BAR=(`awk '$1~"barcode"{print $2}' $OLIGO | sed 's/\(.\)/\1#/g;s/#$//' | tr "\n" " " | sed 's/$/\n/'`)
-OUT=0
 
 # One mismatch dictionary
-echo -n > one.mismatch.$OLIGO
-for g in "${BAR[@]}"
+declare -A ATCG=( [A]={C,G,T} [C]={A,G,T} [G]={A,C,T} [T]={A,C,G} )
+while read g
 do
-	TMP=(`echo $g | sed 's/#/ /g'`)
-	for i in $(seq 1 ${#TMP[@]})
+	echo $g
+	for i in $(seq 0 $((${#g}-1)))
 	do
-		for j in A T C G;
-		do
-			if [[ $j == ${TMP[i-1]} ]]
-			then
-				if [[ $i -eq 1 ]]
-				then
-					echo ${TMP[@]} | sed 's/ //g' >> one.mismatch.$OLIGO
-				fi
-			else
-				CHANGE=(${TMP[@]})
-				CHANGE[i-1]=$j
-				echo ${CHANGE[@]} | sed 's/ //g' >> one.mismatch.$OLIGO
-			fi
-		done
+		eval echo ${g:0:$i}${ATCG[${g:$i:1}]}${g:$((i+1)):$((${#g}-$i))}
 	done
-done
+done < <(awk '$1~"barcode"{print $2}' $OLIGO) | tr " " "\n" > one.mismatch.$OLIGO
 ALL=`sed -n '$=' one.mismatch.$OLIGO`
-UNIQ=`sort one.mismatch.$OLIGO | uniq | sed -n '$='`
-if [[ $ALL -le $UNIQ ]]
+UNIQ=`sort -u one.mismatch.$OLIGO | sed -n '$='`
+if [[ $UNIQ -lt $ALL ]]
 then
-	unset OUT && OUT=1
-else
-	echo $OUT
+	echo 0
 	rm one.mismatch.$OLIGO
 	exit
 fi
 
 # Two mismatches dictionary
-echo -n > two.mismatch.$OLIGO
-for g in "${BAR[@]}"
+while read g
 do
-	TMP=(`echo $g | sed 's/#/ /g'`)
-	for i in $(seq 1 ${#TMP[@]})
+	for i in $(seq 0 $((${#g}-2)))
 	do
-		for j in A T C G;
+		for j in $(seq $((i+1)) $((${#g}-1)))
 		do
-			if [[ $j == ${TMP[i-1]} ]]
-			then
-				if [[ $i -eq 1 ]]
-				then
-					echo ${TMP[@]} | sed 's/ //g' >> two.mismatch.$OLIGO
-				fi
-			else
-				CHANGE=(${TMP[@]})
-				CHANGE[i-1]=$j
-				echo ${CHANGE[@]} | sed 's/ //g' >> two.mismatch.$OLIGO
-				for h in $(seq 1 ${#TMP[@]})
-				do
-					if [[ $h -gt $i ]]
-					then
-						for k in A T C G;
-						do
-							if [[ $k != ${TMP[h-1]} ]]
-							then
-								CHANGE[h-1]=$k
-								echo ${CHANGE[@]} | sed 's/ //g' >> two.mismatch.$OLIGO
-							fi
-						done
-					fi
-				done
-			fi
+			eval echo ${g:0:$i}${ATCG[${g:$i:1}]}${g:$((i+1)):$(($j-$i-1))}${ATCG[${g:$j:1}]}${g:$((j+1)):$((${#g}-$j))}
 		done
 	done
-done
+done < <(awk '$1~"barcode"{print $2}' $OLIGO) | tr " " "\n" | cat one.mismatch.$OLIGO - > two.mismatch.$OLIGO
 ALL=`sed -n '$=' two.mismatch.$OLIGO`
 UNIQ=`sort two.mismatch.$OLIGO | uniq | sed -n '$='`
-if [[ $ALL -le $UNIQ ]]
+if [[ $UNIQ -lt $ALL ]]
 then
-	unset OUT && OUT=2
+	echo 1
+else
+	echo 2
 fi
-echo $OUT
-rm two.mismatch.$OLIGO
+rm one.mismatch.$OLIGO two.mismatch.$OLIGO
