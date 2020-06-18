@@ -125,6 +125,7 @@ else
 	READALL=$($DECOMP -ck ${FWD_LIB}.fastq.$EXT | echo $((`wc -l`/4)))
 	READOKS=$(for i in ${OKS[@]} ; do $DECOMP -ck $i | echo $((`wc -l`/4)) ; done | awk -v A=$READALL '{s+=$1}END{printf "%.2f", s/A*100}')
 	UNP=($(ls fastq/*.${FWD_LIB}.fastq.$EXT | join -v 1 - <(cut -d " " -f 1 fastq/oligo_pairs.${LIB_NAME}.txt | sed "s@^@fastq/@;s@\$@\.${FWD_LIB}\.fastq\.$EXT@" | sort)))
+	UNPP=$(basename -a ${UNP[@]} | sed -r 's/^(R[0-9]*)-(F[0-9]*)/\2-\1/' | sort -u | sed -n '$=')
 	cat << EOF > fastq/demultiplexing_info.$LIB_NAME.txt
 There was $NBFB forward and $NBRB reverse barcodes provided for demultiplexing the $NBS samples in the library $LIB_NAME (${FWD_LIB}.fastq.$EXT ${RVS_LIB}.fastq.$EXT)
 From the $(($NBFB*$NBRB)) possible barcode pairs, ${#OKS[@]} pairs from the $NBS samples were found, representing ~ $READOKS % of the original $READALL total read count of $LIB_NAME.
@@ -132,7 +133,7 @@ EOF
 	if [ ${#UNP[@]} -gt 0 ]
 	then
 		READUNP=$(for i in ${UNP[@]} ; do $DECOMP -ck $i | echo $((`wc -l`/4)) ; done | awk -v A=$READALL '{s+=$1}END{printf "%.4f", s/A*100}')
-		echo "${#UNP[@]} unexpected pairs were also found, accounting for $READUNP % of the original $LIB_NAME reads." >> fastq/demultiplexing_info.$LIB_NAME.txt
+		echo "$UNPP unexpected pairs were also found, accounting for $READUNP % of the original $LIB_NAME reads." >> fastq/demultiplexing_info.$LIB_NAME.txt
 	else
 		echo "None of the $(($NBFB*$NBRB-$NBS)) unexpected pairs were found." >> fastq/demultiplexing_info.$LIB_NAME.txt
 	fi
