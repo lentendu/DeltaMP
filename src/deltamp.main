@@ -672,7 +672,7 @@ then
 				then
 					TMP_SCRIPT[$i]=trim
 				else
-					TMP_SCRIPT[$i]=$(sed '1d;s/ QUEUE_HOLD[^ ]*//;s/ /_/g' $SUBPROJECT/config/steps | nl | sort -k 2,2 | join -v 1 -1 2 - <(sed 's/ QUEUE_HOLD[^ ]*//;s/'$i'/'$SUBPROJECT'/g;s/ /_/g' $i/config/steps.final | sort) | sort -k 2,2n | head -1 | sed 's/^.*\///;s/ .*$//')
+					TMP_SCRIPT[$i]=$(sed '1d;s/ QUEUE_HOLD[^ ]*//;s/ /_/g' $SUBPROJECT/config/steps | nl | sort -k 2,2 | join -v 1 -1 2 - <(sed 's/ QUEUE_HOLD[^ ]*//;s/'$i'/'$SUBPROJECT'/g;s/ /_/g' $i/config/steps.final | sort) | sort -k 2,2n | head -1 | sed 's@.*/@@;s@\.sh.*$@@')
 				fi
 			else
 				TMP_SCRIPT[$i]=$MATCH_STEP
