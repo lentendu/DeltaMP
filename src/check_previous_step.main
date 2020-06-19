@@ -40,6 +40,7 @@ do
 		then
 			TEST1=`for j in log/$step.[0-9]*.out; do if [ ! -z "$(grep "^\[ERROR\]" $j)" ] ; then echo $j | cut -d "." -f 2 ; fi ; done | sort -n | tr "\n" "," | sed 's/,$/\n/'`
 			TEST2=`for j in log/$step.[0-9]*.out; do if [ -z "$(tail -1 $j | grep "END")" ] ; then echo $j | cut -d "." -f 2 ; fi ; done | sort -n | tr "\n" "," | sed 's/,$/\n/'`
+			TEST3=`for j in log/$step.[0-9]*.err; do if [ ! -z "$(grep -i "error" $j)" ] ; then echo $j | cut -d "." -f 2 ; fi ; done | sort -n | tr "\n" "," | sed 's/,$/\n/'`
 			if [ ! -z $TEST1 ]
 			then
 				echo "MOTHUR issued an ERROR in the previous step $i for the task(s) $TEST1."
@@ -50,6 +51,12 @@ do
 			then
 				echo "The task(s) $TEST2 of the previous step $i did not terminate correctly."
 				echo "Check log at $EXEC/log/$step.xx.out and job report with job name $DELTAMP_VER.$step.$SUBPROJECT and TASK_ID $TEST2."
+				echo ""
+				WRONG=1
+			elif [ ! -z $TEST3 ]
+			then
+				echo "The task(s) $TEST3 of the previous step $i issue an error."
+				echo "Check log at $EXEC/log/$step.xx.err and job report with job name $DELTAMP_VER.$step.$SUBPROJECT and TASK_ID $TEST3."
 				echo ""
 				WRONG=1
 			fi
@@ -64,6 +71,12 @@ do
 			then
 				echo "The previous step $i did not terminate correctly."
 				echo "Check log at $EXEC/log/$step.out and job report with job name $DELTAMP_VER.$step.$SUBPROJECT ."
+				echo ""
+				WRONG=1
+			elif [ ! -z "$(grep -i "error" log/$step.err)" ]
+			then
+				echo "The previous step $i issue an error."
+				echo "Check log at $EXEC/log/$step.err and job report with job name $DELTAMP_VER.$step.$SUBPROJECT ."
 				echo ""
 				WRONG=1
 			fi
