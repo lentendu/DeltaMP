@@ -107,7 +107,7 @@ else
 	tail -n +1 part_*/log_cutadapt.demultiplex.RF.${LIB_NAME}.txt > fastq/log_cutadapt.demultiplex.RF.${LIB_NAME}.txt
 	rm  -r part_* oligos.F.$LIB_NAME.param oligos.R.$LIB_NAME.param
 	# merge reads per sample
-	sed 's/^[>\^]//' fastq/oligos.F.$LIB_NAME | paste - - | sort -k 2,2 | join -1 2 - <(awk -v L=${LIB_NAME}$FWD_SUF 'BEGIN{FS="\t"} $3==L{split($1,a,",");print a[1],a[2],$2}' $EXEC/config/barcodes.txt | sort -k 1,1) | sort -k 3,3 | join -1 3 -2 2 - <(sed 's/^[>\^]//' fastq/oligos.R.$LIB_NAME | paste - - | sort -k 2,2) | awk '{print $4,$3,$5}' | sort -k 1,1 > fastq/oligo_pairs.${LIB_NAME}.txt
+	sed 's/^[>\^]//' fastq/oligos.F.$LIB_NAME | paste - - | sort -k 2,2 | join -1 2 - <(awk -v L=${LIB_NAME}$FWD_SUF 'BEGIN{FS="\t"} $3==L{split($1,a,",");print a[1],a[2],$2}' $EXEC/config/barcodes.txt | sed 's/-/_/g' | sort -k 1,1) | sort -k 3,3 | join -1 3 -2 2 - <(sed 's/^[>\^]//' fastq/oligos.R.$LIB_NAME | paste - - | sort -k 2,2) | awk '{print $4,$3,$5}' | sort -k 1,1 > fastq/oligo_pairs.${LIB_NAME}.txt
 	ls fastq/*.${FWD_LIB}.fastq > tmp.$FWD_LIB
 	ls fastq/*.${RVS_LIB}.fastq > tmp.$RVS_LIB
 	lib2sam () {
@@ -124,6 +124,7 @@ else
 	export -f lib2sam
 	export FWD_LIB RVS_LIB
 	cat fastq/oligo_pairs.${LIB_NAME}.txt | parallel -j $NCPUS lib2sam
+	rm tmp.$FWD_LIB tmp.$RVS_LIB
 	
 	# demultiplexing stats and report on other barcode pairs found (potential tag-jumping)
 	NBFB=$(grep -c "^>" fastq/oligos.F.$LIB_NAME)
