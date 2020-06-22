@@ -11,5 +11,5 @@ id
 end
 processing_archiver
 output_archiver
-raw_archiver
+sff_archiver
 doc

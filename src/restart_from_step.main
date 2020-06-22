@@ -103,8 +103,8 @@ if [ ! -z "$TO_DEL_F" ] ; then rm $TO_DEL_F ; fi
 if [ ! -z "$TO_DEL_D" ] ; then rmdir $TO_DEL_D ; fi
 
 # Remove unnecessary dependencies and re-queue from STEP
-sed -n '\@ '$BIN/$RESTART'\.sh)$@,$p' config/steps.final > steps.tmp
-AVOID=$(sed -n '1,/'$UNTIL'\.sh)$/p' config/steps.final | awk 'BEGIN{FS="="}$0!~"^#"{if($0~" QUEUE_ARRAYS "){print "${"$1"%.*}"} else print "${"$1"}"}')
+sed -n '/ '${DELTAMP_VER}.$RESTART.$SUBPROJECT' /,$p' config/steps.final > steps.tmp
+AVOID=$(sed -n '1,/ '${DELTAMP_VER}.$UNTIL.$SUBPROJECT' /p' config/steps.final | awk 'BEGIN{FS="="}$0!~"^#"{if($0~" QUEUE_ARRAYS "){print "${"$1"%.*}"} else print "${"$1"}"}')
 for i in $AVOID; do sed 's/QUEUE_SEP'$i'//' steps.tmp > steps.tmp2 && mv steps.tmp2 steps.tmp  ; done
 echo "###"
 echo "execution of deltamp version ${VERSION[DELTAMP]} for the SUBPROJECT $SUBPROJECT, restarting at step $RESTART"

@@ -696,12 +696,13 @@ then
 				awk -v F=$FIRST_STEP 'BEGIN{p=0} {if($NF~F".sh)$"){p=1} ; if(p || NR==1){print} else {print "#"$0}}' $SUBPROJECT/config/steps | awk -v V=$DELTAMP_VER -v S=$SUBPROJECT -v L=$LAST_REF_JOBID 'BEGIN{c=0} {if(NR==1){sub(V".init."S" ",V".init."S" QUEUE_HOLD"L" ")} else {if($0!~"^#" && c==0){sub("QUEUE_HOLD[^ ]* ","QUEUE_HOLD${init_jobid} ");c+=1}};print}' > $SUBPROJECT/config/steps.final
 			fi
 			# Check archiving of raw reads in previous subproject
-			if [ $TECH == "454" ] && [ $DEMULTI == "no" ]
+			if [ $DEMULTI == "no" ]
 			then
 				for i in "" -internal.md5 .md5
 				do
 					ln -s $OUT_PATH/$PROJECT/$REF_SUBPROJECT/$REF_SUBPROJECT.$RAW_EXT.tar.gz$i $OUT/$SUBPROJECT.$RAW_EXT.tar.gz$i
 				done
+				sed 's/^\(raw_archiver_jobid\)/#\1/' $SUBPROJECT/config/steps.final > $SUBPROJECT/config/steps.final.tmp && mv $SUBPROJECT/config/steps.final.tmp $SUBPROJECT/config/steps.final
 			fi
 		else
 			sed '/^init_jobid/s/^/#/;/get.sh)$/s/ QUEUE_HOLD[^ ]* / /' $SUBPROJECT/config/steps > $SUBPROJECT/config/steps.final
@@ -734,7 +735,7 @@ fi
 cd $OUT_PATH/$PROJECT
 
 # Tree 
-grep -v "^#" $SUBPROJECT/config/steps.final | awk '$0~"QUEUE_SUB"{if($1~"archiver"){print $1} else print $NF"\tx"}' | sed 's/.*\///;s/\.sh)\t/\t/;s/_jobid.*$/\tx/' | sort | join -a 2 -2 2 -o 2.1,0,1.2 -e "." -t $'\t' - <(nl $BIN/ref.steps.$TECH | sort -k 2,2) | sort -k 1,1n | cut -f 2- > $SUBPROJECT/config/steps.summary
+sed '/^#/d;s/^.* '${DELTAMP_VER}.'\([^\.]*\)'.$SUBPROJECT' .*$/\1\tx/' $SUBPROJECT/config/steps.final | sort | join -a 2 -2 2 -o 2.1,0,1.2 -e "." -t $'\t' - <(nl $BIN/ref.steps.$TECH | sort -k 2,2) | sort -k 1,1n | cut -f 2- > $SUBPROJECT/config/steps.summary
 if [ $REF_SUBPROJECT != "no" ]
 then
 	if [ -f $REF_SUBPROJECT/config/tree.summary ]
