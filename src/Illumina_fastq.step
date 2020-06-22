@@ -50,38 +50,19 @@ then
 		cutadapt -a $FWD_RC -A $RVS_RC -e $DISS --no-indels --trimmed-only -o fastq/${FWD_LIB}.rvs.fastq -p fastq/${RVS_LIB}.rvs.fastq fastq/${FWD_LIB}.fwd_unt.fastq fastq/${RVS_LIB}.fwd_unt.fastq > fastq/log.cutadapt.${LIB_NAME}.rvs.txt
 	fi
 	# reverse complement (if not empty)
+	if [ $EXT == "bz2" ]; then COMP="bzip2 -1 -c" ; else COMP="pigz -p 1 -c -b 1024" ; fi
 	if [ -s fastq/${FWD_LIB}.rvs.fastq ]
 	then
-		if [ $EXT == "bz2" ]
-		then
-			obicomplement --without-progress-bar --uppercase fastq/${FWD_LIB}.rvs.fastq | sed '/^@/s/_CMP complemented=True;//' | cat fastq/${FWD_LIB}.fwd.fastq - | bzip2 -1 -c > fastq/${LIB_NAME}.fwd.fastq.$EXT
-		else
-			obicomplement --without-progress-bar --uppercase fastq/${FWD_LIB}.rvs.fastq | sed '/^@/s/_CMP complemented=True;//' | cat fastq/${FWD_LIB}.fwd.fastq - | pigz -p 1 -c -b 1024 > fastq/${LIB_NAME}.fwd.fastq.$EXT
-		fi
+		obicomplement --without-progress-bar --uppercase fastq/${FWD_LIB}.rvs.fastq | sed '/^@/s/_CMP complemented=True;//' | cat fastq/${FWD_LIB}.fwd.fastq - | $COMP > fastq/${LIB_NAME}.fwd.fastq.$EXT
 	else
-		if [ $EXT == "bz2" ]
-		then
-			bzip2 -1 -c fastq/${FWD_LIB}.fwd.fastq > fastq/${LIB_NAME}.fwd.fastq.$EXT
-		else
-			pigz -p 1 -c -b 1024 fastq/${FWD_LIB}.fwd.fastq > fastq/${LIB_NAME}.fwd.fastq.$EXT
-		fi
+		$COMP fastq/${FWD_LIB}.fwd.fastq > fastq/${LIB_NAME}.fwd.fastq.$EXT
 	fi
 	rm fastq/${FWD_LIB}.fwd.fastq fastq/${FWD_LIB}.rvs.fastq fastq/${FWD_LIB}.fwd_unt.fastq
 	if [ -s fastq/${RVS_LIB}.rvs.fastq ]
 	then
-		if [ $EXT == "bz2" ]
-		then
-			obicomplement --without-progress-bar --uppercase fastq/${RVS_LIB}.rvs.fastq | sed '/^@/s/_CMP complemented=True;//' | cat fastq/${RVS_LIB}.fwd.fastq - | bzip2 -1 -c > fastq/${LIB_NAME}.rvs.fastq.$EXT
-		else
-			obicomplement --without-progress-bar --uppercase fastq/${RVS_LIB}.rvs.fastq | sed '/^@/s/_CMP complemented=True;//' | cat fastq/${RVS_LIB}.fwd.fastq - | pigz -p 1 -c -b 1024 > fastq/${LIB_NAME}.rvs.fastq.$EXT
-		fi
+		obicomplement --without-progress-bar --uppercase fastq/${RVS_LIB}.rvs.fastq | sed '/^@/s/_CMP complemented=True;//' | cat fastq/${RVS_LIB}.fwd.fastq - | $COMP > fastq/${LIB_NAME}.rvs.fastq.$EXT
 	else
-		if [ $EXT == "bz2" ]
-		then
-			bzip2 -1 -c fastq/${RVS_LIB}.fwd.fastq > fastq/${LIB_NAME}.rvs.fastq.$EXT
-		else
-			pigz -p 1 -c -b 1024 fastq/${RVS_LIB}.fwd.fastq > fastq/${LIB_NAME}.rvs.fastq.$EXT
-		fi
+		$COMP fastq/${RVS_LIB}.fwd.fastq > fastq/${LIB_NAME}.rvs.fastq.$EXT
 	fi
 	rm fastq/${RVS_LIB}.fwd.fastq fastq/${RVS_LIB}.rvs.fastq fastq/${RVS_LIB}.fwd_unt.fastq
 	# primer logo
