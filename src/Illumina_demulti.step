@@ -57,17 +57,42 @@ fi
 eval mkdir part_{01..$NCPUS}
 selfmerge () { cat $(find . -type f -path "./part_*/$1" | sort) > fastq/$1 ; }
 export -f selfmerge
+export FWD_LIB RVS_LIB
 if [ $EXT == "gz" ]; then COMP="pigz -p 1 -b 1024" ; DECOMP="unpigz -p $NCPUS -b 1024 -ck" ; elif [ $EXT == "bz2" ] ; then COMP=bzip2 ; DECOMP="bunzip2 -ck" ; fi
 if [ -z $DUALID ]
 then
 	awk -v B=$BDIFFS '{if($1~"^>"){print} else {if(B==0){print $1";o="length($1)-1";e=0"} else {print $1";o="length($1)-1";e="(int(B/(length($1)-1)*100)+1)/100}}}' fastq/oligos.$LIB_NAME > oligos.$LIB_NAME.param
-	NLINES=$($DECOMP ${FWD_LIB}.fastq.$EXT | awk -v N=$NCPUS 'END{C=NR/4/N; if(C==int(C)){print C*4} else print int(C+1)*4}')
-	$DECOMP ${FWD_LIB}.fastq.$EXT | split -l $NLINES --numeric-suffixes=1 --additional-suffix='.fastq' - ${FWD_LIB}.part_
-	$DECOMP ${RVS_LIB}.fastq.$EXT | split -l $NLINES --numeric-suffixes=1 --additional-suffix='.fastq' - ${RVS_LIB}.part_
-	parallel -j $NCPUS "cutadapt -g file:oligos.${LIB_NAME}.param -G file:oligos.${LIB_NAME}.param --no-indels --trimmed-only --pair-adapters -o {}/{name}.${FWD_LIB}.fastq -p {}/{name}.${RVS_LIB}.fastq ${FWD_LIB}.{}.fastq ${RVS_LIB}.{}.fastq > {}/log_cutadapt.demultiplex.${LIB_NAME}.txt" ::: $(eval echo part_{01..$NCPUS})
+	if [ $SBS == "both" ]
+	then
+		NLINES=$($DECOMP ${FWD_LIB}.fastq.$EXT | awk -v N=$NCPUS 'END{C=NR/4/N; if(C==int(C)){print C*4} else print int(C+1)*4}')
+		$DECOMP ${FWD_LIB}.fastq.$EXT | split -l $NLINES --numeric-suffixes=1 --additional-suffix='.fastq' - ${FWD_LIB}.part_
+		$DECOMP ${RVS_LIB}.fastq.$EXT | split -l $NLINES --numeric-suffixes=1 --additional-suffix='.fastq' - ${RVS_LIB}.part_
+		parallel -j $NCPUS "cutadapt -g file:oligos.${LIB_NAME}.param -G file:oligos.${LIB_NAME}.param --no-indels --trimmed-only --pair-adapters -o {}/{name}.${FWD_LIB}.fastq -p {}/{name}.${RVS_LIB}.fastq ${FWD_LIB}.{}.fastq ${RVS_LIB}.{}.fastq > {}/log_cutadapt.demultiplex.${LIB_NAME}.txt" ::: $(eval echo part_{01..$NCPUS})
+		rm ${FWD_LIB}.part_* ${RVS_LIB}.part_*
+		tail -n +1 part_*/log_cutadapt.demultiplex.${LIB_NAME}.txt > fastq/log_cutadapt.demultiplex.${LIB_NAME}.txt
+	else
+		if [ $SBS == "forward" ] ; then FWDANCH="" ; RVSANCH="^" ; CUTDIR="-g" ; elif [ $SBS == "reverse" ] ; then FWDANCH="^" ; RVSANCH="" ; CUTDIR="-G" ; fi
+		FPDIFFS=$(awk -v P=$PDIFFS -v F=${#FWD} 'BEGIN{print (int(P/F*100)+1)/100}')
+		RPDIFFS=$(awk -v P=$PDIFFS -v R=${#RVS} 'BEGIN{print (int(P/R*100)+1)/100}')
+		cutadapt -j $NCPUS --no-indels --action=none -g "$FWDANCH$FWD;o=$((${#FWD}-2));e=$FPDIFFS" -G "$RVSANCH$RVS;o=$((${#RVS}-2));e=$RPDIFFS" --untrimmed-output unt.${FWD_LIB}.fastq.$EXT --untrimmed-paired-output unt.${RVS_LIB}.fastq.$EXT -o ${FWD_NAME}.${FWD_LIB}.fastq -p ${RVS_NAME}.${RVS_LIB}.fastq ${FWD_LIB}.fastq.$EXT ${RVS_LIB}.fastq.$EXT > fastq/log_cutadapt.demultiplex.raw_primers.FR.${LIB_NAME}.txt
+		cutadapt -j $NCPUS --no-indels --trimmed-only --action=none -g "$RVSANCH$RVS;o=$((${#RVS}-2));e=$RPDIFFS" -G "$FWDANCH$FWD;o=$((${#FWD}-2));e=$FPDIFFS" -o ${RVS_NAME}.${FWD_LIB}.fastq -p ${FWD_NAME}.${RVS_LIB}.fastq unt.${FWD_LIB}.fastq.$EXT unt.${RVS_LIB}.fastq.$EXT > fastq/log_cutadapt.demultiplex.raw_primers.RF.${LIB_NAME}.txt
+		NLINES=$(awk -v N=$NCPUS 'END{C=NR/4/N; if(C==int(C)){print C*4} else print int(C+1)*4}' ${FWD_NAME}.${FWD_LIB}.fastq)
+		split -l $NLINES --numeric-suffixes=1 --additional-suffix='.fastq' ${FWD_NAME}.${FWD_LIB}.fastq ${FWD_NAME}.${FWD_LIB}.part_
+		split -l $NLINES --numeric-suffixes=1 --additional-suffix='.fastq' ${RVS_NAME}.${RVS_LIB}.fastq ${RVS_NAME}.${RVS_LIB}.part_
+		parallel -j $NCPUS "cutadapt --no-indels --trimmed-only $CUTDIR file:oligos.$LIB_NAME.param -o {}/${FWD_NAME}.{name}.${FWD_LIB}.fastq -p {}/${RVS_NAME}.{name}.${RVS_LIB}.fastq ${FWD_NAME}.${FWD_LIB}.{}.fastq ${RVS_NAME}.${RVS_LIB}.{}.fastq > {}/log_cutadapt.demultiplex.FR.${LIB_NAME}.txt" ::: $(eval echo part_{01..$NCPUS})
+		NLINES=$(awk -v N=$NCPUS 'END{C=NR/4/N; if(C==int(C)){print C*4} else print int(C+1)*4}' ${RVS_NAME}.${FWD_LIB}.fastq)
+		split -l $NLINES --numeric-suffixes=1 --additional-suffix='.fastq' ${RVS_NAME}.${FWD_LIB}.fastq ${RVS_NAME}.${FWD_LIB}.part_
+		split -l $NLINES --numeric-suffixes=1 --additional-suffix='.fastq' ${FWD_NAME}.${RVS_LIB}.fastq ${FWD_NAME}.${RVS_LIB}.part_
+		parallel -j $NCPUS "cutadapt --no-indels --trimmed-only $CUTDIR file:oligos.$LIB_NAME.param -o {}/${FWD_NAME}.{name}.${RVS_LIB}.fastq -p {}/${RVS_NAME}.{name}.${FWD_LIB}.fastq ${FWD_NAME}.${RVS_LIB}.{}.fastq ${RVS_NAME}.${FWD_LIB}.{}.fastq > {}/log_cutadapt.demultiplex.RF.${LIB_NAME}.txt" ::: $(eval echo part_{01..$NCPUS})
+		rm ${FWD_NAME}.${FWD_LIB}.*fastq ${RVS_NAME}.${RVS_LIB}.*fastq ${RVS_NAME}.${FWD_LIB}.*fastq ${FWD_NAME}.${RVS_LIB}.*fastq unt.${FWD_LIB}.fastq.$EXT unt.${RVS_LIB}.fastq.$EXT
+		revmerge () { cd $1 ;  for i in $(ls *${FWD_LIB}.fastq | cut -d "." -f 2- | sort -u); do cat *.$i > $i ; cat $(ls -r *.${i/$FWD_LIB/$RVS_LIB}) > ${i/$FWD_LIB/$RVS_LIB} ; rm *.$i *.${i/$FWD_LIB/$RVS_LIB} ; done ; cd .. ; }
+		export -f revmerge
+		parallel -j $NCPUS revmerge ::: $(eval echo part_{01..$NCPUS})
+		tail -n +1 part_*/log_cutadapt.demultiplex.FR.${LIB_NAME}.txt > fastq/log_cutadapt.demultiplex.FR.${LIB_NAME}.txt
+		tail -n +1 part_*/log_cutadapt.demultiplex.RF.${LIB_NAME}.txt > fastq/log_cutadapt.demultiplex.RF.${LIB_NAME}.txt
+	fi
 	parallel -j $NCPUS -k selfmerge ::: $(basename -a $(ls part_*/*fastq) | sort -u)
-	tail -n +1 part_*/log_cutadapt.demultiplex.${LIB_NAME}.txt > fastq/log_cutadapt.demultiplex.${LIB_NAME}.txt
-	rm -r part_* ${FWD_LIB}.part_* ${RVS_LIB}.part_* oligos.$LIB_NAME.param
+	rm -r part_* oligos.$LIB_NAME.param
 else
 	awk -v F=$FBDIFFS '{if($1~"^>"){print} else {if(F==0){print $1";o="length($1)-1";e=0"} else {print $1";o="length($1)-1";e="(int(F/(length($1)-1)*100)+1)/100}}}' fastq/oligos.F.$LIB_NAME > oligos.F.$LIB_NAME.param
 	awk -v R=$RBDIFFS '{if($1~"^>"){print} else {if(R==0){print $1";o="length($1)-1";e=0"} else {print $1";o="length($1)-1";e="(int(R/(length($1)-1)*100)+1)/100}}}' fastq/oligos.R.$LIB_NAME > oligos.R.$LIB_NAME.param
@@ -122,7 +147,6 @@ else
 		fi
 	}
 	export -f lib2sam
-	export FWD_LIB RVS_LIB
 	cat fastq/oligo_pairs.${LIB_NAME}.txt | parallel -j $NCPUS lib2sam
 	rm tmp.$FWD_LIB tmp.$RVS_LIB
 	

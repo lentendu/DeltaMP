@@ -197,6 +197,8 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Libraries already demultiplexed__: “yes” or “no”. If the libraries are not demultiplexed, one fastq/sff file per sample in each library will be produced. An archive containing all demultiplexed libraries and labeled with "raw_fastq"/“raw_sff” will be created in the output directory. The default is “yes” for libraries already demultiplexed.
 
++ __Single barcode side__: *Illumina specific parameter*, "both", "forward" or "reverse". For single-indexing (one barcode per library), provide the position of the barcode, "both" for both forward and reverse primers, "forward" for barcode only associated with the forward primer, "reverese"  for barcode only associated with the reverse primer. The default is “both”.
+
 + __Bind barcode to primer for demultiplexing__: *Illumina specific parameter*, "yes" or "no". For dual-indexing, control binding of barcodes with the forward/reverse primer to increase demultiplexing accuracy. The first barcode in a pair is only search associated with the forward primer at 5'-end and the second barcode is only search associated with the reverse primer at 5'-end, in both paired libraries. The default is “no”.
 
 
