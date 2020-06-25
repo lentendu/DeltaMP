@@ -63,9 +63,15 @@ sed '1d' $SUBPROJECT.lib_counts.tsv | sort -k 1,1 | awk '{if(NR==1){for(i=3;i<=N
 rm header
 
 # Signal and stop if two few sequences
-sed '1d' $SUBPROJECT.quality.stat.txt | tac | sed '1,4d' | awk -v M=$MIN_DEPTH '$2<M{print $1,$2}' > min_depth.raw.test
-sed '1d' $SUBPROJECT.quality.stat.txt | tac | sed '1,4d' | awk -v M=$MIN_DEPTH '$3<M{print $1,$3}' > min_depth.trim.test
-TEST=(raw trim)
+if [ $MIN_DEPTH -gt 1 ]
+then
+	head -n -4 $SUBPROJECT.quality.stat.txt | awk -v M=$MIN_DEPTH '$2<M{print $1,$2}' > min_depth.raw.test
+	head -n -4 $SUBPROJECT.quality.stat.txt | awk -v M=$MIN_DEPTH '$3<M{print $1,$3}' > min_depth.trim.test
+	TEST=(raw trim)
+else
+	head -n -4 $SUBPROJECT.quality.stat.txt | awk -v M=$MIN_DEPTH '$3<$2*M{print $1,$3}' > min_depth.trim.test
+	TEST=(trim)
+fi
 
 for i in ${TEST[@]}
 do
@@ -85,18 +91,33 @@ do
 	fi
 done
 
-# Select best trimming criteria (at least $MIN_DEPTH and 75 % of $MINLEN.$MINQUAL for each sample)
+# Select best trimming criteria (at least $MIN_DEPTH and 75 % of $MINLEN.$MINQUAL for each sample, or $MIN_DEPTH * raw counts if MIN_DEPTH is a ratio)
 echo "$MINLEN.$MINQUAL" > trimming.parameters.txt
-cut -f 3 $SUBPROJECT.quality.stat.txt | tac | sed '1,4d' | tac | transpose_tab | awk '{print "x",$0}'> ref.tmp
-if [ $CLIPPING == "both" ]
+if [ $MIN_DEPTH -gt 1 ]
 then
-	tac $SUBPROJECT.quality.stat.txt | sed '1,4d' | tac | transpose_tab | sed '1,2d;/^$/d' | tac | cat ref.tmp - | awk -v M=$MIN_DEPTH 'BEGIN{FS="\t"} {if(NR==1){for(i=2;i<=NF;i++){ref[i]=$i};next} ; for(i=2;i<=NF;i++){if($i<M || $i<ref[i]*0.75){next}};print $1;exit}' | sed "s/Trimmed at /$MINLEN\./;s/ Phred score//" > trimming.parameters.txt
-	QUAL=`cut -d "." -f 2 trimming.parameters.txt`
-	cut -f 1-2,$(($QUAL - $MINQUAL + 3)) $SUBPROJECT.quality.stat.txt > $SUBPROJECT.summary.stat.tsv
+	cut -f 3 $SUBPROJECT.quality.stat.txt | head -n -4 | transpose_tab > ref.tmp
+	if [ $CLIPPING == "both" ]
+	then
+		head -n -4 $SUBPROJECT.quality.stat.txt | transpose_tab | sed '1,2d;/^[ \t]*$/d' | tac | cat ref.tmp - | awk -v M=$MIN_DEPTH 'BEGIN{FS="\t"} {if(NR==1){for(i=2;i<=NF;i++){ref[i]=$i};next} ; for(i=2;i<=NF;i++){if($i<M || $i<ref[i]*0.75){next}};print $1;exit}' | sed "s/Trimmed at /$MINLEN\./;s/ Phred score//" > trimming.parameters.txt
+		QUAL=`cut -d "." -f 2 trimming.parameters.txt`
+		cut -f 1-2,$(($QUAL - $MINQUAL + 3)) $SUBPROJECT.quality.stat.txt > $SUBPROJECT.summary.stat.tsv
+	else
+		head -n -4 $SUBPROJECT.quality.stat.txt | transpose | grep -v "Raw\|Denoise" | awk '{split($1,a,".");print a[1]*a[2],$0}' | sort -k 1,1nr -k 2,2n | cat ref.tmp - | awk -v M=$MIN_DEPTH '{if(NR==1){for(i=2;i<=NF;i++){ref[i]=$i}} else {i=3; while($i>M && ($i/ref[i])>0.75) {i++ ; if(i==NF){print $2; exit}}}}' > trimming.parameters.txt
+		TRIM=`cat trimming.parameters.txt`
+		awk -v T=$TRIM 'BEGIN{R=3;OFS="\t"} {if(NR==1){printf "%s\t%s" ,$1,$2; for (i=3;i<=NF;i++){if($i==T) {printf "\t%s %s\n", "Trimmed at",$i; R=i}}} else print $1,$2,$R}' $SUBPROJECT.quality.stat.txt > $SUBPROJECT.summary.stat.tsv
+	fi
 else
-	tac $SUBPROJECT.quality.stat.txt | sed '1,4d' | tac | transpose | grep -v "Raw\|Denoise" | awk '{split($1,a,".");print a[1]*a[2],$0}' | sort -k 1,1nr -k 2,2n | cat ref.tmp - | awk -v M=$MIN_DEPTH '{if(NR==1){for(i=2;i<=NF;i++){ref[i]=$i}} else {i=3; while($i>M && ($i/ref[i])>0.75) {i++ ; if(i==NF){print $2; exit}}}}' > trimming.parameters.txt
-	TRIM=`cat trimming.parameters.txt`
-	awk -v T=$TRIM 'BEGIN{R=3;OFS="\t"} {if(NR==1){printf "%s\t%s" ,$1,$2; for (i=3;i<=NF;i++){if($i==T) {printf "\t%s %s\n", "Trimmed at",$i; R=i}}} else print $1,$2,$R}' $SUBPROJECT.quality.stat.txt > $SUBPROJECT.summary.stat.tsv
+	cut -f 3 $SUBPROJECT.quality.stat.txt | head -n -4 | transpose_tab > ref.tmp
+	if [ $CLIPPING == "both" ]
+	then
+		head -n -4 $SUBPROJECT.quality.stat.txt | transpose_tab | sed '1,2d;/^[ \t]*$/d' | tac | cat ref.tmp - | awk -v M=$MIN_DEPTH 'BEGIN{FS="\t"} {if(NR==1){for(i=2;i<=NF;i++){ref[i]=$i};next} ; for(i=2;i<=NF;i++){if($i<ref[i]*M){next}};print $1;exit}' | sed "s/Trimmed at /$MINLEN\./;s/ Phred score//" > trimming.parameters.txt
+		QUAL=`cut -d "." -f 2 trimming.parameters.txt`
+		cut -f 1-2,$(($QUAL - $MINQUAL + 3)) $SUBPROJECT.quality.stat.txt > $SUBPROJECT.summary.stat.tsv
+	else
+		head -n -4 $SUBPROJECT.quality.stat.txt | transpose | grep -v "Raw\|Denoise" | awk '{split($1,a,".");print a[1]*a[2],$0}' | sort -k 1,1nr -k 2,2n | cat ref.tmp - | awk -v M=$MIN_DEPTH '{if(NR==1){for(i=2;i<=NF;i++){ref[i]=$i}} else {i=3; while($i>ref[i]*M) {i++ ; if(i==NF){print $2; exit}}}}' > trimming.parameters.txt
+		TRIM=`cat trimming.parameters.txt`
+		awk -v T=$TRIM 'BEGIN{R=3;OFS="\t"} {if(NR==1){printf "%s\t%s" ,$1,$2; for (i=3;i<=NF;i++){if($i==T) {printf "\t%s %s\n", "Trimmed at",$i; R=i}}} else print $1,$2,$R}' $SUBPROJECT.quality.stat.txt > $SUBPROJECT.summary.stat.tsv
+	fi
 fi
 rm ref.tmp
 ln -s $PWD/$SUBPROJECT.summary.stat.tsv $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.read_counts.tsv

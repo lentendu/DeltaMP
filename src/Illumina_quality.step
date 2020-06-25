@@ -26,7 +26,12 @@ while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var
 # Demultiplex check
 if [ $DEMULTI == "no" ]
 then
-	. $BIN/check_${TECH}_barcodes.sh > archives/$SUBPROJECT.outputs/demultiplexing_check.tsv
+	if [ -z $DUALID ]
+	then
+		. $BIN/check_${TECH}_barcodes.sh > archives/$SUBPROJECT.outputs/demultiplexing_check.tsv
+	else
+		cp libraries/fastq/demultiplexing_info.* archives/$SUBPROJECT.outputs/
+	fi
 fi
 
 # Raw, primer detected, pair-end and trim read counts per library
@@ -47,14 +52,20 @@ cd quality_check
 sed '1d' $SUBPROJECT.lib_counts.tsv | sort -k 1,1 | awk 'BEGIN{FS="\t"}{if(NR==1){S=$1;for(i=3;i<=NF;i++){a[i]=$i};printf "%s",S} else {if($1==S){for(i=3;i<=NF;i++){a[i]+=$i}} else {S=$1;for(i=3;i<=NF;i++){printf "\t%s",a[i];a[i]=$i};printf "\n%s",S}}}END{for(i=3;i<=NF;i++){printf "\t%s",a[i]};printf "\n"}' | mimato | cat <(head -1 $SUBPROJECT.lib_counts.tsv | sed 's/\tLibrary\t/\t/') - > $SUBPROJECT.sample_counts.tsv
 
 # Count check
-sed '1d' $SUBPROJECT.sample_counts.tsv | tac | sed '1,4d' | awk -v M=$MIN_DEPTH '$3<M{print $1,$3}' > min_depth.raw_with_primer.test
-sed '1d' $SUBPROJECT.sample_counts.tsv | tac | sed '1,4d' | awk -v M=$MIN_DEPTH '$4<M{print $1,$4}' > min_depth.pairend.test
-sed '1d' $SUBPROJECT.sample_counts.tsv | tac | sed '1,4d' | awk -v M=$MIN_DEPTH '$5<M{print $1,$5}' > min_depth.trim.test
+head -n -4 $SUBPROJECT.sample_counts.tsv | awk -v M=$MIN_DEPTH 'NR>1{if(M<=1){if($3<M*$2) print $1,$3,$3/$2} else if(M>1){if($3<M)print $1,$3}}' > min_depth.raw_with_primer.test
+head -n -4 $SUBPROJECT.sample_counts.tsv | awk -v M=$MIN_DEPTH 'NR>1{if(M<=1){if($4<M*$2) print $1,$4,$4/$2} else if(M>1){if($4<M)print $1,$4}}' > min_depth.pairend.test
+head -n -4 $SUBPROJECT.sample_counts.tsv | awk -v M=$MIN_DEPTH 'NR>1{if(M<=1){if($5<M*$2) print $1,$5,$5/$2} else if(M>1){if($5<M)print $1,$5}}' > min_depth.trim.test
+if [ $MIN_DEPTH -gt 1 ]
+then
+	MIN_DEPTH_ECHO=$MIN_DEPTH
+else
+	MIN_DEPTH_ECHO="$MIN_DEPTH times the amount of raw reads"
+fi
 for i in raw_with_primer pairend trim
 do
 	if [ -s min_depth.$i.test ]
 	then
-		echo "The following sample(s) do not have the requested minimum amount of $i reads fixed at $MIN_DEPTH :"
+		echo "The following sample(s) do not have the requested minimum amount of $i reads fixed at $MIN_DEPTH_ECHO :"
 		echo "Sample Reads"
 		cat min_depth.$i.test
 		echo ""
@@ -64,14 +75,17 @@ do
 		. $BIN/list_step_files.sh
 		exit 100
 	else
-		echo "All samples have at least $MIN_DEPTH $i sequences"
+		echo "All samples have at least the minimum amount of $i reads fixed at $MIN_DEPTH_ECHO."
 	fi
 done
 
 # Optimize quality
-cut -f 5 $SUBPROJECT.sample_counts.tsv | tac | sed '1,4d' | tac | transpose_tab > ref.tmp
-tac $SUBPROJECT.sample_counts.tsv | sed '1,4d' | tac | transpose_tab | sed '1,4d;/^$/d' | tac | cat ref.tmp - | awk -v M=$MIN_DEPTH 'BEGIN{FS="\t"} {if(NR==1){for(i=2;i<=NF;i++){ref[i]=$i};next} ; for(i=2;i<=NF;i++){if($i<M || $i<ref[i]*0.75){next}};print $1;exit}' | sed 's/Trimmed at //;s/ Phred score//' > optimized.quality.txt
-rm ref.tmp
+if [ $MIN_DEPTH -gt 1 ]
+then
+	head -n -4 $SUBPROJECT.sample_counts.tsv | transpose_tab | sed '1,4d;/^[ \t]*$/d' | tac | cat <(head -n -4 $SUBPROJECT.sample_counts.tsv | cut -f 5 | transpose_tab) - | awk -v M=$MIN_DEPTH 'BEGIN{FS="\t"} {if(NR==1){for(i=2;i<=NF;i++){ref[i]=$i};next} ; for(i=2;i<=NF;i++){if($i<M || $i<ref[i]*0.75){next}};print $1;exit}' | sed 's/Trimmed at //;s/ Phred score//' > optimized.quality.txt
+else
+	head -n -4 $SUBPROJECT.sample_counts.tsv | cut -f 5-10 | paste - <(head -n -4 $SUBPROJECT.sample_counts.tsv | cut -f 2) | transpose_tab | tac | awk -v M=$MIN_DEPTH 'BEGIN{FS="\t"}{if(NR==1){for (i=2;i<=NF;i++){R[i]=$i};next} ; for(i=2;i<=NF;i++){if($i<R[i]*M){next}};print $1;exit}' | sed 's/Trimmed at //;s/ Phred score//' > optimized.quality.txt
+fi
 QUAL=`cat optimized.quality.txt`
 cut -f 1-4,$(($QUAL - $MINQUAL + 5)) $SUBPROJECT.sample_counts.tsv > $SUBPROJECT.summary.stat.tsv
 ln -s $PWD/$SUBPROJECT.summary.stat.tsv $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.read_counts.tsv

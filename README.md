@@ -251,7 +251,7 @@ The default values for the optional parameters could be displayed by using the -
 
 ### PIPELINE section
 
-+ __Minimum number of trimmed reads per sample__: a number between 0 and ∞. If the minimum of raw, pair-end or trimmed reads is not reached in any of the samples, the pipeline will stop after the quality step report the reads numbers in the quality step .out logfile. The default is 2000.
++ __Minimum number of trimmed reads per sample__: a number between 0 and ∞. If the minimum of raw, raw with primers, pair-end or trimmed reads is not reached in any of the samples, the pipeline will stop after the quality step report the reads numbers in the quality step .out logfile. If the value is between 0 and 1, no threshold is apply on raw reads and the value is used as ratio of raw reads for the tresholding of raw with primers, pair-end and trimmed reads. The default is 2000.
 
 + __ITSx region to extract__: "no", “ITS1” or “ITS2” to skip or to extract either regions from fungal ITS reads using ITSx. The default is “no”.
 
