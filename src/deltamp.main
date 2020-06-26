@@ -393,6 +393,18 @@ then
 	fi
 fi
 
+if [ $PREV_PATH != "no" ]
+then
+	PREV_SUB=${PREV_PATH##*/}
+	if [ ! -d $PREV_PATH ]
+	then
+		error_doc "The path to the previous subproject output directory for reference clustering $PREV_PATH was not found."
+	elif [ ! -f $PREV_PATH/$PREV_SUB.processing.files.tar.gz ]
+	then
+		error_doc "There is no processing.files.tar.gz archive in the path to the previous subproject output directory for reference clustering."
+	fi
+fi
+
 # Dependencies
 # modules
 # gnu parallel
