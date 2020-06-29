@@ -63,7 +63,7 @@ DeltaMP is intend to be used on a HPC with a job scheduler (i.e. batch-queuing s
 
 ### compulsory softwares:
 
-+ [MOTHUR v1.37+](http://www.mothur.org) (Schloss et al., 2009)
++ [MOTHUR v1.44+](http://www.mothur.org) (Schloss et al., 2009)
 + [OBITools v1.2+](https://git.metabarcoding.org/obitools/obitools) (Boyer et al., 2016)
 + [cutadapt v1.10+](https://cutadapt.readthedocs.io/en/stable/) (Martin, 2011)
 + [PANDAseq v2.10+](https://github.com/neufeld/pandaseq) (Masella et al., 2012)

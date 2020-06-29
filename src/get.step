@@ -45,33 +45,36 @@ then
 	if [[ "${ARCHIVES[@]}" != "no" ]]
 	then
 		my_extract() {
-			if [[ -f "$@" ]]
+			dir=$1
+			arch=$2
+			if [[ -f "$dir/$arch" ]]
 			then
-				if [[ "$@" != *$RAW_EXT ]]
+				ln -s $dir/$arch $arch
+				if [[ "$arch" != *$RAW_EXT ]]
 				then
-					mkdir tmp.$@
-					case $@ in
-						*.tar.bz2) tar xjvf $@ -C tmp.$@ ;;
-						*.tar.gz) tar xzvf $@ -C tmp.$@ ;;
-						*.bz2) bunzip2 -1 $@ ;;
-						*.gz) dd if=$@ ibs=1M | unpigz -p 1 | dd of=${@%.*} obs=1M && rm $@ ;;
-						*.tar) tar xf $@ -C tmp.$@ ;;
-						*.tbz2) tar xjvf $@ -C tmp.$@ ;;
-						*.tgz) tar xzvf $@ -C tmp.$@ ;;
-						*.zip) unzip -j $@ ;;
-						#*.7z) 7za e -o./tmp.$@ $@ && rm $@;;
-						*) echo "ERROR: '$@' cannot be extracted, unknown extension" && exit 100 ;;
+					mkdir tmp.$arch
+					case $arch in
+						*.tar.bz2) tar xjvf $arch -C tmp.$arch ;;
+						*.tar.gz) tar xzvf $arch -C tmp.$arch ;;
+						*.bz2) bunzip2 -1 $arch ;;
+						*.gz) dd if=$arch ibs=1M | unpigz -p 1 | dd of=${@%.*} obs=1M && rm $arch ;;
+						*.tar) tar xf $arch -C tmp.$arch ;;
+						*.tbz2) tar xjvf $arch -C tmp.$arch ;;
+						*.tgz) tar xzvf $arch -C tmp.$arch ;;
+						*.zip) unzip -j $arch ;;
+						#*.7z) 7za e -o./tmp.$arch $arch && rm $arch;;
+						*) echo "ERROR: '$arch' cannot be extracted, unknown extension" && exit 100 ;;
 					esac
-					find ./tmp.$@ -type f -exec mv -i {} . \;
-					rm -r ./tmp.$@
+					find ./tmp.$arch -type f -exec mv -i {} . \;
+					rm -r ./tmp.$arch
 				fi
 			else
-				echo "ERROR: '$@' does not exist or is not a file" && exit 100
+				echo "ERROR: $dir/$arch does not exist or is not a file" && exit 100
 			fi
 		}
 		export -f my_extract
 		export RAW_EXT
-		parallel -j $NCPUS my_extract ::: ${ARCHIVES[@]}
+		parallel -j $NCPUS my_extract ::: ${LIB_DIR} ::: ${ARCHIVES[@]}
 	else
 		parallel -j $NCPUS 'if [ -f {1}/{2} ]; then ln -s {1}/{2} {2} ; fi' ::: ${LIB_DIR[@]} ::: ${ARCH[@]}
 	fi
@@ -99,7 +102,7 @@ fi
 # Extract individual libraries only if not uniformly compressed to gz or bz2, then re-compress uniformly to bz2 if needed
 if [ ${#COMP_EXT[@]} -eq 1 ] && [[ "gz bz2" == *${COMP_EXT[0]}* ]]
 then
-	parallel -j $NCPUS 'i={} ; if [[ $i == *"-"* ]] ; then mv $i ${i//-/_} ; fi' ::: ${ARCH[@]}
+	:
 elif [ ${#COMP_EXT[@]} -gt 0 ]
 then
 	my_extract2() {
@@ -110,11 +113,11 @@ then
 			*.zip) unzip $@ ;;
 		esac
 	}
-	export -f my_extract my extract2
+	export -f my extract2
 	parallel -j $NCPUS my_extract2 ::: ${ARCH[@]}
-	parallel -j $NCPUS "i={} ; bzip2 -1 -c $i > ${i//-/_}.bz2" ::: ${ARCH[@]%.*}
+	parallel -j $NCPUS bzip2 -1 ::: ${ARCH[@]%.*}
 else
-	parallel -j $NCPUS "i={} ; bzip2 -1 -c $i > ${i//-/_}.bz2" ::: ${ARCH[@]}
+	parallel -j $NCPUS bzip2 -1 ::: ${ARCH[@]}
 fi
 
 
@@ -135,15 +138,15 @@ do
 	fi
 	if [ $TECH == "454" ]
 	then
-		awk -v I=$lib 'BEGIN{OFS="\t"}$3==I{print "barcode",$1,$2}' $EXEC/config/barcodes.txt | cat fasta/oligos.$FWD_NAME.$RVS_NAME - | sed 's/reverse/#reverse/;s/-/_/g' > fasta/oligos.${j//-/_}
+		awk -v I=$lib 'BEGIN{OFS="\t"}$3==I{print "barcode",$1,$2}' $EXEC/config/barcodes.txt | cat fasta/oligos.$FWD_NAME.$RVS_NAME - | sed 's/reverse/#reverse/' > fasta/oligos.$j
 	elif [ $TECH == "Illumina" ]
 	then
 		if [ -z $DUALID ]
 		then
-			awk -v I=$(echo "$lib$fwd") '$3==I{print ">"$2"\n^"$1}' $EXEC/config/barcodes.txt > fastq/oligos.${j//-/_}
+			awk -v I=$(echo "$lib$fwd") '$3==I{print ">"$2"\n^"$1}' $EXEC/config/barcodes.txt > fastq/oligos.$j
 		else
-			awk -v I=$(echo "$lib$fwd") '$3==I{split($1,a,",");print a[1]}' $EXEC/config/barcodes.txt | sort -u | awk '{print ">F"NR"\n^"$1}' > fastq/oligos.F.${j//-/_}
-			awk -v I=$(echo "$lib$fwd") '$3==I{split($1,a,",");print a[2]}' $EXEC/config/barcodes.txt | sort -u | awk '{print ">R"NR"\n^"$1}' > fastq/oligos.R.${j//-/_}
+			awk -v I=$(echo "$lib$fwd") '$3==I{split($1,a,",");print a[1]}' $EXEC/config/barcodes.txt | sort -u | awk '{print ">F"NR"\n^"$1}' > fastq/oligos.F.$j
+			awk -v I=$(echo "$lib$fwd") '$3==I{split($1,a,",");print a[2]}' $EXEC/config/barcodes.txt | sort -u | awk '{print ">R"NR"\n^"$1}' > fastq/oligos.R.$j
 		fi
 	fi
 done < $EXEC/config/lib1.list
