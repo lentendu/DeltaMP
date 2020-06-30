@@ -53,21 +53,22 @@ sed '1d' $SUBPROJECT.lib_counts.tsv | sort -k 1,1 | awk 'BEGIN{FS="\t"}{if(NR==1
 
 # Count check
 head -n -4 $SUBPROJECT.sample_counts.tsv | awk -v M=$MIN_DEPTH 'NR>1{if(M<=1){if($3<M*$2) print $1,$3,$3/$2} else if(M>1){if($3<M)print $1,$3}}' > min_depth.raw_with_primer.test
-head -n -4 $SUBPROJECT.sample_counts.tsv | awk -v M=$MIN_DEPTH 'NR>1{if(M<=1){if($4<M*$2) print $1,$4,$4/$2} else if(M>1){if($4<M)print $1,$4}}' > min_depth.pairend.test
-head -n -4 $SUBPROJECT.sample_counts.tsv | awk -v M=$MIN_DEPTH 'NR>1{if(M<=1){if($5<M*$2) print $1,$5,$5/$2} else if(M>1){if($5<M)print $1,$5}}' > min_depth.trim.test
+head -n -4 $SUBPROJECT.sample_counts.tsv | awk -v M=$MIN_DEPTH 'NR>1{if(M<=1){if($4<M*$3) print $1,$4,$4/$3} else if(M>1){if($4<M)print $1,$4}}' > min_depth.pairend.test
+head -n -4 $SUBPROJECT.sample_counts.tsv | awk -v M=$MIN_DEPTH 'NR>1{if(M<=1){if($5<M*$4) print $1,$5,$5/$4} else if(M>1){if($5<M)print $1,$5}}' > min_depth.trim.test
 if [ $MIN_DEPTH -gt 1 ]
 then
 	MIN_DEPTH_ECHO=$MIN_DEPTH
 else
-	MIN_DEPTH_ECHO="$MIN_DEPTH times the amount of raw reads"
+	MIN_DEPTH_ECHO="$MIN_DEPTH times the amount of \${TRIMSTEPS[\$((i-1))]}"
 fi
-for i in raw_with_primer pairend trim
+TRIMSTEPS=(raw raw_with_primer pairend trim)
+for i in $(seq 1 $((${#TRIMSTEPS[@]}-1)))
 do
-	if [ -s min_depth.$i.test ]
+	if [ -s min_depth.${TRIMSTEPS[$i]}.test ]
 	then
-		echo "The following sample(s) do not have the requested minimum amount of $i reads fixed at $MIN_DEPTH_ECHO :"
+		echo "The following sample(s) do not have the requested minimum amount of ${TRIMSTEPS[$i]} reads fixed at "$(eval echo $MIN_DEPTH_ECHO)" reads:"
 		echo "Sample Reads"
-		cat min_depth.$i.test
+		cat min_depth.${TRIMSTEPS[$i]}.test
 		echo ""
 		echo "Aborting"
 		awk 'BEGIN{FS=OFS="\t"};{print $1,$2,$3,$4,$5}' $SUBPROJECT.sample_counts.tsv > $SUBPROJECT.summary.stat.tsv
@@ -75,16 +76,18 @@ do
 		. $BIN/list_step_files.sh
 		exit 100
 	else
-		echo "All samples have at least the minimum amount of $i reads fixed at $MIN_DEPTH_ECHO."
+		echo "All samples have at least the minimum amount of ${TRIMSTEPS[$i]} reads fixed at $MIN_DEPTH_ECHO."
 	fi
 done
 
 # Optimize quality
 if [ $MIN_DEPTH -gt 1 ]
 then
+	# above integer threshold and more than 75% of raw reads
 	head -n -4 $SUBPROJECT.sample_counts.tsv | transpose_tab | sed '1,4d;/^[ \t]*$/d' | tac | cat <(head -n -4 $SUBPROJECT.sample_counts.tsv | cut -f 5 | transpose_tab) - | awk -v M=$MIN_DEPTH 'BEGIN{FS="\t"} {if(NR==1){for(i=2;i<=NF;i++){ref[i]=$i};next} ; for(i=2;i<=NF;i++){if($i<M || $i<ref[i]*0.75){next}};print $1;exit}' | sed 's/Trimmed at //;s/ Phred score//' > optimized.quality.txt
 else
-	head -n -4 $SUBPROJECT.sample_counts.tsv | cut -f 5-10 | paste - <(head -n -4 $SUBPROJECT.sample_counts.tsv | cut -f 2) | transpose_tab | tac | awk -v M=$MIN_DEPTH 'BEGIN{FS="\t"}{if(NR==1){for (i=2;i<=NF;i++){R[i]=$i};next} ; for(i=2;i<=NF;i++){if($i<R[i]*M){next}};print $1;exit}' | sed 's/Trimmed at //;s/ Phred score//' > optimized.quality.txt
+	# above ratio of pair-end reads
+	head -n -4 $SUBPROJECT.sample_counts.tsv | cut -f 5-10 | paste - <(head -n -4 $SUBPROJECT.sample_counts.tsv | cut -f 4) | transpose_tab | tac | awk -v M=$MIN_DEPTH 'BEGIN{FS="\t"}{if(NR==1){for (i=2;i<=NF;i++){R[i]=$i};next} ; for(i=2;i<=NF;i++){if($i<R[i]*M){next}};print $1;exit}' | sed 's/Trimmed at //;s/ Phred score//' > optimized.quality.txt
 fi
 QUAL=`cat optimized.quality.txt`
 cut -f 1-4,$(($QUAL - $MINQUAL + 5)) $SUBPROJECT.sample_counts.tsv > $SUBPROJECT.summary.stat.tsv
@@ -100,8 +103,8 @@ else
 	for LIB_NAME in $(cut -f 1 $EXEC/config/lib2.list)
 	do
 		Rscript --vanilla $BIN/Rscript_raw_stat_figures_Illumina.R $SUBPROJECT $BIN $(echo "DeltaMP_${VERSION[DELTAMP]}") $LIB_NAME
-		gs -q -sDEVICE=pdfwrite -o $LIB_NAME.raw_and_pair-end_reads_statistics.pdf ${LIB_NAME}.length.pdf ${LIB_NAME}.quality.pdf ${LIB_NAME}.position_quality.pdf ${LIB_NAME}.legend.pdf
-		rm ${LIB_NAME}.length.pdf ${LIB_NAME}.quality.pdf ${LIB_NAME}.position_quality.pdf ${LIB_NAME}.legend.pdf
+		gs -q -sDEVICE=pdfwrite -o $LIB_NAME.raw_and_pair-end_reads_statistics.pdf $SUBPROJECT.${LIB_NAME}.length.pdf $SUBPROJECT.${LIB_NAME}.quality.pdf $SUBPROJECT.${LIB_NAME}.position_quality.pdf $SUBPROJECT.${LIB_NAME}.legend.pdf
+		rm $SUBPROJECT.${LIB_NAME}.length.pdf $SUBPROJECT.${LIB_NAME}.quality.pdf $SUBPROJECT.${LIB_NAME}.position_quality.pdf $SUBPROJECT.${LIB_NAME}.legend.pdf
 	done
 	gs -q -sDEVICE=pdfwrite -o $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.raw_and_pair-end_reads_statistics.pdf *.raw_and_pair-end_reads_statistics.pdf
 	rm *.raw_and_pair-end_reads_statistics.pdf
