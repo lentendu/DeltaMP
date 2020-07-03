@@ -34,53 +34,54 @@ if [ $CLIPPING != "no" ]
 then
 	FWD_RC=$(echo -e ">fwd\n$FWD" | obicomplement --without-progress-bar --uppercase | tail -1)
 	RVS_RC=$(echo -e ">rvs\n$RVS" | obicomplement --without-progress-bar --uppercase | tail -1)
-	DISS=`awk -v F=${#FWD} -v R=${#RVS} -v D=$PDIFFS 'BEGIN{DISS=D/F;if(D/R>DISS){DISS=D/R};printf "%.2g\n", DISS}'`
+	FDIFFS=$(awk -v P=$PDIFFS -v F=${#FWD} 'BEGIN{print (int(P/F*100)+1)/100}')
+	RDIFFS=$(awk -v P=$PDIFFS -v R=${#RVS} 'BEGIN{print (int(P/R*100)+1)/100}')
+	ANCH=^
 	# cutadapt
 	if [ $CLIPPING == "both" ]
 	then
-		cutadapt -a $FWD...$RVS_RC -A $RVS...$FWD_RC -e $DISS --no-indels --untrimmed-output=fastq/${FWD_LIB}.fwd_unt.fastq --untrimmed-paired-output=fastq/${RVS_LIB}.fwd_unt.fastq -o fastq/${FWD_LIB}.fwd.fastq -p fastq/${RVS_LIB}.fwd.fastq ${RAWPATH}${FWD_LIB}.fastq.$EXT ${RAWPATH}${RVS_LIB}.fastq.$EXT > fastq/log.cutadapt.${LIB_NAME}.fwd.txt
-		cutadapt -a $RVS...$FWD_RC -A $FWD...$RVS_RC -e $DISS --no-indels --trimmed-only -o fastq/${FWD_LIB}.rvs.fastq -p fastq/${RVS_LIB}.rvs.fastq fastq/${FWD_LIB}.fwd_unt.fastq fastq/${RVS_LIB}.fwd_unt.fastq > fastq/log.cutadapt.${LIB_NAME}.rvs.txt
+		cutadapt -a "$ANCH$FWD;e=$FDIFFS...$RVS_RC;e=$RDIFFS" -A "$ANCH$RVS;e=$RDIFFS...$FWD_RC;e=$FDIFFS" --no-indels --untrimmed-output=fastq/${FWD_LIB}.unt.fastq.$EXT --untrimmed-paired-output=fastq/${RVS_LIB}.unt.fastq.$EXT -o fastq/${FWD_NAME}.${FWD_LIB}.fastq.$EXT -p fastq/${RVS_NAME}.${RVS_LIB}.fastq.$EXT ${RAWPATH}${FWD_LIB}.fastq.$EXT ${RAWPATH}${RVS_LIB}.fastq.$EXT > fastq/log.cutadapt.${LIB_NAME}.fr.txt
+		cutadapt -a "$ANCH$RVS;e=$RDIFFS...$FWD_RC;e=$FDIFFS" -A "$ANCH$FWD;e=$FDIFFS...$RVS_RC;e=$RDIFFS" --no-indels --trimmed-only -o fastq/${RVS_NAME}.${FWD_LIB}.fastq.$EXT -p fastq/${FWD_NAME}.${RVS_LIB}.fastq.$EXT fastq/${FWD_LIB}.unt.fastq.$EXT fastq/${RVS_LIB}.unt.fastq.$EXT > fastq/log.cutadapt.${LIB_NAME}.rf.txt
 	elif [ $CLIPPING == "5prime" ]
 	then
-		cutadapt -g $FWD -G $RVS -e $DISS --no-indels --untrimmed-output=fastq/${FWD_LIB}.fwd_unt.fastq --untrimmed-paired-output=fastq/${RVS_LIB}.fwd_unt.fastq -o fastq/${FWD_LIB}.fwd.fastq -p fastq/${RVS_LIB}.fwd.fastq ${RAWPATH}${FWD_LIB}.fastq.$EXT ${RAWPATH}${RVS_LIB}.fastq.$EXT > fastq/log.cutadapt.${LIB_NAME}.fwd.txt
-		cutadapt -g $RVS -G $FWD -e $DISS --no-indels --trimmed-only -o fastq/${FWD_LIB}.rvs.fastq -p fastq/${RVS_LIB}.rvs.fastq fastq/${FWD_LIB}.fwd_unt.fastq fastq/${RVS_LIB}.fwd_unt.fastq > fastq/log.cutadapt.${LIB_NAME}.rvs.txt
+		cutadapt -g "$ANCH$FWD;e=$FDIFFS" -G "$ANCH$RVS;e=$RDIFFS" --no-indels --untrimmed-output=fastq/${FWD_LIB}.unt.fastq.$EXT --untrimmed-paired-output=fastq/${RVS_LIB}.unt.fastq.$EXT -o fastq/${FWD_NAME}.${FWD_LIB}.fastq.$EXT -p fastq/${RVS_NAME}.${RVS_LIB}.fastq.$EXT ${RAWPATH}${FWD_LIB}.fastq.$EXT ${RAWPATH}${RVS_LIB}.fastq.$EXT > fastq/log.cutadapt.${LIB_NAME}.fr.txt
+		cutadapt -g "$ANCH$RVS;e=$RDIFFS" -G "$ANCH$FWD;e=$FDIFFS" --no-indels --trimmed-only -o fastq/${RVS_NAME}.${FWD_LIB}.fastq.$EXT -p fastq/${FWD_NAME}.${RVS_LIB}.fastq.$EXT fastq/${FWD_LIB}.unt.fastq.$EXT fastq/${RVS_LIB}.unt.fastq.$EXT > fastq/log.cutadapt.${LIB_NAME}.rf.txt
 	elif [ $CLIPPING == "3prime" ]
 	then
-		cutadapt -a $RVS_RC -A $FWD_RC -e $DISS --no-indels --untrimmed-output=fastq/${FWD_LIB}.fwd_unt.fastq --untrimmed-paired-output=fastq/${RVS_LIB}.fwd_unt.fastq -o fastq/${FWD_LIB}.fwd.fastq -p fastq/${RVS_LIB}.fwd.fastq ${RAWPATH}${FWD_LIB}.fastq.$EXT ${RAWPATH}${RVS_LIB}.fastq.$EXT > fastq/log.cutadapt.${LIB_NAME}.fwd.txt
-		cutadapt -a $FWD_RC -A $RVS_RC -e $DISS --no-indels --trimmed-only -o fastq/${FWD_LIB}.rvs.fastq -p fastq/${RVS_LIB}.rvs.fastq fastq/${FWD_LIB}.fwd_unt.fastq fastq/${RVS_LIB}.fwd_unt.fastq > fastq/log.cutadapt.${LIB_NAME}.rvs.txt
+		cutadapt -a "$RVS_RC;e=$RDIFFS" -A "$FWD_RC;e=$FDIFFS" --no-indels --untrimmed-output=fastq/${FWD_LIB}.unt.fastq.$EXT --untrimmed-paired-output=fastq/${RVS_LIB}.unt.fastq.$EXT -o fastq/${FWD_NAME}.${FWD_LIB}.fastq.$EXT -p fastq/${RVS_NAME}.${RVS_LIB}.fastq.$EXT ${RAWPATH}${FWD_LIB}.fastq.$EXT ${RAWPATH}${RVS_LIB}.fastq.$EXT > fastq/log.cutadapt.${LIB_NAME}.fr.txt
+		cutadapt -a "$FWD_RC;e=$FDIFFS" -A "$RVS_RC;e=$RDIFFS" --no-indels --trimmed-only -o fastq/${RVS_NAME}.${FWD_LIB}.fastq.$EXT -p fastq/${FWD_NAME}.${RVS_LIB}.fastq.$EXT fastq/${FWD_LIB}.unt.fastq.$EXT fastq/${RVS_LIB}.unt.fastq.$EXT > fastq/log.cutadapt.${LIB_NAME}.rf.txt
 	fi
-	# reverse complement (if not empty)
-	if [ $EXT == "bz2" ]; then COMP="bzip2 -1 -c" ; else COMP="pigz -p 1 -c -b 1024" ; fi
-	if [ -s fastq/${FWD_LIB}.rvs.fastq ]
-	then
-		obicomplement --without-progress-bar --uppercase fastq/${FWD_LIB}.rvs.fastq | sed '/^@/s/_CMP complemented=True;//' | cat fastq/${FWD_LIB}.fwd.fastq - | $COMP > fastq/${LIB_NAME}.fwd.fastq.$EXT
-	else
-		$COMP fastq/${FWD_LIB}.fwd.fastq > fastq/${LIB_NAME}.fwd.fastq.$EXT
-	fi
-	rm fastq/${FWD_LIB}.fwd.fastq fastq/${FWD_LIB}.rvs.fastq fastq/${FWD_LIB}.fwd_unt.fastq
-	if [ -s fastq/${RVS_LIB}.rvs.fastq ]
-	then
-		obicomplement --without-progress-bar --uppercase fastq/${RVS_LIB}.rvs.fastq | sed '/^@/s/_CMP complemented=True;//' | cat fastq/${RVS_LIB}.fwd.fastq - | $COMP > fastq/${LIB_NAME}.rvs.fastq.$EXT
-	else
-		$COMP fastq/${RVS_LIB}.fwd.fastq > fastq/${LIB_NAME}.rvs.fastq.$EXT
-	fi
-	rm fastq/${RVS_LIB}.fwd.fastq fastq/${RVS_LIB}.rvs.fastq fastq/${RVS_LIB}.fwd_unt.fastq
+	rm -f fastq/${FWD_LIB}.unt.fastq.$EXT fastq/${RVS_LIB}.unt.fastq.$EXT
 	# primer logo
 	# weblogo -c classic -s large -t "${LIB_NAME}: $FWD_NAME" < <(awk -v a=${#FWD} 'BEGIN{FS="\t"} NF==11{printf ">%s\n%*s\n",$1,a,$6}' raw_stat/${FWD_LIB}.cutadapt | sed 's/ /N/g' )> raw_stat/weblogo.${LIB_NAME}.forward.eps
 	# weblogo -c classic -s large -t "${LIB_NAME}: primer $RVS_NAME" < <(awk -v a=${#RVS} 'BEGIN{FS="\t"} NF==11{printf ">%s\n%*s\n",$1,a,$6}' raw_stat/${RVS_LIB}.cutadapt | sed 's/ /N/g') > raw_stat/weblogo.${LIB_NAME}.reverse.eps
 else
-	ln -s $PWD/${FWD_LIB}.fastq.$EXT $PWD/fastq/${LIB_NAME}.fwd.fastq.$EXT
-	ln -s $PWD/${RVS_LIB}.fastq.$EXT $PWD/fastq/${LIB_NAME}.rvs.fastq.$EXT
+	ln -s $PWD/${FWD_LIB}.fastq.$EXT $PWD/fastq/${FWD_NAME}.${FWD_LIB}.fastq.$EXT
+	ln -s $PWD/${RVS_LIB}.fastq.$EXT $PWD/fastq/${RVS_NAME}.${RVS_LIB}.fastq.$EXT
 fi
 
 # raw reads stat
-for i in fwd rvs
+if [ $EXT == "bz2" ]; then DECOMP="bunzip2 -ck" ; else DECOMP="unpigz -ck" ; fi
+for i in ${RVS_LIB} ${FWD_LIB}
 do
-	vsearch --quiet --fastq_stats fastq/${LIB_NAME}.$i.fastq.$EXT --log fastq/${LIB_NAME}.$i.stats
-	sed -n '/^Read length distribution/,/^$/{s/>=//;p}' fastq/${LIB_NAME}.$i.stats | awk '$3~"%"{print $1,$2}' | sort -k1,1n > raw_stat/$LIB_NAME.$i.length
-	sed -n '/^Q score distribution/,/^$/p' fastq/${LIB_NAME}.$i.stats | awk '$5~"%"{print $2,$4}' | sort -k 1,1 | join -a 1 -o 0,2.2 -e "0" <(seq 0 41 | sort -k 1,1) - | sort -k 1,1n | cut -d " " -f 2 > raw_stat/${LIB_NAME}.$i.meanqual
-	sed -n '/RatePct/,/^$/p' fastq/${LIB_NAME}.$i.stats | sed '1,2d;$d' | awk '{print $3}' > raw_stat/${LIB_NAME}.$i.meanposqual
-	rm fastq/${LIB_NAME}.$i.stats
+	for j in ${FWD_NAME} ${RVS_NAME}
+	do
+		if [ $j == ${FWD_NAME} ] ; then k=$LIB_NAME.fwd ; else k=$LIB_NAME.rvs ; fi
+		if [ -f fastq/$j.$i.fastq.$EXT ]
+		then
+			if [ $($DECOMP fastq/$j.$i.fastq.$EXT | wc -c) -gt 0 ]
+			then
+				vsearch --quiet --fastq_stats fastq/$j.$i.fastq.$EXT --log fastq/$j.$k.stats
+				sed -n '/^Read length distribution/,/^$/{s/>=//;p}' fastq/$j.$k.stats | awk '$3~"%"{print $1,$2}' | sort -k1,1n > raw_stat/$j.$k.length
+				sed -n '/^Q score distribution/,/^$/p' fastq/$j.$k.stats | awk '$5~"%"{print $2,$4}' | sort -k 1,1 | join -a 1 -o 0,2.2 -e "0" <(seq 0 41 | sort -k 1,1) - | sort -k 1,1n | cut -d " " -f 2 > raw_stat/$j.$k.meanqual
+				sed -n '/RatePct/,/^$/p' fastq/$j.$k.stats | sed '1,2d;$d' | awk '{print $3}' > raw_stat/$j.$k.meanposqual
+				rm fastq/$j.$k.stats
+			else
+				# delete if empty
+				rm fastq/$j.$i.fastq.$EXT
+			fi
+		fi
+	done
 done
 
 # list files and directories

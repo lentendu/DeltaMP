@@ -38,13 +38,20 @@ fi
 while read samp fwd rvs
 do
 	lib=$(echo $fwd $rvs | sed 's/\(.*\)[^ ]* \1.*$/\1/')
-	RAW_COUNT=$(awk '{sum+=$2}END{print sum}' libraries/raw_stat/$lib.fwd.length)
-	if [ $PALG == "vsearch" ]
-	then
-		paste <(echo -e "$samp\t$lib\t$RAW_COUNT") <(awk '$2=="Pairs"{print $1;exit}' fastq/log.pairend.$lib.txt) <(awk '$2=="Merged"{print $1;exit}' fastq/log.pairend.$lib.txt) quality_check/$lib.stat
-	else
-		paste <(echo -e "$samp\t$lib\t$RAW_COUNT") <(tac libraries/fastq/log.pairend.$lib.txt | grep -m 1 -P "STAT\tREADS" | cut -f 4) <(tac libraries/fastq/log.pairend.$lib.txt | grep -m 1 -P "STAT\tOK\t" | cut -f 4) quality_check/$lib.stat
-	fi
+	for i in ${FWD_NAME} ${RVS_NAME}
+	do
+		if [ $i == "$FWD_NAME" ] ; then rawlib=$lib.fwd ; j=${RVS_NAME} ; else rawlib=$lib.rvs ; j=${FWD_NAME} ; fi
+		if [ -f libraries/fasta/$i.$j.$lib.pairend.fasta ]
+		then
+			RAW_COUNT=$(awk '{sum+=$2}END{print sum}' libraries/raw_stat/$i.$rawlib.length)
+			if [ $PALG == "vsearch" ]
+			then
+				paste <(echo -e "$RAW_COUNT") <(awk '$2=="Pairs"{print $1;exit}' libraries/fastq/log.pairend.$i.$lib.txt) <(awk '$2=="Merged"{print $1;exit}' libraries/fastq/log.pairend.$i.$lib.txt) quality_check/$i.$j.$lib.stat
+			else
+				paste <(echo -e "$RAW_COUNT") <(tac libraries/fastq/log.pairend.$i.$lib.txt | grep -m 1 -P "STAT\tREADS" | cut -f 4) <(tac libraries/fastq/log.pairend.$i.$lib.txt | grep -m 1 -P "STAT\tOK\t" | cut -f 4) quality_check/$i.$j.$lib.stat
+			fi
+		fi
+	done | awk '{for(i=1;i<=NF;i++){s[i]+=$i}}END{for(i=1;i<=NF;i++){printf "\t%s", s[i]}}' | sed "s/^/$samp\t$lib/;s/$/\n/"
 done < config/lib3.list | cat <(paste <(echo -e "Sample\tLibrary\tRaw\tPrimer detected\tPair-end") <(seq $MINQUAL 30 | sed 's/\(.*\)/Trimmed at \1 Phred score/' | tr "\n" "\t" | sed 's/$/\n/')) - > quality_check/$SUBPROJECT.lib_counts.tsv
 cd quality_check
 
@@ -55,7 +62,7 @@ sed '1d' $SUBPROJECT.lib_counts.tsv | sort -k 1,1 | awk 'BEGIN{FS="\t"}{if(NR==1
 head -n -4 $SUBPROJECT.sample_counts.tsv | awk -v M=$MIN_DEPTH 'NR>1{if(M<=1){if($3<M*$2) print $1,$3,$3/$2} else if(M>1){if($3<M)print $1,$3}}' > min_depth.raw_with_primer.test
 head -n -4 $SUBPROJECT.sample_counts.tsv | awk -v M=$MIN_DEPTH 'NR>1{if(M<=1){if($4<M*$3) print $1,$4,$4/$3} else if(M>1){if($4<M)print $1,$4}}' > min_depth.pairend.test
 head -n -4 $SUBPROJECT.sample_counts.tsv | awk -v M=$MIN_DEPTH 'NR>1{if(M<=1){if($5<M*$4) print $1,$5,$5/$4} else if(M>1){if($5<M)print $1,$5}}' > min_depth.trim.test
-if [ $MIN_DEPTH -gt 1 ]
+if (( $(echo "$MIN_DEPTH > 1" |bc -l) ))
 then
 	MIN_DEPTH_ECHO=$MIN_DEPTH
 else
@@ -76,12 +83,12 @@ do
 		. $BIN/list_step_files.sh
 		exit 100
 	else
-		echo "All samples have at least the minimum amount of ${TRIMSTEPS[$i]} reads fixed at $MIN_DEPTH_ECHO."
+		eval echo "All samples have at least the minimum amount of ${TRIMSTEPS[$i]} reads fixed at $MIN_DEPTH_ECHO reads."
 	fi
 done
 
 # Optimize quality
-if [ $MIN_DEPTH -gt 1 ]
+if (( $(echo "$MIN_DEPTH > 1" |bc -l) ))
 then
 	# above integer threshold and more than 75% of raw reads
 	head -n -4 $SUBPROJECT.sample_counts.tsv | transpose_tab | sed '1,4d;/^[ \t]*$/d' | tac | cat <(head -n -4 $SUBPROJECT.sample_counts.tsv | cut -f 5 | transpose_tab) - | awk -v M=$MIN_DEPTH 'BEGIN{FS="\t"} {if(NR==1){for(i=2;i<=NF;i++){ref[i]=$i};next} ; for(i=2;i<=NF;i++){if($i<M || $i<ref[i]*0.75){next}};print $1;exit}' | sed 's/Trimmed at //;s/ Phred score//' > optimized.quality.txt
@@ -97,14 +104,14 @@ ln -s $PWD/$SUBPROJECT.summary.stat.tsv $EXEC/archives/$SUBPROJECT.outputs/$SUBP
 cd $EXEC/libraries/raw_stat
 if [ $DEMULTI == "yes" ]
 then
-	Rscript --vanilla $BIN/Rscript_raw_stat_figures_Illumina.R $SUBPROJECT $BIN $(echo "DeltaMP_${VERSION[DELTAMP]}") all
-	gs -q -sDEVICE=pdfwrite -o $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.raw_and_pair-end_reads_statistics.pdf $SUBPROJECT.length.pdf $SUBPROJECT.quality.pdf $SUBPROJECT.position_quality.pdf $SUBPROJECT.legend.pdf
+	Rscript --vanilla $BIN/Rscript_raw_stat_figures_Illumina.R $SUBPROJECT $BIN DeltaMP_${VERSION[DELTAMP]} all $FWD_NAME $RVS_NAME
+	gs -q -sDEVICE=pdfwrite -o $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.raw_and_pair-end_reads_statistics.pdf $SUBPROJECT.quality.pdf $SUBPROJECT.length.pdf $SUBPROJECT.position_quality.pdf $SUBPROJECT.legend.pdf
 else
 	for LIB_NAME in $(cut -f 1 $EXEC/config/lib2.list)
 	do
-		Rscript --vanilla $BIN/Rscript_raw_stat_figures_Illumina.R $SUBPROJECT $BIN $(echo "DeltaMP_${VERSION[DELTAMP]}") $LIB_NAME
-		gs -q -sDEVICE=pdfwrite -o $LIB_NAME.raw_and_pair-end_reads_statistics.pdf $SUBPROJECT.${LIB_NAME}.length.pdf $SUBPROJECT.${LIB_NAME}.quality.pdf $SUBPROJECT.${LIB_NAME}.position_quality.pdf $SUBPROJECT.${LIB_NAME}.legend.pdf
-		rm $SUBPROJECT.${LIB_NAME}.length.pdf $SUBPROJECT.${LIB_NAME}.quality.pdf $SUBPROJECT.${LIB_NAME}.position_quality.pdf $SUBPROJECT.${LIB_NAME}.legend.pdf
+		Rscript --vanilla $BIN/Rscript_raw_stat_figures_Illumina.R $SUBPROJECT $BIN DeltaMP_${VERSION[DELTAMP]} $LIB_NAME $FWD_NAME $RVS_NAME
+		gs -q -sDEVICE=pdfwrite -o $LIB_NAME.raw_and_pair-end_reads_statistics.pdf $SUBPROJECT.${LIB_NAME}.quality.*.pdf $SUBPROJECT.${LIB_NAME}.length.*.pdf $SUBPROJECT.${LIB_NAME}.position_quality.*.pdf $SUBPROJECT.${LIB_NAME}.legend.pdf
+		rm $SUBPROJECT.${LIB_NAME}.quality.*.pdf $SUBPROJECT.${LIB_NAME}.length.*.pdf $SUBPROJECT.${LIB_NAME}.position_quality.*.pdf $SUBPROJECT.${LIB_NAME}.legend.pdf
 	done
 	gs -q -sDEVICE=pdfwrite -o $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.raw_and_pair-end_reads_statistics.pdf *.raw_and_pair-end_reads_statistics.pdf
 	rm *.raw_and_pair-end_reads_statistics.pdf

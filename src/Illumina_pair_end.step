@@ -22,40 +22,50 @@ module load DeltaMP/DELTAMP_VERSION
 # Define Variables
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
 . $BIN/check_previous_step
+if [ $EXT == "bz2" ]; then COMP="bzip2 -1 -c" ; DECOMP="bunzip2 -ck" ; else COMP="pigz -p 1 -c -b 1024" ; DECOMP="unpigz -ck" ; fi
 
 # Library to analyse
 read SAMP_NAME FWD_LIB RVS_LIB <<<`sed -n ${ARRAY_TASK}'p' config/lib3.list`
 LIB_NAME=$(echo $FWD_LIB $RVS_LIB | sed 's/\(.*\)[^ ]* \1.*$/\1/')
 cd libraries
 
-# Pair end
-if [ $PALG == "vsearch" ]
-then
-	ASCII=$(vsearch --fastq_chars fastq/$LIB_NAME.fwd.fastq.$EXT 2>&1 | grep -m 1 "^Guess" | sed 's/.* //')
-	PCTTRESH=$(awk -v P=$PTRESH 'BEGIN{print (1-P)*100}')
-	vsearch --quiet --threads 1 --fastq_mergepairs fastq/$LIB_NAME.fwd.fastq.$EXT --reverse fastq/$LIB_NAME.rvs.fastq.$EXT --fastq_ascii $ASCII --fastq_minovlen $MIN_OV --fastq_maxdiffpct $PCTTRESH --fastq_allowmergestagger --fastqout - 2> fastq/log.pairend.$LIB_NAME.txt | bzip2 -1 -c > fastq/$LIB_NAME.pairend.fastq.bz2
-else
-	pandaseq -f fastq/$LIB_NAME.fwd.fastq.$EXT -r fastq/$LIB_NAME.rvs.fastq.$EXT -g fastq/log.pairend.$LIB_NAME.txt -F -A $PALG -o $MIN_OV -t $PTRESH -T 1 -W fastq/$LIB_NAME.pairend.fastq.bz2
-fi
+# Process both direction separately
+for i in ${FWD_NAME} ${RVS_NAME}
+do
+	if [ $i == "$FWD_NAME" ] ; then j=${RVS_NAME} ; else j=${FWD_NAME} ; fi
+	if [ -f fastq/$i.${FWD_LIB}.fastq.$EXT ]
+	then
+		# Pair end
+		if [ $PALG == "vsearch" ]
+		then
+			ASCII=$(vsearch --fastq_chars fastq/$i.$FWD_LIB.fastq.$EXT 2>&1 | grep -m 1 "^Guess" | sed 's/.* //')
+			PCTTRESH=$(awk -v P=$PTRESH 'BEGIN{print (1-P)*100}')
+			vsearch --quiet --threads 1 --fastq_mergepairs fastq/$i.${FWD_LIB}.fastq.$EXT --reverse fastq/$j.${RVS_LIB}.fastq.$EXT --fastq_ascii $ASCII --fastq_minovlen $MIN_OV --fastq_maxdiffpct $PCTTRESH --fastq_allowmergestagger --fastqout - 2> fastq/log.pairend.$i.$LIB_NAME.txt | $COMP > fastq/$i.$j.$LIB_NAME.pairend.fastq.$EXT
+		else
+			pandaseq -f fastq/$i.${FWD_LIB}.fastq.$EXT -r fastq/$j.${RVS_LIB}.fastq.$EXT -g fastq/log.pairend.$i.$LIB_NAME.txt -F -A $PALG -o $MIN_OV -t $PTRESH -T 1 | $COMP > fastq/$i.$j.$LIB_NAME.pairend.fastq.$EXT
+		fi
+		
+		# Convert to fasta + qual
+		$DECOMP fastq/$i.$j.$LIB_NAME.pairend.fastq.$EXT > fastq/$i.$j.$LIB_NAME.pairend.fastq
+		mothur "#set.dir(input=$EXEC/libraries/fastq, output=$EXEC/libraries/fasta);
+		set.logfile(name=mothur.$LIB_NAME.logfile, append=T);
+		fastq.info(fastq=$i.$j.$LIB_NAME.pairend.fastq)" > /dev/null
+		rm fastq/$i.$j.$LIB_NAME.pairend.fastq
+		
+		# Stat on assembly
+		if [ $PALG != "vsearch" ]
+		then
+			sed -n '/OVERLAPS/p' fastq/log.pairend.$i.$LIB_NAME.txt | cut -f 4- | paste -d " " <(echo $LIB_NAME) - > raw_stat/$i.$j.$LIB_NAME.overlap.txt
+		fi
+		#awk '$0!~"^>"{print length($1)}' fasta/$LIB_NAME.pairend.fasta > raw_stat/$LIB_NAME.pairend.length
+		vsearch --quiet --fastq_stats fastq/$i.$j.$LIB_NAME.pairend.fastq.$EXT --log fastq/$i.$j.${LIB_NAME}.pairend.stats
+		sed -n '/^Read length distribution/,/^$/{s/>=//;p}' fastq/$i.$j.${LIB_NAME}.pairend.stats | awk '$3~"%"{print $1,$2}' | sort -k1,1n > raw_stat/$i.$j.$LIB_NAME.pairend.length
+		sed -n '/^Q score distribution/,/^$/p' fastq/$i.$j.${LIB_NAME}.pairend.stats | awk '$5~"%"{print $2,$4}' | sort -k 1,1 | join -a 1 -o 0,2.2 -e "0" <(seq 0 41 | sort -k 1,1) - | sort -k 1,1n | cut -d " " -f 2 > raw_stat/$i.$j.${LIB_NAME}.pairend.meanqual
+		sed -n '/RatePct/,/^$/p' fastq/$i.$j.${LIB_NAME}.pairend.stats | sed '1,2d;$d' | awk '{print $3}' > raw_stat/$i.$j.${LIB_NAME}.pairend.meanposqual
+		rm fastq/$i.$j.${LIB_NAME}.pairend.stats
+	fi
+done
 
-# Convert to fasta + qual
-bunzip2 -c fastq/$LIB_NAME.pairend.fastq.bz2 > fastq/$LIB_NAME.pairend.fastq
-mothur "#set.dir(input=$EXEC/libraries/fastq, output=$EXEC/libraries/fasta);
-set.logfile(name=mothur.$LIB_NAME.logfile, append=T);
-fastq.info(fastq=$LIB_NAME.pairend.fastq)"
-rm fastq/$LIB_NAME.pairend.fastq
-
-# Stat on assembly
-if [ $PALG != "vsearch" ]
-then
-	sed -n '/OVERLAPS/p' fastq/log.pairend.$LIB_NAME.txt | cut -f 4- | paste -d " " <(echo $LIB_NAME) - > raw_stat/$LIB_NAME.overlap.txt
-fi
-#awk '$0!~"^>"{print length($1)}' fasta/$LIB_NAME.pairend.fasta > raw_stat/$LIB_NAME.pairend.length
-vsearch --quiet --fastq_stats fastq/${LIB_NAME}.pairend.fastq.bz2 --log fastq/${LIB_NAME}.pairend.stats
-sed -n '/^Read length distribution/,/^$/{s/>=//;p}' fastq/${LIB_NAME}.pairend.stats | awk '$3~"%"{print $1,$2}' | sort -k1,1n > raw_stat/$LIB_NAME.pairend.length
-sed -n '/^Q score distribution/,/^$/p' fastq/${LIB_NAME}.pairend.stats | awk '$5~"%"{print $2,$4}' | sort -k 1,1 | join -a 1 -o 0,2.2 -e "0" <(seq 0 41 | sort -k 1,1) - | sort -k 1,1n | cut -d " " -f 2 > raw_stat/${LIB_NAME}.pairend.meanqual
-sed -n '/RatePct/,/^$/p' fastq/${LIB_NAME}.pairend.stats | sed '1,2d;$d' | awk '{print $3}' > raw_stat/${LIB_NAME}.pairend.meanposqual
-rm fastq/${LIB_NAME}.pairend.stats
 
 # list files and directories
 . $BIN/list_step_files.sh

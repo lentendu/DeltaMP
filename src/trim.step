@@ -144,8 +144,24 @@ do
 	elif [ $TECH == "Illumina" ]
 	then
 		QUAL=`cat $EXEC/quality_check/optimized.quality.txt`
+		# Merge reads in both direction
+		if [ -f $EXEC/libraries/fasta/$FWD_NAME.$RVS_NAME.$i.pairend.fasta ]
+		then
+			if [ -f $EXEC/libraries/fasta/$RVS_NAME.$FWD_NAME.$i.pairend.fasta ]
+			then
+				vsearch --fastx_revcomp $EXEC/libraries/fasta/$RVS_NAME.$FWD_NAME.$i.pairend.fasta --fastaout - | cat $EXEC/libraries/fasta/$FWD_NAME.$RVS_NAME.$i.pairend.fasta - > $i.pairend.fasta
+				awk '{if($1~"^>"){print} else {printf "%s",$NF; for(i=NF-1;i>=1;i--){printf " %s", $i};printf "\n"}}' $EXEC/libraries/fasta/$RVS_NAME.$FWD_NAME.$i.pairend.qual | cat $EXEC/libraries/fasta/$FWD_NAME.$RVS_NAME.$i.pairend.qual - > $i.pairend.qual
+			else
+				ln -s $EXEC/libraries/fasta/$FWD_NAME.$RVS_NAME.$i.pairend.fasta $PWD/$i.pairend.fasta
+				ln -s $EXEC/libraries/fasta/$FWD_NAME.$RVS_NAME.$i.pairend.qual $PWD/$i.pairend.qual
+			fi
+		elif [ -f $EXEC/libraries/fasta/$RVS_NAME.$FWD_NAME.$i.pairend.fasta ]
+		then
+			vsearch --fastx_revcomp $EXEC/libraries/fasta/$RVS_NAME.$FWD_NAME.$i.pairend.fasta --fastaout $i.pairend.fasta
+			awk '{if($1~"^>"){print} else {printf "%s",$NF; for(i=NF-1;i>=1;i--){printf " %s", $i};printf "\n"}}' $EXEC/libraries/fasta/$RVS_NAME.$FWD_NAME.$i.pairend.qual > $i.pairend.qual
+		fi
+		# trim
 		mothur "#set.logfile(name=$LOG, append=T);
-		set.dir(input=$EXEC/libraries/fasta, output=./);
 		trim.seqs(fasta=$i.pairend.fasta, qfile=$i.pairend.qual, qaverage=$QUAL, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$MINLEN, maxlength=$MAXLEN, processors=$NCPUS)"
 	fi
 done
