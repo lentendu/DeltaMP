@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# author: Guillaume Lentendu (lentendu@rhrk.uni-kl.de)
+# author: Guillaume Lentendu (guillaume.lentendu@unine.ch)
 
 # Usage info
 show_help() {
@@ -45,7 +45,7 @@ AUTHOR
 	Guillaume Lentendu, Christina Weißbecker, Anna Heintz-Buschart and Tesfaye Wubet
 
 REPORTING BUGS
-	Submit suggestions and bug-reports at <https://github.com/lentendu/issues>, send a pull request on <https://github.com/lentendu>, or compose an e-mail to Guillaume Lentendu <lentendu@rhrk.uni-kl.de>.
+	Submit suggestions and bug-reports at <https://github.com/lentendu/issues>, send a pull request on <https://github.com/lentendu>, or compose an e-mail to Guillaume Lentendu <guillaume.lentendu@unine.ch>.
 	
 COPYRIGHT
 	Copyright (C) 2018 Guillaume Lentendu, Christina Weißbecker, Anna Heintz-Buschart and Tesfaye Wubet

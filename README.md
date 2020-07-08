@@ -144,7 +144,7 @@ AUTHOR
 	Guillaume Lentendu, Christina Weißbecker, Anna Heintz-Buschart and Tesfaye Wubet
 
 REPORTING BUGS
-	Submit suggestions and bug-reports at <https://github.com/lentendu/DeltaMP/issues>, send a pull request on <https://github.com/lentendu/DeltaMP>, or compose an e-mail to Guillaume Lentendu <lentendu@rhrk.uni-kl.de>.
+	Submit suggestions and bug-reports at <https://github.com/lentendu/DeltaMP/issues>, send a pull request on <https://github.com/lentendu/DeltaMP>, or compose an e-mail to Guillaume Lentendu <guilaume.lentendu@unine.ch>.
 
 COPYRIGHT
 	Copyright (C) 2018 Guillaume Lentendu, Christina Weißbecker, Anna Heintz-Buschart and Tesfaye Wubet
@@ -447,7 +447,7 @@ In all those cases, check the standard output (.out) and standard error (.err) l
 
 To detect job terminated due to overpassing requested memory and/or time, compare the requested memory/time in the problematic step's script with the maximum used memory/runtime during job execution. To print job's record after execution, use `qacct` (grid Engine) or `sacct` (SLURM).
 
-For unsolved issues, send an email to lentendu@rhrk.uni-kl.de, including the .out and .err log files as well as the output of the qacct command for the problematic job.
+For unsolved issues, send an email to guillaume.lentendu@unine.ch, including the .out and .err log files as well as the output of the qacct command for the problematic job.
 
 
 ## References
