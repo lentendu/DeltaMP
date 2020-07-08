@@ -1,5 +1,5 @@
 # object variables
-version := 0.3
+version := 0.4
 SHELL := /bin/bash
 batch := $(shell grep BATCH_QUEUE config.txt | cut -f 2)
 modulefiles := $(shell grep MODULEFILES_DIR config.txt | cut -f 2)

@@ -37,7 +37,7 @@ Last but not least, DeltaMP produces version controlled, reproducible and fully 
 
 ## Installation
 
-Source code of DeltaMP version 0.2 is available at <https://github.com/lentendu/DeltaMP/releases/tag/v0.2>
+Source code of DeltaMP version 0.4 is available at <https://github.com/lentendu/DeltaMP/releases/tag/v0.4>
 
 The repository could also be cloned using for example:
 ```
@@ -69,7 +69,7 @@ DeltaMP is intend to be used on a HPC with a job scheduler (i.e. batch-queuing s
 + [PANDAseq v2.10+](https://github.com/neufeld/pandaseq) (Masella et al., 2012)
 + [biom-format](http://biom-format.org) (McDonald et al., 2012)
 + [GNU parallel](http://savannah.gnu.org/projects/parallel)
-+ [R v3](https://cran.r-project.org/) with the [plyr](https://cran.r-project.org/web/packages/plyr) package
++ [R v3](https://cran.r-project.org/) with the plyr, dplyr, tidyr, tibble, foreach and ggplot2 packages
 + [Ghostscript](https://www.ghostscript.com/)
 + [WebLogo](https://github.com/WebLogo/weblogo)
 + [archive-sum](https://github.com/idiv-biodiversity/archive-sum)
@@ -105,7 +105,7 @@ deltamp -h
 
 ```
 NAME
-	DeltaMP version 0.2 - a flexible, reproducible and resource efficient metabarcoding amplicon pipeline for HPC
+	DeltaMP version 0.4 - a flexible, reproducible and resource efficient metabarcoding amplicon pipeline for HPC
 
 SYNOPSIS
 	Usage: deltamp [-a account_or_project_name] [-cdfhnqtx] [-m max_running_tasks] [-p reference_subproject] [-r step] configuration_file
