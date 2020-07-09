@@ -248,12 +248,18 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Maximum sequence length__: a number between the set Minimum sequence length and 1000. This parameter is used for pair-end assembled reads only in the case of Illumina libraries. The default is 600.
 
-+ __Minimum average quality on the trimmed sequence length__: a number between 20 and 30 (Phred score). The read quality average is calculated after optimal sequence length trimming. The default is 20.
++ __Type of quality filtering__: "average" or "maxee". Filter sequences either based on the average quality or based on the maximum expected error over the sequence, after any length truncation. Filtering based on maximum expected error is only possible for Illumina reads. The default is "average".
+
++ __Minimum average quality on the trimmed sequence length__: a number between 20 and 30 (Phred score). Only consider when the parameter __Type of quality filtering__ is set to "average". The read quality average is calculated after optimal sequence length trimming. The default is 20.
+
++ __Maximum expected error on the trimmed length__: *Illumina specific parameter*, a number between 0.5 and ∞, by step of 0.5. Only consider when the parameter __Type of quality filtering__ is set to "maxee". The default is 2.
+
++ __Minimum length truncation of unpaired reads__: *Illumina specific parameter*, "no" or a number between __Minimum sequence length__ / 2 and ( __Maximum sequence length__ + __Minimum overlap__ ) / 2. When a length is provided, a length truncation is performed before pair-end join, using the length maximizing the length of the read while minimizing the maximum expected error on the truncated length, which allows to keep the read counts fixed by the __Minimum number of trimmed reads per sample__ parameter. The truncation length and the maximum expected error are optimized for all combinations of libraries (R1 and R2) and directions (forward and reverse primers) separately. The default is "no".
 
 
 ### PIPELINE section
 
-+ __Minimum number of trimmed reads per sample__: a number between 0 and ∞. If the minimum of raw, raw with primers, pair-end or trimmed reads is not reached in any of the samples, the pipeline will stop after the quality step report the reads numbers in the quality step .out logfile. If the value is between 0 and 1, no threshold is apply on raw reads and the value is used as ratio of raw reads for the tresholding of raw with primers, pair-end and trimmed reads. The default is 2000.
++ __Minimum number of trimmed reads per sample__: a number between 0 and ∞. If the minimum of raw, raw with primers, pair-end (for Illumina) or trimmed reads is not reached in any of the samples, the pipeline will stop after the quality step and report these reads counts in the quality step .out logfile. If the value is between 0 and 1, no threshold is apply on raw reads and the value is used as ratio of reads in the previous filtration step for the tresholding of raw with primers, pair-end and trimmed reads (e.g. read count of trimmed reads have to be > to the provided ratio times read count of pair-end reads). The default is 2000.
 
 + __ITSx region to extract__: "no", “ITS1” or “ITS2” to skip or to extract either regions from fungal ITS reads using ITSx. The default is “no”.
 

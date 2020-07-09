@@ -43,7 +43,7 @@ do
 		# Get quality and length for trimming
 		QUAL=`cut -d "." -f 2 $EXEC/quality_check/trimming.parameters.txt`
 		LENGTH=`cut -d "." -f 1 $EXEC/quality_check/trimming.parameters.txt`
-		if [ $DENOISE == "yes" ]
+		if [ $DENOISE == "flowclus" ]
 		then
 			#trim flows with FlowClus, using all set of primers allowed by PDIFFS mismatches as detected by cutadapt (also work with MOTHUR trim.seqs) because FlowClust does not take into account homopolymers extension in primer mismatches (which append quite often for example for ITS4)
 			if [ $EXT == "bz2" ]
@@ -143,26 +143,80 @@ do
 		fi
 	elif [ $TECH == "Illumina" ]
 	then
-		QUAL=`cat $EXEC/quality_check/optimized.quality.txt`
-		# Merge reads in both direction
-		if [ -f $EXEC/libraries/fasta/$FWD_NAME.$RVS_NAME.$i.pairend.fasta ]
-		then
-			if [ -f $EXEC/libraries/fasta/$RVS_NAME.$FWD_NAME.$i.pairend.fasta ]
-			then
-				vsearch --fastx_revcomp $EXEC/libraries/fasta/$RVS_NAME.$FWD_NAME.$i.pairend.fasta --fastaout - | cat $EXEC/libraries/fasta/$FWD_NAME.$RVS_NAME.$i.pairend.fasta - > $i.pairend.fasta
-				awk '{if($1~"^>"){print} else {printf "%s",$NF; for(i=NF-1;i>=1;i--){printf " %s", $i};printf "\n"}}' $EXEC/libraries/fasta/$RVS_NAME.$FWD_NAME.$i.pairend.qual | cat $EXEC/libraries/fasta/$FWD_NAME.$RVS_NAME.$i.pairend.qual - > $i.pairend.qual
-			else
-				ln -s $EXEC/libraries/fasta/$FWD_NAME.$RVS_NAME.$i.pairend.fasta $PWD/$i.pairend.fasta
-				ln -s $EXEC/libraries/fasta/$FWD_NAME.$RVS_NAME.$i.pairend.qual $PWD/$i.pairend.qual
-			fi
-		elif [ -f $EXEC/libraries/fasta/$RVS_NAME.$FWD_NAME.$i.pairend.fasta ]
-		then
-			vsearch --fastx_revcomp $EXEC/libraries/fasta/$RVS_NAME.$FWD_NAME.$i.pairend.fasta --fastaout $i.pairend.fasta
-			awk '{if($1~"^>"){print} else {printf "%s",$NF; for(i=NF-1;i>=1;i--){printf " %s", $i};printf "\n"}}' $EXEC/libraries/fasta/$RVS_NAME.$FWD_NAME.$i.pairend.qual > $i.pairend.qual
-		fi
 		# trim
-		mothur "#set.logfile(name=$LOG, append=T);
-		trim.seqs(fasta=$i.pairend.fasta, qfile=$i.pairend.qual, qaverage=$QUAL, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$MINLEN, maxlength=$MAXLEN, processors=$NCPUS)"
+		if [ $TRUNCLEN == "no" ]
+		then
+			if [ $EXT == "bz2" ]; then DECOMP="bunzip2 -ck" ; COMP=bzip2 ; else DECOMP="unpigz -ck" ; COMP="pigz -p 1 -b 1024" ; fi
+			# Concatenate reads in both direction
+			if [ -f $EXEC/libraries/fastq/$FWD_NAME.$RVS_NAME.$i.pairend.fastq.$EXT ]
+			then
+				if [ -f $EXEC/libraries/fastq/$RVS_NAME.$FWD_NAME.$i.pairend.fastq.$EXT ]
+				then
+					vsearch --quiet --fastx_revcomp $EXEC/libraries/fastq/$RVS_NAME.$FWD_NAME.$i.pairend.fastq.$EXT --fastqout - | cat <($DECOMP $EXEC/libraries/fastq/$FWD_NAME.$RVS_NAME.$i.pairend.fastq.$EXT) - | $COMP > $i.pairend.fastq.$EXT
+				else
+					ln -s $EXEC/libraries/fastq/$FWD_NAME.$RVS_NAME.$i.pairend.fastq.$EXT $PWD/$i.pairend.fastq.$EXT
+				fi
+			elif [ -f $EXEC/libraries/fastq/$RVS_NAME.$FWD_NAME.$i.pairend.fastq.$EXT ]
+			then
+				vsearch --quiet --fastx_revcomp $EXEC/libraries/fastq/$RVS_NAME.$FWD_NAME.$i.pairend.fastq.$EXT --fastqout - | $COMP > $i.pairend.fastq.$EXT
+			fi
+			QUAL=`cat $EXEC/quality_check/optimized.quality.txt`
+			if [ $QFILT == "average" ]
+			then
+				$DECOMP $i.pairend.fastq.$EXT
+				mothur "#set.logfile(name=$LOG, append=T);
+				fastq.info(fastq=$i.pairend.fastq);
+				trim.seqs(fasta=$i.pairend.fasta, qfile=$i.pairend.qual, qaverage=$QUAL, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$MINLEN, maxlength=$MAXLEN, processors=$NCPUS)"
+				rm $i.pairend.fastq $i.pairend.fasta $i.pairend.scrap.fasta $i.pairend.*qual
+			elif [ $QFILT == "maxee" ]
+			then
+				vsearch --quiet --fastq_filter $i.pairend.fastq.$EXT --fastq_maxee $QUAL --fastq_maxlen $MAXLEN --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastaout $i.pairend.trim.fasta
+				rm $i.pairend.fastq.$EXT
+			fi
+		else
+			# Truncate and pair-end merge
+			read FWD_LIB RVS_LIB < <(grep $i $EXEC/config/lib3.list | cut -f 2-3)
+			for x in ${FWD_NAME} ${RVS_NAME}
+			do
+				if [ $x == "$FWD_NAME" ] ; then y=${RVS_NAME} ; else y=${FWD_NAME} ; fi
+				if [ -f $EXEC/libraries/fastq/$x.$y.$i.pairend.fastq.$EXT ]
+				then
+					read FTLEN FEE RTLEN REE < <(paste $EXEC/quality_check/$x.fwd.optimized.quality.txt $EXEC/quality_check/$y.rvs.optimized.quality.txt)
+			        vsearch --quiet --fastq_filter $EXEC/libraries/fastq/$x.${FWD_LIB}.fastq.$EXT --fastq_maxee $FEE --fastq_trunclen $FTLEN --fastqout $x.${FWD_LIB}.trunc.fastq
+			        vsearch --quiet --fastq_filter $EXEC/libraries/fastq/$y.${RVS_LIB}.fastq.$EXT --fastq_maxee $REE --fastq_trunclen $RTLEN --fastqout $y.${RVS_LIB}.trunc.fastq
+					join <(sed -n '1~4{s/[\t ].*$//;p}' $x.${FWD_LIB}.trunc.fastq | sort) <(sed -n '1~4{s/[\t ].*$//;p}' $y.${RVS_LIB}.trunc.fastq | sort) | sed 's/^@//' > $x.$y.$i.trunc.accnos
+					sed -n '$=' $x.$y.$i.trunc.accnos > $x.$y.$i.trunc.nb
+					obigrep --without-progress-bar --uppercase --id-list=$x.$y.$i.trunc.accnos $x.${FWD_LIB}.trunc.fastq | sed '/^@/s/  */ /' > $x.${FWD_LIB}.filtered.fastq
+					obigrep --without-progress-bar --uppercase --id-list=$x.$y.$i.trunc.accnos $y.${RVS_LIB}.trunc.fastq | sed '/^@/s/  */ /' > $y.${RVS_LIB}.filtered.fastq
+					if [ $PALG == "vsearch" ]
+					then
+						ASCII=$(vsearch --fastq_chars $x.${FWD_LIB}.filtered.fastq 2>&1 | grep -m 1 "^Guess" | sed 's/.* //')
+						PCTTRESH=$(awk -v P=$PTRESH 'BEGIN{print (1-P)*100}')
+						vsearch --quiet --threads $NCPUS --fastq_mergepairs $x.${FWD_LIB}.filtered.fastq --reverse $y.${RVS_LIB}.filtered.fastq --fastq_ascii $ASCII --fastq_minovlen $MIN_OV --fastq_maxdiffpct $PCTTRESH --fastq_allowmergestagger --fastqout $x.$y.$i.pairend.fastq 2> log.pairend.$x.$i.txt
+					else
+						pandaseq -f $x.${FWD_LIB}.filtered.fastq -r $y.${RVS_LIB}.filtered.fastq -g log.pairend.$x.$i.txt -F -A $PALG -o $MIN_OV -t $PTRESH -T $NCPUS > $x.$y.$i.pairend.fastq
+					fi
+					rm $x.${FWD_LIB}.trunc.fastq $y.${RVS_LIB}.trunc.fastq $x.$y.$i.trunc.accnos $x.${FWD_LIB}.filtered.fastq $y.${RVS_LIB}.filtered.fastq
+				fi
+			done
+			# Concatenate both direction
+			if [ -f $FWD_NAME.$RVS_NAME.$i.pairend.fastq ]
+			then
+				if [ -f $RVS_NAME.$FWD_NAME.$i.pairend.fastq ]
+				then
+					vsearch --fastx_revcomp $RVS_NAME.$FWD_NAME.$i.pairend.fastq --fastqout - | cat $FWD_NAME.$RVS_NAME.$i.pairend.fastq - | vsearch --quiet --fastq_filter - --fastq_maxlen $MAXLEN --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastaout $i.pairend.trim.fasta
+					rm $RVS_NAME.$FWD_NAME.$i.pairend.fastq $FWD_NAME.$RVS_NAME.$i.pairend.fastq
+				else
+					vsearch --quiet --fastq_filter $FWD_NAME.$RVS_NAME.$i.pairend.fastq --fastq_maxlen $MAXLEN --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastaout $i.pairend.trim.fasta
+					rm $FWD_NAME.$RVS_NAME.$i.pairend.fastq
+				fi
+			elif [ -f $RVS_NAME.$FWD_NAME.$i.pairend.fastq ]
+			then
+				vsearch --fastx_revcomp $RVS_NAME.$FWD_NAME.$i.pairend.fastq --fastqout - | vsearch --quiet --fastq_filter - --fastq_maxlen $MAXLEN --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastaout $i.pairend.trim.fasta
+				rm $RVS_NAME.$FWD_NAME.$i.pairend.fastq
+			fi
+			
+		fi			
 	fi
 done
 
@@ -174,7 +228,6 @@ then
 else
 	ln -s $TRIMMED $SAMP.trim.fasta
 fi
-rm *scrap* *qual
 FASTA=$SAMP.trim
 
 # Reverse-complement

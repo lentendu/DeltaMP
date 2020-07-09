@@ -61,12 +61,12 @@ else
 fi
 
 # raw reads stat
-if [ $EXT == "bz2" ]; then DECOMP="bunzip2 -ck" ; else DECOMP="unpigz -ck" ; fi
-for i in ${RVS_LIB} ${FWD_LIB}
+if [ $EXT == "bz2" ]; then DECOMP="bunzip2 -ck" ; COMP=bzip2 ; else DECOMP="unpigz -ck" ; COMP="pigz -p 1 -b 1024" ; fi
+for i in ${FWD_LIB} ${RVS_LIB}
 do
 	for j in ${FWD_NAME} ${RVS_NAME}
 	do
-		if [ $j == ${FWD_NAME} ] ; then k=$LIB_NAME.fwd ; else k=$LIB_NAME.rvs ; fi
+		if [ $i == ${FWD_LIB} ] ; then k=$LIB_NAME.fwd ; else k=$LIB_NAME.rvs ; fi
 		if [ -f fastq/$j.$i.fastq.$EXT ]
 		then
 			if [ $($DECOMP fastq/$j.$i.fastq.$EXT | wc -c) -gt 0 ]
@@ -83,6 +83,22 @@ do
 		fi
 	done
 done
+
+# Filter unpaired reads
+if [ $TRUNCLEN != "no" ]
+then
+	# Process both direction separately
+	for i in ${FWD_NAME} ${RVS_NAME}
+	do
+		if [ $i == "$FWD_NAME" ] ; then j=${RVS_NAME} ; else j=${FWD_NAME} ; fi
+		if [ -f fastq/$i.${FWD_LIB}.fastq.$EXT ]
+		then
+			vsearch --quiet --threads 1 --fastq_filter fastq/$i.${FWD_LIB}.fastq.$EXT --reverse fastq/$j.${RVS_LIB}.fastq.$EXT --fastq_maxns $MAXAMBIG --fastq_truncee $MAXEE --fastq_trunclen_keep $((($MAXLEN + $MIN_OV)/2)) --fastqout fastq/$i.${FWD_LIB}.trunc.fastq --fastqout_rev fastq/$j.${RVS_LIB}.trunc.fastq
+			$COMP fastq/$i.${FWD_LIB}.trunc.fastq
+			$COMP fastq/$j.${RVS_LIB}.trunc.fastq
+		fi
+	done
+fi
 
 # list files and directories
 . $BIN/list_step_files.sh

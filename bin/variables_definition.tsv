@@ -19,6 +19,7 @@ MAXAMBIG	0	Maximum number of ambiguities allowed in the sequence	^[0-9]+$
 MAXHOMOP	10	Maximum homopolymer length allowed	^[0-9]+$
 MINLEN	50	Minimum sequence length	^[0-9]+$
 MAXLEN	600	Maximum sequence length	^[0-9]+$
+QFILT	average	Type of quality filtering	average maxee
 MINQUAL	20	Minimum average quality on the trimmed sequence length	^[0-9]+$
 MIN_DEPTH	2000	Minimum number of trimmed reads per sample	^[0-9]+(.[0-9]+)?$
 ITSX	no	ITSx region to extract	no ^ITS[12]$

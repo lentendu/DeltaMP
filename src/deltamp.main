@@ -291,9 +291,17 @@ then
 	else
 		error_doc "sequencing direction should be either forward, reverse or both, not ${SEQ_DIR}."
 	fi
+	if [ $QFILT == "maxee" ]
+	then
+		error_doc "maximum expected error filtering is not implemented for 454 reads"
+	fi
 elif [ $TECH == "Illumina" ]
 then
 	RAW_EXT=fastq
+	if [ $QFILT == "average" ] && [ $TRUNCLEN != "no" ]
+	then
+		error_doc "length of unpaired reads cannot be truncated when using the average quality filtering method, use maxee instead"
+	fi
 else
 	error_doc "sequencing technology should be either 454 or Illumina, not ${TECH}."
 fi

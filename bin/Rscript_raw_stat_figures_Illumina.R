@@ -10,9 +10,17 @@ amp<-commandArgs()[9]
 lib<-commandArgs()[10]
 fwd<-commandArgs()[11]
 rvs<-commandArgs()[12]
+trunc<-commandArgs()[13]
 source(file.path(bin,"palette.R"))
 
-list<-apply(expand.grid(c("fwd","rvs","pairend","pairend_trim"),c("meanqual","meanposqual","length")),1,paste,collapse=".")
+if(trunc=="no") {
+	types<-c("fwd","rvs","pairend","pairend_trim")
+	fulltypes<-c("forward reads","reverse reads","pair-end reads","minimal quality paired reads")
+} else {
+	types<-c("fwd","rvs","pairend")
+	fulltypes<-c("forward reads","reverse reads","pair-end reads")
+}
+list<-apply(expand.grid(types,c("meanqual","meanposqual","length")),1,paste,collapse=".")
 
 if(lib=="all") {
   assign(paste0("files_",fwd),sub(paste0(fwd,"\\."),"",sub("\\.fwd\\.meanqual","",list.files(pattern=paste0(fwd,".*.fwd.meanqual")))))
@@ -38,9 +46,6 @@ my_theme<-theme_bw() +
         plot.subtitle=element_text(size=12,hjust=0.5),
         plot.margin=margin(t=12, r=12, b=12, l=12, unit="pt"))
 theme_set(my_theme)
-
-types<-c("fwd","rvs","pairend","pairend_trim")
-fulltypes<-c("forward reads","reverse reads","pair-end reads","minimal quality paired reads")
 
 meanqual<-foreach(x=types,.combine=rbind) %do% {
   foreach(y=samples,.combine=rbind) %do% {

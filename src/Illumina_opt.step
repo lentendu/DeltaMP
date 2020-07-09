@@ -28,33 +28,42 @@ read SAMPLE FWD_LIB RVS_LIB <<<`sed -n ${ARRAY_TASK}'{s/\.fastq//g;p}' config/li
 LIB_NAME=`printf "%s\n%s\n" $FWD_LIB $RVS_LIB | sed -e 'N;s/^\(.*\).*\n\1.*$/\1/'`
 cd libraries
 
-# Trim for optimization of sequence quality, both direction separately
+# Trim or truncate for optimization of sequence quality, both direction separately
 for i in ${FWD_NAME} ${RVS_NAME}
 do
 	if [ $i == "$FWD_NAME" ] ; then j=${RVS_NAME} ; else j=${FWD_NAME} ; fi
-	if [ -f fasta/$i.$j.$LIB_NAME.pairend.fasta ]
+	if [ -f fastq/$i.$j.$LIB_NAME.pairend.fastq.$EXT ]
 	then
-		if [ $DENOISE == "dada2" ]
+		if [ $TRUNCLEN == "no" ]
 		then
-			vsearch --fastq_eestats2 fastq/${LIB_NAME}.fwd.fastq.$EXT --length_cutoffs $MINLEN,*,5 --ee_cutoffs 0.5,1.0,2.0 --output fastq/${LIB_NAME}.fwd.eestat
-		else
-			mothur "#set.dir(input=$EXEC/libraries/fasta, output=$EXEC/libraries/fasta);
-			set.logfile(name=mothur.$LIB_NAME.logfile, append=T);
-			trim.seqs(fasta=$i.$j.$LIB_NAME.pairend.fasta, qfile=$i.$j.$LIB_NAME.pairend.qual, qaverage=$MINQUAL, minlength=$MINLEN, maxlength=$MAXLEN, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, processors=1);
-			make.fastq(fasta=$i.$j.$LIB_NAME.pairend.trim.fasta, qfile=$i.$j.$LIB_NAME.pairend.trim.qual)" > /dev/null
-			
+			if [ $QFILT == "maxee" ]
+			then
+				vsearch --quiet --threads 1 --fastq_filter fastq/$i.$j.$LIB_NAME.pairend.fastq.$EXT --eeout --fastq_maxlen $MAXLEN --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastqout fasta/$i.$j.$LIB_NAME.pairend.trim.fastq
+				vsearch --quiet --fastq_eestats2 fasta/$i.$j.$LIB_NAME.pairend.trim.fastq --ee_cutoffs $(seq $MAXEE -0.5 0.5 | tr "\n" "," | sed 's/,$//') --length_cutoffs $MINLEN,*,50 --output - | sed -n '/^----/{n;s/^  *[0-9]*  *//;s/  */\t/g;s/(\t*\([0-9\.]*\)%)//g;p}' > ../quality_check/$i.$j.$LIB_NAME.stat
+			else
+				if [ $EXT == "bz2" ]; then DECOMP="bunzip2 -ck" ; else DECOMP="unpigz -ck" ; fi
+				$DECOMP fastq/$i.$j.$LIB_NAME.pairend.fastq.$EXT > fastq/$i.$j.$LIB_NAME.pairend.fastq
+				mothur "#set.dir(input=$EXEC/libraries/fastq, output=$EXEC/libraries/fasta);
+				set.logfile(name=mothur.$LIB_NAME.logfile, append=T);
+				fastq.info(fastq=$i.$j.$LIB_NAME.pairend.fastq);
+				set.dir(input=$EXEC/libraries/fasta);
+				trim.seqs(fasta=$i.$j.$LIB_NAME.pairend.fasta, qfile=$i.$j.$LIB_NAME.pairend.qual, qaverage=$MINQUAL, minlength=$MINLEN, maxlength=$MAXLEN, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, processors=1);
+				make.fastq(fasta=$i.$j.$LIB_NAME.pairend.trim.fasta, qfile=$i.$j.$LIB_NAME.pairend.trim.qual)" > /dev/null
+				awk '$1!~">"{sum=0;for(i=1;i<=NF;i++){sum+=$i};print sum/NF}' fasta/$i.$j.$LIB_NAME.pairend.trim.qual > fasta/$i.$j.$LIB_NAME.pairend.trim.qual.stat
+				for k in $(seq $MINQUAL 30)
+				do
+					awk -v K=$k 'BEGIN{sum=0} $1>=K{sum+=1}END{print sum}' fasta/$i.$j.$LIB_NAME.pairend.trim.qual.stat
+				done | tr "\n" "\t" | sed 's/$/\n/' > ../quality_check/$i.$j.$LIB_NAME.stat
+				rm fastq/$i.$j.$LIB_NAME.pairend.fastq fastq/$i.$j.$LIB_NAME.pairend.fasta fastq/$i.$j.$LIB_NAME.pairend.qual fasta/$i.$j.$LIB_NAME.pairend.trim.fasta fasta/$i.$j.$LIB_NAME.pairend.scrap.fasta fasta/$i.$j.$LIB_NAME.pairend.trim.qual fasta/$i.$j.$LIB_NAME.pairend.scrap.qual fasta/$i.$j.$LIB_NAME.pairend.trim.qual.stat
+			fi
 			vsearch --quiet --fastq_stats fasta/$i.$j.$LIB_NAME.pairend.trim.fastq --log fasta/$i.$j.$LIB_NAME.pairend_trim.stats
 			sed -n '/^Read length distribution/,/^$/{s/>=//;p}' fasta/$i.$j.$LIB_NAME.pairend_trim.stats | awk '$3~"%"{print $1,$2}' | sort -k1,1n > raw_stat/$i.$j.$LIB_NAME.pairend_trim.length
 			sed -n '/^Q score distribution/,/^$/p' fasta/$i.$j.$LIB_NAME.pairend_trim.stats | awk '$5~"%"{print $2,$4}' | sort -k 1,1 | join -a 1 -o 0,2.2 -e "0" <(seq 0 41 | sort -k 1,1) - | sort -k 1,1n | cut -d " " -f 2 > raw_stat/$i.$j.$LIB_NAME.pairend_trim.meanqual
 			sed -n '/RatePct/,/^$/p' fasta/$i.$j.$LIB_NAME.pairend_trim.stats | sed '1,2d;$d' | awk '{print $3}' > raw_stat/$i.$j.$LIB_NAME.pairend_trim.meanposqual
-			
-			awk '$1!~">"{sum=0;for(i=1;i<=NF;i++){sum+=$i};print sum/NF}' fasta/$i.$j.$LIB_NAME.pairend.trim.qual > fasta/$i.$j.$LIB_NAME.pairend.trim.qual.stat
-			for k in $(seq $MINQUAL 30)
-			do
-				awk -v K=$k 'BEGIN{sum=0} $1>=K{sum+=1}END{print sum}' fasta/$i.$j.$LIB_NAME.pairend.trim.qual.stat
-			done | tr "\n" "\t" | sed 's/$/\n/' > ../quality_check/$i.$j.$LIB_NAME.stat
-		
-			rm fasta/$i.$j.$LIB_NAME.pairend_trim.stats fasta/$i.$j.$LIB_NAME.pairend.trim.fastq fasta/$i.$j.$LIB_NAME.pairend.trim.qual.stat fasta/$i.$j.$LIB_NAME.pairend.trim.fasta fasta/$i.$j.$LIB_NAME.pairend.scrap.fasta fasta/$i.$j.$LIB_NAME.pairend.trim.qual fasta/$i.$j.$LIB_NAME.pairend.scrap.qual
+			rm fasta/$i.$j.$LIB_NAME.pairend_trim.stats fasta/$i.$j.$LIB_NAME.pairend.trim.fastq
+		else
+			vsearch --quiet --fastq_eestats2 fastq/$i.${FWD_LIB}.fastq.$EXT --length_cutoffs $TRUNCLEN,*,5 --ee_cutoffs $(seq 0.5 0.5 $MAXEE | tr "\n" "," | sed 's/,$//') --output - | sed '1,/^---/d;s/^  *//;s/  */\t/g;s/\([0-9]*\)(\t*\([0-9\.]*\)%)/\1 \2/g' > ../quality_check/$i.${FWD_LIB}.eestat
+			vsearch --quiet --fastq_eestats2 fastq/$j.${RVS_LIB}.fastq.$EXT --length_cutoffs $TRUNCLEN,*,5 --ee_cutoffs $(seq 0.5 0.5 $MAXEE | tr "\n" "," | sed 's/,$//') --output - | sed '1,/^---/d;s/^  *//;s/  */\t/g;s/\([0-9]*\)(\t*\([0-9\.]*\)%)/\1 \2/g' > ../quality_check/$j.${RVS_LIB}.eestat
 		fi
 	fi
 done
