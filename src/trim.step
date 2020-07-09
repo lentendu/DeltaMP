@@ -146,13 +146,13 @@ do
 		# trim
 		if [ $TRUNCLEN == "no" ]
 		then
-			if [ $EXT == "bz2" ]; then DECOMP="bunzip2 -ck" ; COMP=bzip2 ; else DECOMP="unpigz -ck" ; COMP="pigz -p 1 -b 1024" ; fi
+			if [ $EXT == "bz2" ]; then DECOMP=bunzip2 ; COMP=bzip2 ; else DECOMP=unpigz ; COMP="pigz -p 1 -b 1024" ; fi
 			# Concatenate reads in both direction
 			if [ -f $EXEC/libraries/fastq/$FWD_NAME.$RVS_NAME.$i.pairend.fastq.$EXT ]
 			then
 				if [ -f $EXEC/libraries/fastq/$RVS_NAME.$FWD_NAME.$i.pairend.fastq.$EXT ]
 				then
-					vsearch --quiet --fastx_revcomp $EXEC/libraries/fastq/$RVS_NAME.$FWD_NAME.$i.pairend.fastq.$EXT --fastqout - | cat <($DECOMP $EXEC/libraries/fastq/$FWD_NAME.$RVS_NAME.$i.pairend.fastq.$EXT) - | $COMP > $i.pairend.fastq.$EXT
+					vsearch --quiet --fastx_revcomp $EXEC/libraries/fastq/$RVS_NAME.$FWD_NAME.$i.pairend.fastq.$EXT --fastqout - | cat <($DECOMP -ck $EXEC/libraries/fastq/$FWD_NAME.$RVS_NAME.$i.pairend.fastq.$EXT) - | $COMP > $i.pairend.fastq.$EXT
 				else
 					ln -s $EXEC/libraries/fastq/$FWD_NAME.$RVS_NAME.$i.pairend.fastq.$EXT $PWD/$i.pairend.fastq.$EXT
 				fi
@@ -170,7 +170,7 @@ do
 				rm $i.pairend.fastq $i.pairend.fasta $i.pairend.scrap.fasta $i.pairend.*qual
 			elif [ $QFILT == "maxee" ]
 			then
-				vsearch --quiet --fastq_filter $i.pairend.fastq.$EXT --fastq_maxee $QUAL --fastq_maxlen $MAXLEN --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastaout $i.pairend.trim.fasta
+				vsearch --quiet --fastq_filter $i.pairend.fastq.$EXT --fastq_maxee $QUAL --fastq_maxlen $MAXLEN --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastaout - | twofasta | awk '{if($1~"^>"){gsub(":","_",$1)};print $1}' > $i.pairend.trim.fasta
 				rm $i.pairend.fastq.$EXT
 			fi
 		else
@@ -204,15 +204,15 @@ do
 			then
 				if [ -f $RVS_NAME.$FWD_NAME.$i.pairend.fastq ]
 				then
-					vsearch --fastx_revcomp $RVS_NAME.$FWD_NAME.$i.pairend.fastq --fastqout - | cat $FWD_NAME.$RVS_NAME.$i.pairend.fastq - | vsearch --quiet --fastq_filter - --fastq_maxlen $MAXLEN --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastaout $i.pairend.trim.fasta
+					vsearch --fastx_revcomp $RVS_NAME.$FWD_NAME.$i.pairend.fastq --fastqout - | cat $FWD_NAME.$RVS_NAME.$i.pairend.fastq - | vsearch --quiet --fastq_filter - --fastq_maxlen $MAXLEN --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastaout - | twofasta | awk '{if($1~"^>"){gsub(":","_",$1)};print $1}' > $i.pairend.trim.fasta
 					rm $RVS_NAME.$FWD_NAME.$i.pairend.fastq $FWD_NAME.$RVS_NAME.$i.pairend.fastq
 				else
-					vsearch --quiet --fastq_filter $FWD_NAME.$RVS_NAME.$i.pairend.fastq --fastq_maxlen $MAXLEN --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastaout $i.pairend.trim.fasta
+					vsearch --quiet --fastq_filter $FWD_NAME.$RVS_NAME.$i.pairend.fastq --fastq_maxlen $MAXLEN --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastaout - | twofasta | awk '{if($1~"^>"){gsub(":","_",$1)};print $1}' > $i.pairend.trim.fasta
 					rm $FWD_NAME.$RVS_NAME.$i.pairend.fastq
 				fi
 			elif [ -f $RVS_NAME.$FWD_NAME.$i.pairend.fastq ]
 			then
-				vsearch --fastx_revcomp $RVS_NAME.$FWD_NAME.$i.pairend.fastq --fastqout - | vsearch --quiet --fastq_filter - --fastq_maxlen $MAXLEN --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastaout $i.pairend.trim.fasta
+				vsearch --fastx_revcomp $RVS_NAME.$FWD_NAME.$i.pairend.fastq --fastqout - | vsearch --quiet --fastq_filter - --fastq_maxlen $MAXLEN --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastaout - | twofasta | awk '{if($1~"^>"){gsub(":","_",$1)};print $1}' > $i.pairend.trim.fasta
 				rm $RVS_NAME.$FWD_NAME.$i.pairend.fastq
 			fi
 			
