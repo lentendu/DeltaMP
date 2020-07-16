@@ -185,7 +185,6 @@ do
 			        vsearch --quiet --fastq_filter $EXEC/libraries/fastq/$x.${FWD_LIB}.fastq.$EXT --fastq_maxee $FEE --fastq_trunclen $FTLEN --fastq_maxns $MAXAMBIG --fastqout $x.${FWD_LIB}.trunc.fastq
 			        vsearch --quiet --fastq_filter $EXEC/libraries/fastq/$y.${RVS_LIB}.fastq.$EXT --fastq_maxee $REE --fastq_trunclen $RTLEN --fastq_maxns $MAXAMBIG --fastqout $y.${RVS_LIB}.trunc.fastq
 					join <(sed -n '1~4{s/[\t ].*$//;p}' $x.${FWD_LIB}.trunc.fastq | sort) <(sed -n '1~4{s/[\t ].*$//;p}' $y.${RVS_LIB}.trunc.fastq | sort) | sed 's/^@//' > $x.$y.$i.trunc.accnos
-					sed -n '$=' $x.$y.$i.trunc.accnos > $x.$y.$i.trunc.nb
 					obigrep --without-progress-bar --uppercase --id-list=$x.$y.$i.trunc.accnos $x.${FWD_LIB}.trunc.fastq | sed '/^@/s/  */ /' > $x.$i.fwd.filtered.fastq
 					obigrep --without-progress-bar --uppercase --id-list=$x.$y.$i.trunc.accnos $y.${RVS_LIB}.trunc.fastq | sed '/^@/s/  */ /' > $y.$i.rvs.filtered.fastq
 					if [ $PALG == "vsearch" ]
