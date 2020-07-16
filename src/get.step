@@ -99,7 +99,7 @@ else
 fi
 
 
-# Extract individual libraries only if not uniformly compressed to gz or bz2, then re-compress uniformly to bz2 if needed
+# Extract individual libraries only if not uniformly compressed to gz or bz2, then re-compress uniformly to gz if needed
 if [ ${#COMP_EXT[@]} -eq 1 ] && [[ "gz bz2" == *${COMP_EXT[0]}* ]]
 then
 	:
@@ -113,11 +113,11 @@ then
 			*.zip) unzip $@ ;;
 		esac
 	}
-	export -f my extract2
+	export -f my_extract2
 	parallel -j $NCPUS my_extract2 ::: ${ARCH[@]}
-	parallel -j $NCPUS bzip2 -1 ::: ${ARCH[@]%.*}
+	parallel -j $NCPUS pigz -p 1 -b 1024 ::: ${ARCH[@]%.*}
 else
-	parallel -j $NCPUS bzip2 -1 ::: ${ARCH[@]}
+	parallel -j $NCPUS pigz -p 1 -b 1024 ::: ${ARCH[@]}
 fi
 
 
