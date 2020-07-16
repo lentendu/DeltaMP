@@ -106,7 +106,14 @@ obigrep --without-progress-bar --uppercase --id-list=<(awk 'NR>1{print $NF}' $SU
 for i in "${LABELS[@]}"
 do
 	awk -v L=$SAMP_SIZE 'NR>1{for(i=2;i<=(L+1);i++){sum[i]+=$i}}END{for(i=2;i<=(L+1);i++){printf "%s\t", sum[i]}}' $SUBPROJECT.${i}_OTUs.tsv | sed 's/\t$/\n/'
-done | cat <(sed -n '1p' $SUBPROJECT.all_OTUs.tsv | awk -v L=$SAMP_SIZE '{for(i=2;i<=L+1;i++){printf "%s\t", $i}}' | sed 's/\t$/\n/') - | transpose | sort -k 1,1 | mimato | cat <(echo ${LABELS[@]} | sed 's/ /_OTUs /g;s/$/_OTUs/;s/^/Sample /') - | tr " " "\t" | sed '/^Sample/s/_/ /g' | cut -f 2- | paste ../quality_check/$SUBPROJECT.summary.stat.tsv - > $SUBPROJECT.read_counts.tsv
+done | cat <(sed -n '1p' $SUBPROJECT.all_OTUs.tsv | awk -v L=$SAMP_SIZE '{for(i=2;i<=L+1;i++){printf "%s\t", $i}}' | sed 's/\t$/\n/') - | transpose | sort -k 1,1 | mimato | cat <(echo ${LABELS[@]} | sed 's/ /_OTUs /g;s/$/_OTUs/;s/^/Sample /') - | tr " " "\t" | sed '/^Sample/s/_/ /g' | cut -f 2- > tmp.read_counts.tsv
+if [ $CLUST == "dada2" ]
+then
+	sed '1d' $SUBPROJECT.dada2.read_counts.tsv | mimato | cat <(HEADER=($(head -1 $SUBPROJECT.dada2.read_counts.tsv)); echo ${HEADER[@]^} | tr " " "\t") - | cut -f 2- | paste <(cut -f 1-4,6 ../quality_check/$SUBPROJECT.summary.stat.tsv) - tmp.read_counts.tsv > $SUBPROJECT.read_counts.tsv
+else
+	paste tmp.read_counts.tsv ../quality_check/$SUBPROJECT.summary.stat.tsv - > $SUBPROJECT.read_counts.tsv
+fi
+rm tmp.read_counts.tsv
 
 # Copy to output folders
 OUT_LIST=(`ls $SUBPROJECT.* | grep "tsv$\|repseq\|biom$"`)

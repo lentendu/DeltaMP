@@ -174,7 +174,7 @@ else
 fi
 
 # Integrate back OTUs found in previous subproject OTUs and re-number OTUs starting from last OTU of previous subproject
-if [ $PREV_PATH != "no" ]
+if [ $PREV_PATH != "no" ] # not implemented yet for dada2
 then
 	PREV_CTAXO=$(basename $(tar tzvf $PREV_PATH/$PREV_SUB.processing.files.tar.gz | awk '$NF~"cons\.taxonomy"{sub("\.taxonomy","",$NF);print $NF}'))
 	tar xzvf $PREV_PATH/$PREV_SUB.processing.files.tar.gz $PREV_SUB.processing/$PREV_CTAXO.taxonomy

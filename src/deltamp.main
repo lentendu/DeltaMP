@@ -298,12 +298,27 @@ then
 elif [ $TECH == "Illumina" ]
 then
 	RAW_EXT=fastq
+	ASV=no
+	PERRUN=no
+	if [ $CLUST == "dada2" ]
+	then
+		ASV=yes
+		if [ $DEMULTI == "no" ]
+		then
+			PERRUN=yes
+		fi
+		if [ $TRUNCLEN == "no" ]
+		then
+			error_doc "dada2 require length truncation, provide a length to the parameter: Minimum length truncation of unpaired reads "
+		elif [ $ASSIGN_ALL == "yes" ]
+		then
+			error_doc "cannot assign all reads with dada2, only ASV are available for assignment, turn the Assign all reads option to no or change clustering algorithm "
+		fi
+	fi
 	if [ $QFILT == "average" ] && [ $TRUNCLEN != "no" ]
 	then
 		error_doc "length of unpaired reads cannot be truncated when using the average quality filtering method, use maxee instead"
 	fi
-else
-	error_doc "sequencing technology should be either 454 or Illumina, not ${TECH}."
 fi
 
 # Databases
@@ -410,6 +425,9 @@ then
 	elif [ ! -f $PREV_PATH/$PREV_SUB.processing.files.tar.gz ]
 	then
 		error_doc "There is no processing.files.tar.gz archive in the path to the previous subproject output directory for reference clustering."
+	elif [ ! -f $PREV_PATH/$PREV_SUB.outputs.tar.gz ]
+	then
+		error_doc "There is no outputs.tar.gz archive in the path to the previous subproject output directory for reference clustering."
 	fi
 fi
 
@@ -614,7 +632,20 @@ then
 	fi
 	LIB3_SIZE=`sed -n '$=' config/lib3.list`
 	# lib4 : sample and library filename common prefixes (multiple library allowed for one sample)
-	sed 's/\t\(.*\)[^\t]*\t\1.*$/\t\1/;s/Cil3\([1-9]\)/Cil0\1/g' config/lib3.list | awk '{t[$1]=t[$1]"\t"$2}END{for(i in t){printf "%s%s\n",i,t[i]}}' | sort > config/lib4.list
+	sed 's/\t\(.*\)[^\t]*\t\1.*$/\t\1/' config/lib3.list | awk '{t[$1]=t[$1]"\t"$2}END{for(i in t){printf "%s%s\n",i,t[i]}}' | sort > config/lib4.list
+	if [ $CLUST == "dada2" ]
+	then
+		awk 'BEGIN{FS=OFS="\t"}{for(i=2;i<=NF;i++){print $1,$i}}' config/lib4.list | sed -r 's/(.*)\t\1\.(.*)$/\1\t\1.\2\t\2/' | awk '{if(NF==2){exit} else print}' > config/librun.list
+		if [ $PERRUN == "no" ]
+		then
+			if [ $(sed -n '$=' config/librun.list) -eq $(sed -n '$=' config/lib4.list) ] && [ $(cut -f 3 config/librun.list | sort -u | sed -n '$=') -lt $(sed -n '$=' config/lib4.list) ]
+			then
+				PERRUN=yes
+			else
+				rm config/librun.list
+			fi
+		fi
+	fi
 fi
 LIB1_SIZE=`sed -n '$=' config/lib1.list`
 SAMP_SIZE=`sed -n '$=' config/lib4.list`

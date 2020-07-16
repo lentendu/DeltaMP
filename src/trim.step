@@ -182,157 +182,168 @@ do
 				if [ -f $EXEC/libraries/fastq/$x.$y.$i.pairend.fastq.$EXT ]
 				then
 					read FTLEN FEE RTLEN REE < <(paste $EXEC/quality_check/$x.fwd.optimized.quality.txt $EXEC/quality_check/$y.rvs.optimized.quality.txt)
-			        vsearch --quiet --fastq_filter $EXEC/libraries/fastq/$x.${FWD_LIB}.fastq.$EXT --fastq_maxee $FEE --fastq_trunclen $FTLEN --fastqout $x.${FWD_LIB}.trunc.fastq
-			        vsearch --quiet --fastq_filter $EXEC/libraries/fastq/$y.${RVS_LIB}.fastq.$EXT --fastq_maxee $REE --fastq_trunclen $RTLEN --fastqout $y.${RVS_LIB}.trunc.fastq
+			        vsearch --quiet --fastq_filter $EXEC/libraries/fastq/$x.${FWD_LIB}.fastq.$EXT --fastq_maxee $FEE --fastq_trunclen $FTLEN --fastq_maxns $MAXAMBIG --fastqout $x.${FWD_LIB}.trunc.fastq
+			        vsearch --quiet --fastq_filter $EXEC/libraries/fastq/$y.${RVS_LIB}.fastq.$EXT --fastq_maxee $REE --fastq_trunclen $RTLEN --fastq_maxns $MAXAMBIG --fastqout $y.${RVS_LIB}.trunc.fastq
 					join <(sed -n '1~4{s/[\t ].*$//;p}' $x.${FWD_LIB}.trunc.fastq | sort) <(sed -n '1~4{s/[\t ].*$//;p}' $y.${RVS_LIB}.trunc.fastq | sort) | sed 's/^@//' > $x.$y.$i.trunc.accnos
 					sed -n '$=' $x.$y.$i.trunc.accnos > $x.$y.$i.trunc.nb
-					obigrep --without-progress-bar --uppercase --id-list=$x.$y.$i.trunc.accnos $x.${FWD_LIB}.trunc.fastq | sed '/^@/s/  */ /' > $x.${FWD_LIB}.filtered.fastq
-					obigrep --without-progress-bar --uppercase --id-list=$x.$y.$i.trunc.accnos $y.${RVS_LIB}.trunc.fastq | sed '/^@/s/  */ /' > $y.${RVS_LIB}.filtered.fastq
+					obigrep --without-progress-bar --uppercase --id-list=$x.$y.$i.trunc.accnos $x.${FWD_LIB}.trunc.fastq | sed '/^@/s/  */ /' > $x.$i.fwd.filtered.fastq
+					obigrep --without-progress-bar --uppercase --id-list=$x.$y.$i.trunc.accnos $y.${RVS_LIB}.trunc.fastq | sed '/^@/s/  */ /' > $y.$i.rvs.filtered.fastq
 					if [ $PALG == "vsearch" ]
 					then
-						ASCII=$(vsearch --fastq_chars $x.${FWD_LIB}.filtered.fastq 2>&1 | grep -m 1 "^Guess" | sed 's/.* //')
+						ASCII=$(vsearch --fastq_chars $x.$i.fwd.filtered.fastq 2>&1 | grep -m 1 "^Guess" | sed 's/.* //')
 						PCTTRESH=$(awk -v P=$PTRESH 'BEGIN{print (1-P)*100}')
-						vsearch --quiet --threads $NCPUS --fastq_mergepairs $x.${FWD_LIB}.filtered.fastq --reverse $y.${RVS_LIB}.filtered.fastq --fastq_ascii $ASCII --fastq_minovlen $MIN_OV --fastq_maxdiffpct $PCTTRESH --fastq_allowmergestagger --fastqout $x.$y.$i.pairend.fastq 2> log.pairend.$x.$i.txt
+						vsearch --quiet --threads $NCPUS --fastq_mergepairs $x.$i.fwd.filtered.fastq --reverse $y.$i.rvs.filtered.fastq --fastq_ascii $ASCII --fastq_minovlen $MIN_OV --fastq_maxdiffpct $PCTTRESH --fastq_allowmergestagger --fastqout $x.$y.$i.pairend.fastq 2> log.pairend.$x.$i.txt
 					else
-						pandaseq -f $x.${FWD_LIB}.filtered.fastq -r $y.${RVS_LIB}.filtered.fastq -g log.pairend.$x.$i.txt -F -A $PALG -o $MIN_OV -t $PTRESH -T $NCPUS > $x.$y.$i.pairend.fastq
+						pandaseq -f $x.$i.fwd.filtered.fastq -r $y.$i.rvs.filtered.fastq -g log.pairend.$x.$i.txt -F -A $PALG -o $MIN_OV -t $PTRESH -T $NCPUS > $x.$y.$i.pairend.fastq
 					fi
-					rm $x.${FWD_LIB}.trunc.fastq $y.${RVS_LIB}.trunc.fastq $x.$y.$i.trunc.accnos $x.${FWD_LIB}.filtered.fastq $y.${RVS_LIB}.filtered.fastq
+					rm $x.${FWD_LIB}.trunc.fastq $y.${RVS_LIB}.trunc.fastq $x.$y.$i.trunc.accnos
 				fi
 			done
 			# Concatenate both direction
-			if [ -f $FWD_NAME.$RVS_NAME.$i.pairend.fastq ]
+			if [ ASV == "no" ]
 			then
-				if [ -f $RVS_NAME.$FWD_NAME.$i.pairend.fastq ]
+				if [ -f $FWD_NAME.$RVS_NAME.$i.pairend.fastq ]
 				then
-					vsearch --fastx_revcomp $RVS_NAME.$FWD_NAME.$i.pairend.fastq --fastqout - | cat $FWD_NAME.$RVS_NAME.$i.pairend.fastq - | vsearch --quiet --fastq_filter - --fastq_maxlen $MAXLEN --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastaout - | twofasta | awk '{if($1~"^>"){gsub(":","_",$1)};print $1}' > $i.pairend.trim.fasta
-					rm $RVS_NAME.$FWD_NAME.$i.pairend.fastq $FWD_NAME.$RVS_NAME.$i.pairend.fastq
-				else
-					vsearch --quiet --fastq_filter $FWD_NAME.$RVS_NAME.$i.pairend.fastq --fastq_maxlen $MAXLEN --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastaout - | twofasta | awk '{if($1~"^>"){gsub(":","_",$1)};print $1}' > $i.pairend.trim.fasta
-					rm $FWD_NAME.$RVS_NAME.$i.pairend.fastq
+					if [ -f $RVS_NAME.$FWD_NAME.$i.pairend.fastq ]
+					then
+						vsearch --fastx_revcomp $RVS_NAME.$FWD_NAME.$i.pairend.fastq --fastqout - | cat $FWD_NAME.$RVS_NAME.$i.pairend.fastq - | vsearch --quiet --fastq_filter - --fastq_maxlen $MAXLEN --fastq_minlen $MINLEN --fastaout - | twofasta | awk '{if($1~"^>"){gsub(":","_",$1)};print $1}' > $i.pairend.trim.fasta
+						rm $RVS_NAME.$FWD_NAME.$i.pairend.fastq $FWD_NAME.$RVS_NAME.$i.pairend.fastq
+					else
+						vsearch --quiet --fastq_filter $FWD_NAME.$RVS_NAME.$i.pairend.fastq --fastq_maxlen $MAXLEN --fastq_minlen $MINLEN --fastaout - | twofasta | awk '{if($1~"^>"){gsub(":","_",$1)};print $1}' > $i.pairend.trim.fasta
+						rm $FWD_NAME.$RVS_NAME.$i.pairend.fastq
+					fi
+				elif [ -f $RVS_NAME.$FWD_NAME.$i.pairend.fastq ]
+				then
+					vsearch --fastx_revcomp $RVS_NAME.$FWD_NAME.$i.pairend.fastq --fastqout - | vsearch --quiet --fastq_filter - --fastq_maxlen $MAXLEN --fastq_minlen $MINLEN --fastaout - | twofasta | awk '{if($1~"^>"){gsub(":","_",$1)};print $1}' > $i.pairend.trim.fasta
+					rm $RVS_NAME.$FWD_NAME.$i.pairend.fastq
 				fi
-			elif [ -f $RVS_NAME.$FWD_NAME.$i.pairend.fastq ]
+				rm *.$i.fwd.filtered.fastq *.$i.rvs.filtered.fastq
+			elif [ ASV == "yes" ] && [ $PERRUN == "no" ]
 			then
-				vsearch --fastx_revcomp $RVS_NAME.$FWD_NAME.$i.pairend.fastq --fastqout - | vsearch --quiet --fastq_filter - --fastq_maxlen $MAXLEN --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastaout - | twofasta | awk '{if($1~"^>"){gsub(":","_",$1)};print $1}' > $i.pairend.trim.fasta
-				rm $RVS_NAME.$FWD_NAME.$i.pairend.fastq
+				Rscript --vanilla $BIN/Rscript_dada2_library.R $NCPUS $i
 			fi
-			
 		fi			
 	fi
 done
 
-# Merge trimmed reads of all libraries of the sample
-TRIMMED=(*.trim.fasta)
-if [ ${#TRIMMED[@]} -gt 1 ]
-then
-	cat *.trim.fasta > $SAMP.trim.fasta
-else
-	ln -s $TRIMMED $SAMP.trim.fasta
-fi
-FASTA=$SAMP.trim
 
-# Reverse-complement
-if [ $TECH == "454" ] && [ $FLIP == "true" ]
+# Process trimmed reads of all libraries of the sample together
+if [ ASV == "no" ]
 then
-	vsearch --quiet --fastx_revcomp $FASTA.fasta --fastaout - | twofasta > $FASTA.rc.fasta
-	FASTA=$FASTA.rc
-fi
-
-# Dereplicate
-if [ $TECH == "454" ] && [ "$DENOISE" == "yes" ]
-then
-	cat *.trim.names > $SAMP.names
-	mothur "#set.logfile(name=$LOG, append=T);
-	unique.seqs(fasta=$FASTA.fasta, name=$SAMP.names, format=count);
-	get.current()"
-	FASTA=`sed -n '/^fasta=/{s/.*=//;s/\.fasta//;p}' current_files.summary`
-	COUNT=`sed -n '/^count=/{s/.*=//;s/\.count_table//;p}' current_files.summary`
-else
-	vsearch --no_progress --derep_fulllength $FASTA.fasta --sizeout --output - | twofasta | sed '/>/s/;/ /' | tee $FASTA.unique.fasta | sed -n "/>/{s/>//;s/ size=/\t/;p}" | cat <(echo -e "Representative_Sequence\ttotal") - > $FASTA.unique.count_table
-	FASTA=$FASTA.unique
-	COUNT=$FASTA
-	echo -e "fasta=$FASTA.fasta\ncount=$COUNT.count_table" > current_files.summary
-fi
-
-# Subsample
-if [ $SUBSAMPLE == "yes" ]
-then
-	SIZE=$(grep "Minimum" $EXEC/quality_check/$SUBPROJECT.summary.stat.tsv | cut -f 3 | cut -d "." -f 1)
-	mothur "#set.logfile(name=$LOG, append=T);
-	sub.sample(fasta=$FASTA.fasta, count=$COUNT.count_table, size=$SIZE);
-	get.current()"
-	FASTA=`sed -n '/^fasta=/{s/.*=//;s/\.fasta//;p}' current_files.summary`
-	COUNT=`sed -n '/^count=/{s/.*=//;s/\.count_table//;p}' current_files.summary`
-fi
-
-# Precluster
-if [ $PRECLUST == "mothur" ]
-then
-	# pre-cluster at max 1% after aligning to reference and removing the 5 % worse aligned reads
-	if [ $TECH == "454" ] && [ $ITSX == "no" ]
+	# concatenate fasta files
+	TRIMMED=(*.trim.fasta)
+	if [ ${#TRIMMED[@]} -gt 1 ]
 	then
-		PRECDIFF=$(( ${LENGTH} / 100 ))
+		cat *.trim.fasta > $SAMP.trim.fasta
 	else
-		PRECDIFF=$(twofasta $FASTA.fasta | awk -v M=$MAXLEN 'BEGIN{min=M}length($1)<M{min=length($1)}END{print int(min/100)'awk '$1!~"^>"{sum+=length($1)}END{print int(sum/(FNR/2)/100)}')
+		ln -s $TRIMMED $SAMP.trim.fasta
 	fi
-	if [ $PRECDIFF -ge 1 ]
+	FASTA=$SAMP.trim
+	
+	# Reverse-complement
+	if [ $TECH == "454" ] && [ $FLIP == "true" ]
 	then
+		vsearch --quiet --fastx_revcomp $FASTA.fasta --fastaout - | twofasta > $FASTA.rc.fasta
+		FASTA=$FASTA.rc
+	fi
+	
+	# Dereplicate
+	if [ $TECH == "454" ] && [ "$DENOISE" == "yes" ]
+	then
+		cat *.trim.names > $SAMP.names
 		mothur "#set.logfile(name=$LOG, append=T);
-		set.dir(tempdefault=$DBFOLD);
-		align.seqs(candidate=$FASTA.fasta, template=$DBCHOP.fasta, align=needleman, processors=$NCPUS);
-		screen.seqs(fasta=current, count=$COUNT.count_table, optimize=start-end, criteria=95, processors=$NCPUS);
-		filter.seqs(fasta=current, vertical=T, trump=., processors=$NCPUS);
-		pre.cluster(fasta=current, count=current, diffs=$PRECDIFF, processors=$NCPUS);
+		unique.seqs(fasta=$FASTA.fasta, name=$SAMP.names, format=count);
+		get.current()"
+		FASTA=`sed -n '/^fasta=/{s/.*=//;s/\.fasta//;p}' current_files.summary`
+		COUNT=`sed -n '/^count=/{s/.*=//;s/\.count_table//;p}' current_files.summary`
+	else
+		vsearch --no_progress --derep_fulllength $FASTA.fasta --sizeout --output - | twofasta | sed '/>/s/;/ /' | tee $FASTA.unique.fasta | sed -n "/>/{s/>//;s/ size=/\t/;p}" | cat <(echo -e "Representative_Sequence\ttotal") - > $FASTA.unique.count_table
+		FASTA=$FASTA.unique
+		COUNT=$FASTA
+		echo -e "fasta=$FASTA.fasta\ncount=$COUNT.count_table" > current_files.summary
+	fi
+	
+	# Subsample
+	if [ $SUBSAMPLE == "yes" ]
+	then
+		SIZE=$(grep "Minimum" $EXEC/quality_check/$SUBPROJECT.summary.stat.tsv | cut -f 3 | cut -d "." -f 1)
+		mothur "#set.logfile(name=$LOG, append=T);
+		sub.sample(fasta=$FASTA.fasta, count=$COUNT.count_table, size=$SIZE);
+		get.current()"
+		FASTA=`sed -n '/^fasta=/{s/.*=//;s/\.fasta//;p}' current_files.summary`
+		COUNT=`sed -n '/^count=/{s/.*=//;s/\.count_table//;p}' current_files.summary`
+	fi
+	
+	# Precluster
+	if [ $PRECLUST == "mothur" ]
+	then
+		# pre-cluster at max 1% after aligning to reference and removing the 5 % worse aligned reads
+		if [ $TECH == "454" ] && [ $ITSX == "no" ]
+		then
+			PRECDIFF=$(( ${LENGTH} / 100 ))
+		else
+			PRECDIFF=$(twofasta $FASTA.fasta | awk -v M=$MAXLEN 'BEGIN{min=M}length($1)<M{min=length($1)}END{print int(min/100)'awk '$1!~"^>"{sum+=length($1)}END{print int(sum/(FNR/2)/100)}')
+		fi
+		if [ $PRECDIFF -ge 1 ]
+		then
+			mothur "#set.logfile(name=$LOG, append=T);
+			set.dir(tempdefault=$DBFOLD);
+			align.seqs(candidate=$FASTA.fasta, template=$DBCHOP.fasta, align=needleman, processors=$NCPUS);
+			screen.seqs(fasta=current, count=$COUNT.count_table, optimize=start-end, criteria=95, processors=$NCPUS);
+			filter.seqs(fasta=current, vertical=T, trump=., processors=$NCPUS);
+			pre.cluster(fasta=current, count=current, diffs=$PRECDIFF, processors=$NCPUS);
+			get.current()"
+			unset FASTA COUNT
+			FASTA=`sed -n '/^fasta=/{s/.*=//;s/\.fasta//;p}' current_files.summary`
+			COUNT=`sed -n '/^count=/{s/.*=//;s/\.count_table//;p}' current_files.summary`
+		else
+			echo "The pre-culstering step was skipped because the smallest sequence have less than 100nt."
+		fi
+	elif [ $PRECLUST == "cdhit454" ]
+	then
+		# pre-cluster with cd-hit-454, allowing 1% dissimilarity with indel of max 1 nt long
+		cdhit4542mothur () {
+			bak=$1 ; fasta=$2 ; count=$3
+			nl $bak | sed 's/>//;s/\.\.\.//' | awk '{print $4,$1,$2}' | sort -k 1,1 | join - <(sed '1d' $count | sort -k 1,1) | sort -k 3,3n -k 4,4nr | awk '{if(NR==1){nb=$3;printf "%s\t%s", $1,$2;sum=$4} else {if($3==nb){sum+=$4} else {nb=$3;printf "\t%s\n%s\t%s",sum,$1,$2;sum=$4}}}END{printf "\t%s\n",sum}' | sort -k 2,2n -t $'\t' | cut -f 1,3 | cat <(head -1 $count) - > ${count%.*}.precl.count_table
+			obigrep --without-progress-bar --uppercase --id-list=<(sed '1d' ${count%.*}.precl.count_table | cut -f 1) $fasta | twofasta > ${fasta%.*}.precl.fasta
+		}
+		cd-hit-454 -T $NCPUS -B 1 -g 1 -M 6000 -c 0.99 -bak 1 -i $FASTA.fasta -o $FASTA.precl.fasta.temp
+		cdhit4542mothur $FASTA.precl.fasta.temp.bak.clstr $FASTA.fasta $COUNT.count_table
+		rm $FASTA.precl.fasta.temp*
+		FASTA=$FASTA.precl
+		COUNT=$COUNT.precl
+		echo -e "fasta=$FASTA.fasta\ncount=$COUNT.count_table" > current_files.summary
+	fi
+	
+	# ITSx or Chimera removal
+	if [ $TARG == "ITS" ] && [ $ITSX != "no" ]
+	then
+		ITSx --cpu $NCPUS -i $FASTA.fasta --save_regions $ITSX --preserve T --graphical F -o $FASTA.itsx
+		awk '$0~"^>"{sub(">","");print $1}' $FASTA.itsx.$ITSX.fasta | sort | join -t $'\t' - <(sed '1d' $COUNT.count_table | sort -t $'\t' -k 1,1) | cat <(head -1 $COUNT.count_table) - > $COUNT.itsx.$ITSX.count_table
+		mothur "#set.logfile(name=$LOG, append=T);
+		unique.seqs(fasta=$FASTA.itsx.$ITSX.fasta, count=$COUNT.itsx.$ITSX.count_table);
 		get.current()"
 		unset FASTA COUNT
 		FASTA=`sed -n '/^fasta=/{s/.*=//;s/\.fasta//;p}' current_files.summary`
 		COUNT=`sed -n '/^count=/{s/.*=//;s/\.count_table//;p}' current_files.summary`
-	else
-		echo "The pre-culstering step was skipped because the smallest sequence have less than 100nt."
-	fi
-elif [ $PRECLUST == "cdhit454" ]
-then
-	# pre-cluster with cd-hit-454, allowing 1% dissimilarity with indel of max 1 nt long
-	cdhit4542mothur () {
-		bak=$1 ; fasta=$2 ; count=$3
-		nl $bak | sed 's/>//;s/\.\.\.//' | awk '{print $4,$1,$2}' | sort -k 1,1 | join - <(sed '1d' $count | sort -k 1,1) | sort -k 3,3n -k 4,4nr | awk '{if(NR==1){nb=$3;printf "%s\t%s", $1,$2;sum=$4} else {if($3==nb){sum+=$4} else {nb=$3;printf "\t%s\n%s\t%s",sum,$1,$2;sum=$4}}}END{printf "\t%s\n",sum}' | sort -k 2,2n -t $'\t' | cut -f 1,3 | cat <(head -1 $count) - > ${count%.*}.precl.count_table
-		obigrep --without-progress-bar --uppercase --id-list=<(sed '1d' ${count%.*}.precl.count_table | cut -f 1) $fasta | twofasta > ${fasta%.*}.precl.fasta
-	}
-	cd-hit-454 -T $NCPUS -B 1 -g 1 -M 6000 -c 0.99 -bak 1 -i $FASTA.fasta -o $FASTA.precl.fasta.temp
-	cdhit4542mothur $FASTA.precl.fasta.temp.bak.clstr $FASTA.fasta $COUNT.count_table
-	rm $FASTA.precl.fasta.temp*
-	FASTA=$FASTA.precl
-	COUNT=$COUNT.precl
-	echo -e "fasta=$FASTA.fasta\ncount=$COUNT.count_table" > current_files.summary
-fi
-
-# ITSx or Chimera removal
-if [ $TARG == "ITS" ] && [ $ITSX != "no" ]
-then
-	ITSx --cpu $NCPUS -i $FASTA.fasta --save_regions $ITSX --preserve T --graphical F -o $FASTA.itsx
-	awk '$0~"^>"{sub(">","");print $1}' $FASTA.itsx.$ITSX.fasta | sort | join -t $'\t' - <(sed '1d' $COUNT.count_table | sort -t $'\t' -k 1,1) | cat <(head -1 $COUNT.count_table) - > $COUNT.itsx.$ITSX.count_table
-	mothur "#set.logfile(name=$LOG, append=T);
-	unique.seqs(fasta=$FASTA.itsx.$ITSX.fasta, count=$COUNT.itsx.$ITSX.count_table);
-	get.current()"
-	unset FASTA COUNT
-	FASTA=`sed -n '/^fasta=/{s/.*=//;s/\.fasta//;p}' current_files.summary`
-	COUNT=`sed -n '/^count=/{s/.*=//;s/\.count_table//;p}' current_files.summary`
-elif [ $CHIMERA1 == "yes" ]
-then
-	if [ $TECH == "454" ] || [ $(sed -n '$=' $COUNT.count_table) -lt 20000 ]
+	elif [ $CHIMERA1 == "yes" ]
 	then
-		twofasta $FASTA.fasta | awk '{print $1}' | paste - - | sed 's/^>//' | sort -k 1,1 | join - <(sort -k 1,1 $COUNT.count_table) | awk '{print ">"$1,"size="$3";\n"$2}' | vsearch --no_progress --uchime_denovo - --nonchimeras - | twofasta > $FASTA.ok.fasta
-	else
-		. $BIN/parallel_uchime.sh
+		if [ $TECH == "454" ] || [ $(sed -n '$=' $COUNT.count_table) -lt 20000 ]
+		then
+			twofasta $FASTA.fasta | awk '{print $1}' | paste - - | sed 's/^>//' | sort -k 1,1 | join - <(sort -k 1,1 $COUNT.count_table) | awk '{print ">"$1,"size="$3";\n"$2}' | vsearch --no_progress --uchime_denovo - --nonchimeras - | twofasta > $FASTA.ok.fasta
+		else
+			. $BIN/parallel_uchime.sh
+		fi
+		if [ $(grep -c "^>" $FASTA.fasta) -eq $(grep -c "^>" $FASTA.ok.fasta) ]
+		then
+			ln -s $COUNT.count_table $COUNT.ok.count_table
+		else
+			grep "^>" $FASTA.ok.fasta | sed 's/>//' | sort | join - <(sed '1d' $COUNT.count_table | sort -k 1,1) | cat <(head -1 $COUNT.count_table) - > $COUNT.ok.count_table
+		fi
+		FASTA=$FASTA.ok
+		COUNT=$COUNT.ok
+		echo -e "fasta=$FASTA.fasta\ncount=$COUNT.count_table" > current_files.summary
 	fi
-	if [ $(grep -c "^>" $FASTA.fasta) -eq $(grep -c "^>" $FASTA.ok.fasta) ]
-	then
-		ln -s $COUNT.count_table $COUNT.ok.count_table
-	else
-		grep "^>" $FASTA.ok.fasta | sed 's/>//' | sort | join - <(sed '1d' $COUNT.count_table | sort -k 1,1) | cat <(head -1 $COUNT.count_table) - > $COUNT.ok.count_table
-	fi
-	FASTA=$FASTA.ok
-	COUNT=$COUNT.ok
-	echo -e "fasta=$FASTA.fasta\ncount=$COUNT.count_table" > current_files.summary
 fi
 
 # list files and directories

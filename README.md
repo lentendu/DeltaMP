@@ -78,7 +78,8 @@ DeltaMP is intend to be used on a HPC with a job scheduler (i.e. batch-queuing s
 ### optional softwares:
 
 + [QIIME v1.8+](http://qiime.org) for 454 demultiplexing ([minimal install](http://qiime.org/1.9.0/install/install.html#native-base) is enough; Caporaso et al., 2010)
-+ [FlowClus](https://github.com/jsh58/FlowClus) for 454 denoising (Gaspar and Thomas, 2015)
++ [FlowClus](https://github.com/jsh58/FlowClus) for denoising of 454 flows (Gaspar and Thomas, 2015)
++ [dada2](https://github.com/benjjneb/dada2) R package for error model based correction of Illumina reads (Callahan et al., 2016) 
 + [swarm v2](https://github.com/torognes/swarm) (Mahé et al., 2015)
 + [vsearch v2](https://github.com/torognes/vsearch) (Rognes et al., 2016)
 + [sumatra](https://git.metabarcoding.org/obitools/sumatra) and [sumaclust](https://git.metabarcoding.org/obitools/sumaclust) (Mercier et al., 2013)
@@ -232,7 +233,7 @@ The default values for the optional parameters could be displayed by using the -
 
 
 ### TRIMMING section
-+ __Denoising__: *454 specific parameter*, "yes" or "no", whether to perform flowgram denoising using FlowClus or not. The default is "no".
++ __Denoising__: "flowclus", "dada2" or "no", whether to perform 454 flowgram denoising using FlowClus, dada2 amplicon sequence variant error correction algorithm or nothing. The default is "no".
 
 + __Minimum number of flows__: *454 specific parameter*, a number between 300 and 600, minimum length of flowgrams to be kept for denoising. The default is 360.
 
@@ -382,31 +383,28 @@ Checkpointing can be turn off by using the -n option.
 
 ## Pipeline analysis steps
 
-Running the DeltaMP command will generate the directories and configuration files necessary to conduct the pipeline analysis as well as submitting the required steps to the queuing system.
+Running the DeltaMP command will generate the directories and configuration files necessary to conduct the pipeline analysis as well as submitting the required steps to the queueing system.
 
 The following steps are bash scripts available in the bin directory after build and are named following the scheme “xxx.sh”, xxx being the name of the step.
 
 For 454 or Illumina specific steps, step script filenames follow “454_xxx.sh” and “Illumina_xxx.sh” schemes, respectively.
 
 + init: create symlink to files of previous SUBPROJECT if checkpointing; one serial job
-+ get: raw data copy/download and oligo file(s) creation; one serial job
++ get: raw data copy/download and oligo file(s) creation; one parallel job
 + 454 libraries specific steps
    * demulti: demultiplex sff based on barcodes; target raw sequences in libraries containing multiple target primers are identified when holding the expected forward sequencing primer with a maximum number of mismatches equal to one third of the primer length; one parallel array job per run/lane library
    * sff: sff to fasta + qual and raw reads statistics; one parallel array job per group of 10 libraries
-   * raw_stat: summarize raw statistics; one serial array job per library
    * opt: sequence count for incremented length and quality values; one parallel array job per group of 10 libraries
    * quality: control sequencing depth for raw and trimmed reads; optimize the length and quality trimming parameters; one serial job
 + Illumina libraries specific steps
-   * demulti: demultiplex fastq based on barcodes using cutadapt; one serial job per run/lane library
-   * fastq: cut primers; raw reads quality and length statistics; one serial array job per library
+   * demulti: demultiplex fastq based on barcodes using cutadapt; one parallel array job per run/lane library
+   * fastq: cut primers; truncate; raw reads quality and length statistics; one serial array job per library
    * pair_end: pair-end assembly; convert to fasta + qual; cut and pair-end reads counts and pair-end reads quality and length statistics; one serial array job per library
-   * raw_stat: combine length, average quality, average base position quality and overlap length statistics for all libraries; one serial job
-   * opt: optimization of reads average quality for trimming; one serial array job per library
+   * opt: optimization of reads average quality for trimming or reads length and maxee for truncation; one serial array job per library
    * quality: control sequencing depth for raw, cut, pair-end and trimmed reads; optimize the quality trimming parameters; one serial job
-+ cut_db: reduce database reference sequences to amplified or ITS-covered region; format to mothur and vsearch udb; only one time per database version and pair of primer names; one serial job
-+ trim: group each sample reads if multiple libraries for one sample; denoise; trim; dereplicate; subsample; align and remove badly aligned sequences if SSU gene and SILVA database; precluster at maximum 1 % similarity if Illumina or 454 SSU SILVA; remove chimeras; one serial array job per sample
-+ merge: merge fasta and mothur names files and dereplicate; one serial job
-+ OTU: cluster sequences into OTUs; pick representative sequences; remove singletons (optional); chimera check; one parallel job
++ cut_db: reduce database reference sequences to the amplified region or to the ITS-covered region; format to mothur and vsearch udb; only one time per database version and pair of primer names; one parallel job
++ trim: group each sample reads if multiple libraries for one sample; denoise; trim or truncate; per library ASV inference; dereplicate; subsample; align and remove badly aligned sequences; precluster; remove chimeras; one parallel array job per sample
++ OTU: cluster sequences into OTUs or infer ASVs; pick representative sequences; remove singletons (optional); chimera check; one parallel job
 + id: classify all or only OTU representative sequences against a reference database; create OTU consensus assignment if needed; one parallel job
 + end: create OTU tables, extract representative sequences and count reads; combine each logs from all steps; add sample's metadata from ENA BioProject to BIOM file; add functional annotation; one serial job
 + archiving: compress raw demultiplexed reads (if demultiplexing), pipeline outputs and processing file in separated tar.gz archives; copy to the output directory
@@ -457,8 +455,9 @@ For unsolved issues, send an email to guillaume.lentendu@unine.ch, including the
 
 
 ## References
-+ Bengtsson‐Palme Johan, Ryberg Martin, Hartmann Martin, Branco Sara, Wang Zheng, Godhe Anna, Wit Pierre, Sánchez‐García Marisol, Ebersberger Ingo, Sousa Filipe, Amend Anthony, Jumpponen Ari, Unterseher Martin, Kristiansson Erik, Abarenkov Kessy, Bertrand Yann J. K., Sanli Kemal, Eriksson K. Martin, Vik Unni, Veldre Vilmar, Nilsson R. Henrik, Bunce Michael, 2013. Improved software detection and extraction of ITS1 and ITS2 from ribosomal ITS sequences of fungi and other eukaryotes for analysis of environmental sequencing data. Methods in Ecology and Evolution 4, 914–919. doi:[10.1111/2041-210X.12073](http://dx.doi.org/10.1111/2041-210X.12073)
++ Bengtsson‐Palme, J., Ryberg, M., Hartmann, M., Branco, S., Wang, Z., Godhe, A., Wit, P., Sánchez‐García, M., Ebersberger, I., Sousa, F., Amend, A., Jumpponen, A., Unterseher, M., Kristiansson, E., Abarenkov, K., Bertrand, Y. J. K., Sanli, K., Eriksson, K. M., Vik, U., Veldre, V., Nilsson, R. H., Bunce, M., 2013. Improved software detection and extraction of ITS1 and ITS2 from ribosomal ITS sequences of fungi and other eukaryotes for analysis of environmental sequencing data. Methods in Ecology and Evolution 4, 914–919. doi:[10.1111/2041-210X.12073](http://dx.doi.org/10.1111/2041-210X.12073)
 + Boyer, F., Mercier, C., Bonin, A., Le Bras, Y., Taberlet, P., Coissac, E., 2016. obitools: a unix-inspired software package for DNA metabarcoding. Molecular Ecology Resources 16, 176–182. doi:[10.1111/1755-0998.12428](http://dx.doi.org/10.1111/1755-0998.12428)
++ Callahan, B.J., McMurdie, P.J., Rosen, M.J., Han, A.W., Johnson, A.J.A., Holmes, S.P., 2016. DADA2: High-resolution sample inference from Illumina amplicon data. Nature Methods 13, 581–583. doi:[10.1038/nmeth.3869](http://dx.doi.org/10.1038/nmeth.3869)
 + Edgar, R.C., 2010. Search and clustering orders of magnitude faster than BLAST. Bioinformatics 26, 2460–2461. doi:[10.1093/bioinformatics/btq461](http://dx.doi.org/10.1093/bioinformatics/btq461)
 + Fu, L., Niu, B., Zhu, Z., Wu, S., Li, W., 2012. CD-HIT: accelerated for clustering the next-generation sequencing data. Bioinformatics 28, 3150–3152. doi:[10.1093/bioinformatics/bts565](http://dx.doi.org/10.1093/bioinformatics/bts565)
 + Gaspar, J.M., Thomas, W.K., 2015. FlowClus: efficiently filtering and denoising pyrosequenced amplicons. BMC Bioinformatics 16. doi:[10.1186/s12859-015-0532-1](http://dx.doi.org/10.1186/s12859-015-0532-1)
