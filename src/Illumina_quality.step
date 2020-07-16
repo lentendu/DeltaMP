@@ -181,7 +181,7 @@ cd $EXEC/libraries/raw_stat
 if [ $DEMULTI == "yes" ]
 then
 	Rscript --vanilla $BIN/Rscript_raw_stat_figures_Illumina.R $SUBPROJECT $BIN DeltaMP_${VERSION[DELTAMP]} all $FWD_NAME $RVS_NAME $TRUNCLEN
-	gs -q -sDEVICE=pdfwrite -o $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.raw_and_pair-end_reads_statistics.pdf $SUBPROJECT.quality.pdf $SUBPROJECT.length.pdf $SUBPROJECT.position_quality.pdf $SUBPROJECT.legend.pdf
+	gs -q -sDEVICE=pdfwrite -o $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.raw_and_pair-end_reads_statistics.pdf $SUBPROJECT.quality*.pdf $SUBPROJECT.length*.pdf $SUBPROJECT.position_quality*.pdf $SUBPROJECT.legend.pdf
 else
 	for LIB_NAME in $(cut -f 1 $EXEC/config/lib2.list)
 	do

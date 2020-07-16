@@ -25,7 +25,7 @@ list<-apply(expand.grid(types,c("meanqual","meanposqual","length")),1,paste,coll
 if(lib=="all") {
   assign(paste0("files_",fwd),sub(paste0(fwd,"\\."),"",sub("\\.fwd\\.meanqual","",list.files(pattern=paste0(fwd,".*.fwd.meanqual")))))
   assign(paste0("files_",rvs),sub(paste0(rvs,"\\."),"",sub("\\.rvs\\.meanqual","",list.files(pattern=paste0(rvs,".*.rvs.meanqual")))))
-  samples<-unique(sort(c(get(paste0("files_",fwd)),get(paste0("files_",rvs)))))
+  samples<-unique(sort(sub("\\..*$","",c(get(paste0("files_",fwd)),get(paste0("files_",rvs))))))
   lname<-subp
   project<-paste0("Project: ",subp)
 } else {
