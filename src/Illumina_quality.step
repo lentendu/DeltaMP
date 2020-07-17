@@ -178,19 +178,25 @@ fi
 
 # Merge raw stat statistics
 cd $EXEC/libraries/raw_stat
-if [ $DEMULTI == "yes" ]
+if [ $DEMULTI == "no" ] || [ $PERRUN == "yes" ]
 then
-	Rscript --vanilla $BIN/Rscript_raw_stat_figures_Illumina.R $SUBPROJECT $BIN DeltaMP_${VERSION[DELTAMP]} all $FWD_NAME $RVS_NAME $TRUNCLEN
-	gs -q -sDEVICE=pdfwrite -o $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.raw_and_pair-end_reads_statistics.pdf $SUBPROJECT.quality*.pdf $SUBPROJECT.length*.pdf $SUBPROJECT.position_quality*.pdf $SUBPROJECT.legend.pdf
-else
-	for LIB_NAME in $(cut -f 1 $EXEC/config/lib2.list)
+	if [ $PERRUN == "yes" ]
+	then
+		LIB_NAME=($(cut -f 3 $EXEC/config/librun.list | sort -u))
+	else
+		LIB_NAME=($(cut -f 1 $EXEC/config/lib2.list))
+	fi
+	for i in ${LIB_NAME[@]}
 	do
-		Rscript --vanilla $BIN/Rscript_raw_stat_figures_Illumina.R $SUBPROJECT $BIN DeltaMP_${VERSION[DELTAMP]} $LIB_NAME $FWD_NAME $RVS_NAME $TRUNCLEN
-		gs -q -sDEVICE=pdfwrite -o $LIB_NAME.raw_and_pair-end_reads_statistics.pdf $SUBPROJECT.${LIB_NAME}.quality.*.pdf $SUBPROJECT.${LIB_NAME}.length.*.pdf $SUBPROJECT.${LIB_NAME}.position_quality.*.pdf $SUBPROJECT.${LIB_NAME}.legend.pdf
-		rm $SUBPROJECT.${LIB_NAME}.quality.*.pdf $SUBPROJECT.${LIB_NAME}.length.*.pdf $SUBPROJECT.${LIB_NAME}.position_quality.*.pdf $SUBPROJECT.${LIB_NAME}.legend.pdf
+		Rscript --vanilla $BIN/Rscript_raw_stat_figures_Illumina.R $SUBPROJECT $BIN DeltaMP_${VERSION[DELTAMP]} $i $FWD_NAME $RVS_NAME $TRUNCLEN
+		gs -q -sDEVICE=pdfwrite -o $i.raw_and_pair-end_reads_statistics.pdf $SUBPROJECT.$i.quality.*.pdf $SUBPROJECT.$i.length.*.pdf $SUBPROJECT.$i.position_quality.*.pdf $SUBPROJECT.$i.legend.pdf
+		rm $SUBPROJECT.$i.quality.*.pdf $SUBPROJECT.$i.length.*.pdf $SUBPROJECT.$i.position_quality.*.pdf $SUBPROJECT.$i.legend.pdf
 	done
 	gs -q -sDEVICE=pdfwrite -o $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.raw_and_pair-end_reads_statistics.pdf *.raw_and_pair-end_reads_statistics.pdf
 	rm *.raw_and_pair-end_reads_statistics.pdf
+else
+	Rscript --vanilla $BIN/Rscript_raw_stat_figures_Illumina.R $SUBPROJECT $BIN DeltaMP_${VERSION[DELTAMP]} all $FWD_NAME $RVS_NAME $TRUNCLEN
+	gs -q -sDEVICE=pdfwrite -o $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.raw_and_pair-end_reads_statistics.pdf $SUBPROJECT.quality*.pdf $SUBPROJECT.length*.pdf $SUBPROJECT.position_quality*.pdf $SUBPROJECT.legend.pdf
 fi
 
 # list files and directories

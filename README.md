@@ -69,7 +69,7 @@ DeltaMP is intend to be used on a HPC with a job scheduler (i.e. batch-queuing s
 + [PANDAseq v2.10+](https://github.com/neufeld/pandaseq) (Masella et al., 2012)
 + [biom-format](http://biom-format.org) (McDonald et al., 2012)
 + [GNU parallel](http://savannah.gnu.org/projects/parallel)
-+ [R v3](https://cran.r-project.org/) with the plyr, dplyr, tidyr, tibble, foreach and ggplot2 packages
++ [R v3](https://cran.r-project.org/) with the plyr, tidyverse, foreach, doParallel and seqinr packages
 + [Ghostscript](https://www.ghostscript.com/)
 + [WebLogo](https://github.com/WebLogo/weblogo)
 + [archive-sum](https://github.com/idiv-biodiversity/archive-sum)
