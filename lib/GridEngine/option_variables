@@ -6,6 +6,8 @@ QUEUE_ACCOUNT	-P
 QUEUE_HOLD	-hold_jid 
 QUEUE_HARRAY	-hold_jid_ad 
 QUEUE_SEP	,
+QUEUE_CPUS	-pe smp
+QUEUE_MEM	-l h_vmem=
 QUEUE_ARRAYS	-t
 QUEUE_THREADMAX	 -tc 
 QUEUE_DEL	qdel

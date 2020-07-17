@@ -682,6 +682,24 @@ else
 	fi
 fi
 
+# cap number of CPUs for get step
+MP_CPUS=$(awk '$1=="MAX_CPU_PER_NODES"{print $2}' $DELTAMP_BUILD/config.txt)
+NB_ARCH=$(if [[ "${ARCHIVES[@]}" != "no" ]] ; then echo ${#ARCHIVES[@]} ; else sed -n '$=' config/lib1.list ; fi)
+if [ $NB_ARCH -lt $MP_CPUS ]
+then
+	AR_CPUS=$(awk '$1=="MAX_ARRAY_CPU_PER_NODES"{print $2}' $DELTAMP_BUILD/config.txt)
+	MP_MEM=$(awk '$1=="MAX_ARRAY_MEMORY_FOR_PARALLEL"{print $2}' $DELTAMP_BUILD/config.txt)
+	SER_MEM=$(awk '$1=="MAX_MEMORY_FOR_SERIAL"{print $2}' $DELTAMP_BUILD/config.txt)
+	if [ $NB_ARCH -lt $AR_CPUS ]
+	then
+		sed "/get_jobid=/s/QUEUE_SUB/QUEUE_SUB QUEUE_CPUS $AR_CPUS QUEUE_MEM${MP_MEM}G/" config/steps > config/steps.tmp && mv config/steps.tmp config/steps
+	else
+		sed "/get_jobid=/s/QUEUE_SUB/QUEUE_SUB QUEUE_CPUS $NB_ARCH QUEUE_MEM$(($SER_MEM*$NB_ARCH))G/" config/steps > config/steps.tmp && mv config/steps.tmp config/steps
+	fi
+	unset AR_CPUS MP_MEM SER_MEM
+fi
+unset MP_CPUS NB_ARCH
+
 # Compare with previous (the one with less differences) or with the provided previous SUBPROJECT, and cut to avoid redo identical part(s)
 cd ..
 if [ $CHECKP == "yes" ]
