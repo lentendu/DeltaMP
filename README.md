@@ -205,7 +205,7 @@ The default values for the optional parameters could be displayed by using the -
 
 ### TARGET section
 
-+ __Target organisms__: Latin name of the targeted group as labelled in the reference sequence database (eg. Fungi, Glomeromycota, Bacteria, Archea, Eukaryota). The OTUs assigned to the target group will be extracted from the main OTU table and copied into an additional OTU table labeled with the provided Latin name. The default is “Fungi”.
++ __Target organisms__: Latin name of the targeted group as labelled in the reference sequence database (eg. Fungi, Glomeromycota, Bacteria, Archea, Eukaryota), or protists (Eukaryota excluding Fungi, Metazoa and Streptophyta). The OTUs assigned to the target group will be extracted from the main OTU table and copied into an additional OTU table labeled with the provided name. The default is “Fungi”.
 
 + __Target region__: any name is accepted here, but specific workflows will be allowed with “16S”, “18S”, “ITS” or “COI” respectively for prokaryotes, eukaryotes, Fungi or Metazoa workflows. The default is “ITS”.
 
