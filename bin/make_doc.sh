@@ -143,7 +143,7 @@ then
 	else
 		echo "The length and average quality trimming parameters were optimised to $LENGTH nt and $QUAL Phred score, respectively, in order to keep at least $MIN_DEPTH trimmed reads per sample, considering all other provided trimming parameters."
 	fi
-	if [ $DENOISE == "yes" ]
+	if [ $DENOISE == "flowclus" ]
 	then
 		echo "This optimisation does not take into account the loss of reads due to flow trimming and denoising"
 	fi
@@ -157,7 +157,7 @@ then
 	LENGTH=$MINLEN
 fi
 TRIMAVG=`awk '$1=="Average"{print $NF}' quality_check/$SUBPROJECT.summary.stat.tsv`
-if [ $TECH == "454" ] ; then if [ $DENOISE == "yes" ] ; then TRIMDEN="denoised and " ; else TRIMDEN="" ; fi ; else TRIMDEN="" ; fi
+if [ $TECH == "454" ] ; then if [ $DENOISE == "flowclus" ] ; then TRIMDEN="denoised and " ; else TRIMDEN="" ; fi ; else TRIMDEN="" ; fi
 echo "Each sample contains in average $TRIMAVG ${TRIMDEN}trimmed reads."
 echo ""
 
@@ -175,12 +175,12 @@ then
 	printf 'maximum number of mismatch(es) on the primer sequence\t%s\n' "$PDIFFS" | column -t -s $'\t' 
 	if [ $BDIFFS == "a" ]
 	then
-		echo "maximum number of mismatches allowed on the barcode sequence (in each sequence library separatedly):"
+		echo "maximum number of mismatches allowed on the barcode sequence (in each sequence library separately):"
 		cat <(echo "Library bdiffs") <(cut -d " " -f 1,2 processing/bdiffs.$SUBPROJECT) | column -t
 	else
 		printf 'maximum number of mismatches allowed on the barcode sequence\t%s\n' "$BDIFFS"
 	fi
-	if [ $DENOISE == "yes" ]
+	if [ $DENOISE == "flowclus" ]
 	then
 		printf "minimum flow length\t%s\nmaximum flow length\t%s\n\n" "$MINFLOW" "$MAXFLOW"
 		echo "Reads were trimmed and flows were denoised using FlowClus (version ${VERSION[DEN]}, ${CITATION[DEN]})."

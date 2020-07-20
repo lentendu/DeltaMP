@@ -205,17 +205,17 @@ The default values for the optional parameters could be displayed by using the -
 
 ### TARGET section
 
-+ __Target organisms__: Latin name of the targeted group as labelled in the reference sequence database (eg. Fungi, Glomeromycota, Bacteria, Archea, Eukaryota), or protists (Eukaryota excluding Fungi, Metazoa and Streptophyta). The OTUs assigned to the target group will be extracted from the main OTU table and copied into an additional OTU table labeled with the provided name. The default is “Fungi”.
++ __Target organisms__: Latin name of the targeted group as labelled in the reference sequence database (eg. Fungi, Glomeromycota, Bacteria, Archea, Eukaryota), or protists (Eukaryota excluding Fungi, Metazoa and Streptophyta). The OTUs assigned to the target group will be extracted from the main OTU table and copied into an additional OTU table labeled with the provided name (see [Outputs](#outputs)). The default is “protist”.
 
-+ __Target region__: any name is accepted here, but specific workflows will be allowed with “16S”, “18S”, “ITS” or “COI” respectively for prokaryotes, eukaryotes, Fungi or Metazoa workflows. The default is “ITS”.
++ __Target region__: any name is accepted here, but specific workflows will be allowed with “16S”, “18S”, “ITS” or “COI” respectively for prokaryotes, eukaryotes, Fungi or Metazoa workflows. The default is “18S”.
 
-+ __Forward primer name__: the biological forward primer. The 5'-3' orientation of the forward primer must be the same than the reference database sequence orientation. The default is “fITS7”.
++ __Forward primer name__: the biological forward primer. The 5'-3' orientation of the forward primer must be the same than the reference database sequence orientation. The default is “TAReuk454FWD1”.
 
-+ __Forward primer sequence (5' to 3')__: the sequence of the biological forward primer. The default is “GTGARTCATCGAATCTTTG”.
++ __Forward primer sequence (5' to 3')__: the sequence of the biological forward primer. The default is “CCAGCASCYGCGGTAATTCC”.
 
-+ __Reverse primer name__: the biological reverse primer. The default is “ITS4”.
++ __Reverse primer name__: the biological reverse primer. The default is “TAReukREV3”.
 
-+ __Reverse primer sequence (5' to 3')__: the sequence of the biological reverse primer. The default is “TCCTCCGCTTATTGATATGC”.
++ __Reverse primer sequence (5' to 3')__: the sequence of the biological reverse primer. The default is “ACTTTCGTTCTTGATYRA”.
 
 + __Sequencing direction__: *454 specific parameter*, “forward”, “reverse” or "both" for libraries (column 3 of [SAMPLES section](#samples-section)) predominently orientated in the forward or reverse primer direction or for bi-directional sequencing, respectively. The default is “forward”.
 
@@ -233,7 +233,7 @@ The default values for the optional parameters could be displayed by using the -
 
 
 ### TRIMMING section
-+ __Denoising__: "flowclus", "dada2" or "no", whether to perform 454 flowgram denoising using FlowClus, dada2 amplicon sequence variant error correction algorithm or nothing. The default is "no".
++ __Denoising__: *454 specific parameter*, "yes" or "no", whether to perform 454 flowgram denoising using FlowClus or nothing. The default is "no".
 
 + __Minimum number of flows__: *454 specific parameter*, a number between 300 and 600, minimum length of flowgrams to be kept for denoising. The default is 360.
 
@@ -266,17 +266,17 @@ The default values for the optional parameters could be displayed by using the -
 
 + __ITSx region to extract__: "no", “ITS1” or “ITS2” to skip or to extract either regions from fungal ITS reads using ITSx. The default is “no”.
 
-+ __Pre-clustering__: "no", "cdhit454" or "mothur" to skip, to use [cd-hit-454](http://weizhong-lab.ucsd.edu/public/?q=softwares/cd-hit-454) or [mothur pre.cluster]() algorithms to pre-cluster reads after trimming and before chimera removal. For the mothur based pre-clustering, and aligned version of a reference database is required (see below at + Database prefix name). The default is "no".
++ __Pre-clustering__: "no", "cdhit454" or "mothur" to skip or to use [cd-hit-454](http://weizhong-lab.ucsd.edu/public/?q=softwares/cd-hit-454) or [mothur pre.cluster](https://mothur.org/wiki/pre.cluster/) algorithms to pre-cluster reads after trimming and before chimera removal. For the mothur based pre-clustering, and aligned version of a reference database is required (see below at + Database prefix name). The default is "no".
 
-+ __Chimera removal__: "before", "after" or "both", to check for chimera before OTU clustering only (in each sample separetedly), after OTU clustering only (among OTU representative sequences), or at both moments. *De-novo* chimera are detected with UCHIME and removed. The default is "after".
++ __Chimera removal__: "before", "after" or "both", to check for chimera before OTU clustering only (in each sample separetedly), after OTU clustering only (among OTU representative sequences), or at both moments. *De-novo* chimera are detected with UCHIME and removed. For dada2 clustering, bimera are always removed using _removeBimera_. The default is "after".
 
 + __Subsampling__: “yes” or “no”. Activating subsampling will randomly select the same number of reads in all samples according to the read count in the sample with the lowest number of reads, after the trimming step. The default is “no”.
 
-+ __Clustering algorithm__: "cd-hit-est”, “vsearch”, “mcl”, “sumaclust” or “swarm”. The default is “mcl”.
++ __Clustering algorithm__: "cd-hit-est”, “vsearch”, “mcl”, “sumaclust”, “swarm” or “dada2“. The default is “mcl”.
 
-+ __Clustering similarity threshold__: a number between 80 and 100 (percent of similarity). Disregarded if the “swarm” clustering algorithm is used. The default is 97.
++ __Clustering similarity threshold__: a number between 80 and 100 (percent of similarity). Disregarded if the “swarm” or "dada2" clustering algorithms are used. The default is 97.
 
-+ __Cluster with previous subproject reference sequences__: the accepted values are a full path or “no”, If the full path to a previous subproject output directory is provided, all amplicons of this previous subproject will be search for exact match with amplicons from the current subproject. If amplicons of one or multiple OTUs from the current subproject have match in a single OTUs of the previous subproject, these amplicons will be assign to the OTU index name used in the previous subproject. Remaining OTUs from the current subproject without match in the reference suproject have their OTU index name starting after the last OTU of the reference subproject. This option is experimental, use with caution. The default is “no”.
++ __Cluster with previous subproject reference sequences__: the accepted values are a full path or “no”, If the full path to a previous subproject output directory is provided, all amplicons of this previous subproject will be search for exact match with amplicons from the current subproject. If amplicons of one or multiple OTUs from the current subproject have match in a single OTUs of the previous subproject, these amplicons will be assign to the OTU index name used in the previous subproject. Remaining OTUs from the current subproject without match in the reference suproject have their OTU index names starting after the last OTU of the reference subproject. This option is experimental, use with caution. The default is “no”.
 
 + __Remove singletons before chimera re-check__: the accepted values are “yes” or “no”. This option allow to remove singleton OTUs from sub-sequent analyses in order to reduce computation time and memory footprints, as high number of singletons could have critical effects on grid job with limited resources for both following chimera re-check and taxonomic identification steps. The default is “no”.
 
@@ -286,7 +286,7 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Database prefix name__: filename prefix identifying database files. A database have to be composed from a TAB-separated "prefix".txt file in which the second column describe the version, citation and reference of the database with the first column containing VERSION, CITATION and FULLCITATION, respectively (see e.g. <test/pr2_4.10.0.txt>) and either from a pair of "prefix".fasta and "prefix".taxonomy mothur's style database format for "bayesian" classifier, or from a "prefix".udb binary file produced by the command `vsearch --makeudb_usearch` for "vsearch" classifier. Optionnaly, a "prefix".align.fasta, containing an aligned version of the "prefix".fasta sequences, is needed for pre-clustering with "mothur". See the <test/> directory for example files in each format. You can use the "update_xxx.sh" scripts in <auxillary_scripts/> to automatically download the PR2, SILVA and UNITE databases and to format them into the previously described formats. The default is "pr2_4.10.0".
 
-+ __Reduce database to amplified fragment__: "yes" or "no", to cut the database reference sequences using either the provided primers or ITSx with the provided 'ITSx region to extract' or do nothing, respectively. If set to "yes", this also use the cut database for taxonomic assignment, while if set to "no" this will use the full database sequences for taxonomic assignment. If a unique cut read is produced from multiple accessions with different taxonomic path, the cut read will be annotated with the least common ancestor. If set to "yes" and the cut database is already present in the "Directory path to database", the database cutting is skipped. The default is "no".
++ __Reduce database to amplified fragment__: "yes" or "no", to cut the database reference sequences using either the provided primers or ITSx with the provided 'ITSx region to extract' or do nothing, respectively. If set to "yes", this will use the cut database for taxonomic assignment, while if set to "no" this will use the full database sequences for taxonomic assignment. For SILVA and UNITE databases, if a unique cut read is produced from multiple accessions with different taxonomic path, the cut read will be annotated with the least common ancestor. For PR2 database, cut reads are only dereplicated for each taxonomic path separately. If set to "yes" and the cut database is already present in the "Directory path to database", the database cutting is skipped. The default is "no".
 
 + __Consensus assignment threshold__: a number between 50 and 100. Consensus threshold percent to assign a taxonomic rank among the matches. For "bayesian" taxonomic calssifier the matches are the 100 bootstrap matches, for "vsearch" the matches are the best match(es) plus the match(es) in a 1 % similarity range below the best match(es) similarity. The default is 60.
 
