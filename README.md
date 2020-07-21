@@ -245,9 +245,9 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Maximum homopolymer length allowed__: a number between 0 and 20. The default is 10.
 
-+ __Minimum sequence length__: a number between 50 and the set Maximum sequence length. This parameter is used for pair-end assembled reads only in the case of Illumina libraries. The default is 50.
++ __Minimum sequence length__: a number between 50 and the set Maximum sequence length. This parameter is used for filtering pair-end assembled reads in the case of Illumina libraries. The default is 50.
 
-+ __Maximum sequence length__: a number between the set Minimum sequence length and 1000. This parameter is used for pair-end assembled reads only in the case of Illumina libraries. The default is 600.
++ __Maximum sequence length__: a number between the set Minimum sequence length and 1000. This parameter is used for filtering pair-end assembled reads only in the case of Illumina libraries. The differrence between the __Maximum sequence length__ and the __Minimum sequence length__ added to the __Minimum overlap__ defines the maximum overlap length allowed for PandaSeq based pair-end assembly. The default is 600.
 
 + __Type of quality filtering__: "average" or "maxee". Filter sequences either based on the average quality or based on the maximum expected error over the sequence, after any length truncation. Filtering based on maximum expected error is only possible for Illumina reads. The default is "average".
 

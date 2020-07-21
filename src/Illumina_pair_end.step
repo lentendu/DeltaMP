@@ -47,7 +47,7 @@ do
 			PCTTRESH=$(awk -v P=$PTRESH 'BEGIN{print (1-P)*100}')
 			vsearch --quiet --threads 1 --fastq_mergepairs fastq/$i.${FWD_LIB}.fastq.$EXT --reverse fastq/$j.${RVS_LIB}.fastq.$EXT --fastq_ascii $ASCII --fastq_minovlen $MIN_OV --fastq_maxdiffpct $PCTTRESH --fastq_allowmergestagger --fastqout - 2> fastq/log.pairend.$i.$LIB_NAME.txt | $COMP > fastq/$i.$j.$LIB_NAME.pairend.fastq.$EXT
 		else
-			pandaseq -f fastq/$i.${FWD_LIB}.fastq.$EXT -r fastq/$j.${RVS_LIB}.fastq.$EXT -g fastq/log.pairend.$i.$LIB_NAME.txt -F -A $PALG -o $MIN_OV -t $PTRESH -T 1 | $COMP > fastq/$i.$j.$LIB_NAME.pairend.fastq.$EXT
+			pandaseq -f fastq/$i.${FWD_LIB}.fastq.$EXT -r fastq/$j.${RVS_LIB}.fastq.$EXT -g fastq/log.pairend.$i.$LIB_NAME.txt -F -A $PALG -o $MIN_OV -O $((MAXLEN+MIN_OV-MINLEN)) -t $PTRESH -T 1 | $COMP > fastq/$i.$j.$LIB_NAME.pairend.fastq.$EXT
 		fi
 		
 		# Stat on assembly

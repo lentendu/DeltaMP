@@ -193,7 +193,7 @@ do
 						PCTTRESH=$(awk -v P=$PTRESH 'BEGIN{print (1-P)*100}')
 						vsearch --quiet --threads $NCPUS --fastq_mergepairs $x.$i.fwd.filtered.fastq --reverse $y.$i.rvs.filtered.fastq --fastq_ascii $ASCII --fastq_minovlen $MIN_OV --fastq_maxdiffpct $PCTTRESH --fastq_allowmergestagger --fastqout $x.$y.$i.pairend.fastq 2> log.pairend.$x.$i.txt
 					else
-						pandaseq -f $x.$i.fwd.filtered.fastq -r $y.$i.rvs.filtered.fastq -g log.pairend.$x.$i.txt -F -A $PALG -o $MIN_OV -t $PTRESH -T $NCPUS > $x.$y.$i.pairend.fastq
+						pandaseq -f $x.$i.fwd.filtered.fastq -r $y.$i.rvs.filtered.fastq -g log.pairend.$x.$i.txt -F -A $PALG -o $MIN_OV -O $((MAXLEN+MIN_OV-MINLEN)) -t $PTRESH -T $NCPUS > $x.$y.$i.pairend.fastq
 					fi
 					rm $x.${FWD_LIB}.trunc.fastq $y.${RVS_LIB}.trunc.fastq $x.$y.$i.trunc.accnos
 				fi
