@@ -51,9 +51,9 @@ meanqual<-foreach(x=types,.combine=rbind) %do% {
   foreach(y=samples,.combine=rbind) %do% {
     foreach(z=c(fwd,rvs),w=c(rvs,fwd),.combine=rbind) %do% {
       if(x %in% c("fwd","rvs")) {
-        tmp<-paste(z,grep(paste0("^",y),get(paste0("files_",z)),value=T),x,"meanqual",sep=".")
+        tmp<-paste(z,grep(paste0("^",y,"\\."),get(paste0("files_",z)),value=T),x,"meanqual",sep=".")
       } else {
-        tmp<-paste(z,w,grep(paste0("^",y),get(paste0("files_",z)),value=T),x,"meanqual",sep=".")
+        tmp<-paste(z,w,grep(paste0("^",y,"\\."),get(paste0("files_",z)),value=T),x,"meanqual",sep=".")
       }
       if(file.exists(tmp)) {
         data.frame(type=x,sample=y,dir=z,quality=0:41,reads=scan(tmp,quiet=T))
@@ -66,9 +66,9 @@ meanposqual<-foreach(x=types,.combine=rbind) %do% {
   foreach(y=samples,.combine=rbind) %do% {
     foreach(z=c(fwd,rvs),w=c(rvs,fwd),.combine=rbind) %do% {
       if(x %in% c("fwd","rvs")) {
-        tmp<-paste(z,grep(paste0("^",y),get(paste0("files_",z)),value=T),x,"meanposqual",sep=".")
+        tmp<-paste(z,grep(paste0("^",y,"\\."),get(paste0("files_",z)),value=T),x,"meanposqual",sep=".")
       } else {
-        tmp<-paste(z,w,grep(paste0("^",y),get(paste0("files_",z)),value=T),x,"meanposqual",sep=".")
+        tmp<-paste(z,w,grep(paste0("^",y,"\\."),get(paste0("files_",z)),value=T),x,"meanposqual",sep=".")
       }
       if(file.exists(tmp)) {
         data.frame(type=x,sample=y,dir=z,quality=scan(tmp,quiet=T)) %>%
@@ -82,9 +82,9 @@ seqlength<-foreach(x=types,.combine=rbind) %do% {
   foreach(y=samples,.combine=rbind) %do% {
     foreach(z=c(fwd,rvs),w=c(rvs,fwd),.combine=rbind) %do% {
       if(x %in% c("fwd","rvs")) {
-        tmp<-paste(z,grep(paste0("^",y),get(paste0("files_",z)),value=T),x,"length",sep=".")
+        tmp<-paste(z,grep(paste0("^",y,"\\."),get(paste0("files_",z)),value=T),x,"length",sep=".")
       } else {
-        tmp<-paste(z,w,grep(paste0("^",y),get(paste0("files_",z)),value=T),x,"length",sep=".")
+        tmp<-paste(z,w,grep(paste0("^",y,"\\."),get(paste0("files_",z)),value=T),x,"length",sep=".")
       }
       if(file.exists(tmp)) {
         data.frame(type=x,sample=y,dir=z,read.table(tmp,col.names=c("length","reads"))) 
