@@ -30,45 +30,44 @@ lib<-ddply(librun,.(run,library,sample),function(x){
 if (prev != "no") {
   prior_asv<-data.frame(filename=list.files(pattern=paste0(prev,".*\\.[fr][wv][ds]\\.fasta$")),stringsAsFactors=F) %>%
     separate(filename,c("subp","dir","lib","ext"),sep="\\.",remove=F)
-  prior_seq<-dlply(prior_asv,.(lib),function(x) {
+  prior_seq<-dlply(prior_asv,.(dir,lib),function(x) {
     unique(foreach(y=iapply(x,1),.combine=c) %do% {
       unlist(read.fasta(y$filename,seqonly=T))
     })
   })
 }
 
-# error model
+# error model for all samples of the same run and and same lib (R1/R2)
 err<-dlply(lib,.(run,lib), function(x) dada2::learnErrors(x$filename,randomize=T,multithread=ncores))
 
-# dada2
+# dada2: pool strategy for all samples of same run, same lib and same orientation (i.e. starting by orward or reverse primer)
 ncpus<-ifelse(nrow(lib)<ncores,nrow(lib),ncores)
-cl<-makeCluster(ncpus)
-registerDoParallel(cl)
 dada_all<-dlply(lib, .(run,lib),function(x) {
   tmp_err<-err[[unique(paste(x$run,x$lib,sep="."))]]
-  if (prev != "no") {
-    tmp_prior<-prior_seq[[unique(x$lib)]]
-    dlply(x,.(sample,library,dir),function(y) {
-      tmp_derep<-dada2::derepFastq(y$filename,n=1e5)
-      dada2::dada(tmp_derep,tmp_err,priors=tmp_prior)
-    },.parallel=T)
-  } else {
-    dlply(x,.(sample,library,dir),function(y) {
-      tmp_derep<-dada2::derepFastq(y$filename,n=1e5)
-      dada2::dada(tmp_derep,tmp_err)
-    },.parallel=T)
-  }
+  cl<-makeCluster(ncpus)
+  registerDoParallel(cl)
+  tmp_derep<-dlply(x,.(sample,library,dir),function(y) {
+    dada2::derepFastq(y$filename,n=1e5)
+  },.parallel=T)
+  stopCluster(cl)
+  dlply(x,.(dir),function(y) {
+    if (prev != "no") {
+      tmp_prior<-prior_seq[[unique(paste(y$dir,y$lib,sep="."))]]
+      dada2::dada(tmp_derep[grep(unique(y$dir),names(tmp_derep),value=T)],tmp_err,pool=T,multithread=ncores,priors=tmp_prior)
+    } else {
+      dada2::dada(tmp_derep[grep(unique(y$dir),names(tmp_derep),value=T)],tmp_err,pool=T,multithread=ncores)
+    }
+  })
 })
-stopCluster(cl)
 
 # merge pairs
 pairs<-mutate(lib,comb=ifelse((lib=="fwd" & dir==fwdname) | (lib=="rvs" & dir==rvsname),"FR","RF")) %>%
   pivot_wider(names_from=lib,values_from=c(dir,filename))
 dada_pairs<-dlply(pairs,.(run,library,sample,comb),function(x) {
   list(sample=x$sample,
-       fwd=dada_all[[paste0(x$run,".fwd")]][[paste(x$sample,x$library,x$dir_fwd,sep=".")]],
+       fwd=dada_all[[paste0(x$run,".fwd")]][[x$dir_fwd]][[paste(x$sample,x$library,x$dir_fwd,sep=".")]],
        filename_fwd=x$filename_fwd,
-       rvs=dada_all[[paste0(x$run,".rvs")]][[paste(x$sample,x$library,x$dir_rvs,sep=".")]],
+       rvs=dada_all[[paste0(x$run,".rvs")]][[x$dir_rvs]][[paste(x$sample,x$library,x$dir_rvs,sep=".")]],
        filename_rvs=x$filename_rvs)
 })
 rm(dada_all)
