@@ -155,8 +155,8 @@ else
 		if [ ! -z "$(find ../libraries/fastq -name $i.$j.*.pairend.fastq.$EXT)" ]
 		then
 			# initialize
-			MAXLF=$(for x in ../libraries/raw_stat/$i.*.fwd.length ; do awk 'END{print $1}' $x ; done | sort -nr | head -1)
-			MAXLR=$(for x in ../libraries/raw_stat/$j.*.rvs.length ; do awk 'END{print $1}' $x ; done | sort -nr | head -1)
+			MAXLF=$(for x in ../libraries/raw_stat/$i.*.fwd.length ; do awk 'END{print $1}' $x ; done | sort -n | head -1)
+			MAXLR=$(for x in ../libraries/raw_stat/$j.*.rvs.length ; do awk 'END{print $1}' $x ; done | sort -n | head -1)
 			parallel -k echo ::: $(seq $TRUNCLEN 5 $MAXLF) ::: $(seq 0.5 0.5 $MAXEE) | awk -v EE=$MAXEE -v L=$TRUNCLEN '{print $1,$2,($1-L+5)/5*((EE-$2+0.5)/0.5)^2}' | tee $i.fwd.stat > $j.rvs.stat
 			# optimize combination of length and maxEE
 			while read samp fwd rvs
