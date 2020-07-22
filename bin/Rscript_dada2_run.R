@@ -38,15 +38,18 @@ if (prev != "no") {
 }
 
 # error model for all samples of the same run and and same lib (R1/R2)
-err<-dlply(lib,.(run,lib), function(x) dada2::learnErrors(x$filename,randomize=T,multithread=ncores))
+err<-dlply(lib,.(run,lib),function(x) {
+  set.seed(1)
+  dada2::learnErrors(x$filename,randomize=T,multithread=ncores)
+})
 
 # dada2: pool strategy for all samples of same run, same lib and same orientation (i.e. starting by orward or reverse primer)
 ncpus<-ifelse(nrow(lib)<ncores,nrow(lib),ncores)
-dada_all<-dlply(lib, .(run,lib),function(x) {
+dada_all<-dlply(lib,.(run,lib),function(x) {
   tmp_err<-err[[unique(paste(x$run,x$lib,sep="."))]]
   cl<-makeCluster(ncpus)
   registerDoParallel(cl)
-  tmp_derep<-dlply(x,.(sample,library,dir),function(y) {
+  tmp_derep<-plyr::dlply(x,.(sample,library,dir),function(y) {
     dada2::derepFastq(y$filename,n=1e5)
   },.parallel=T)
   stopCluster(cl)

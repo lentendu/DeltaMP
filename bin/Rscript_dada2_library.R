@@ -10,8 +10,10 @@ fwdin<-list.files(pattern=paste0(lib,".fwd.filtered.fastq"))
 rvsin<-list.files(pattern=paste0(lib,".rvs.filtered.fastq"))
 
 # error model
-err<-llply(setNames(as.list(c("fwd","rvs")),c("fwd","rvs")),
-           function(i) dada2::learnErrors(get(paste0(i,"in")),randomize=T,multithread=ncores))
+err<-llply(setNames(as.list(c("fwd","rvs")),c("fwd","rvs")),function(i) {
+  set.seed(1)
+  dada2::learnErrors(get(paste0(i,"in")),randomize=T,multithread=ncores)
+})
 
 # dereplicate
 frnames<-rbind(cbind.data.frame(lib="fwd",dir=sub(paste0("\\.",lib,".*$"),"",fwdin),stringsAsFactors=F),
