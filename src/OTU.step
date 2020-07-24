@@ -179,8 +179,10 @@ then
 			if [ $i == "$FWD_NAME" ] ; then j=${RVS_NAME} ; else j=${FWD_NAME} ; fi
 			if [ -f ../quality_check/$i.fwd.optimized.quality.txt ]
 			then
-				obicut --without-progress-bar --uppercase -b 1 -e $(cut -d " " -f 1 ../quality_check/$i.fwd.optimized.quality.txt) ${PREV_SUB}.outputs/${PREV_ASV}.fasta | twofasta > ${PREV_SUB}.$i.fwd.fasta
-				vsearch --quiet --fastx_revcomp ${PREV_SUB}.outputs/${PREV_ASV}.fasta --fastaout - | obicut --without-progress-bar --uppercase -b 1 -e $(cut -d " " -f 1 ../quality_check/$j.rvs.optimized.quality.txt) | twofasta > ${PREV_SUB}.$j.rvs.fasta
+				OQUAL=($(cat ../quality_check/TAReuk454FWD1.fwd.optimized.quality.txt))
+				obicut --without-progress-bar --uppercase -b 1 -e ${OQUAL[0]} ${PREV_SUB}.outputs/${PREV_ASV}.fasta | twofasta > ${PREV_SUB}.$i.fwd.fasta
+				vsearch --quiet --fastx_revcomp ${PREV_SUB}.outputs/${PREV_ASV}.fasta --fastaout - | obicut --without-progress-bar --uppercase -b 1 -e ${OQUAL[0]} | twofasta > ${PREV_SUB}.$j.rvs.fasta
+				unset OQUAL
 			fi
 		done
 	fi
@@ -191,7 +193,19 @@ then
 	elif [ $PERRUN == "yes" ]
 	then
 		# pooled approach
-		Rscript --vanilla $BIN/Rscript_dada2_run.R $NCPUS $SUBPROJECT $FWD_NAME $RVS_NAME $MIN_OV $PTRESH ${PREV_PATH##*/}
+		LIB_NAME=($(cut -f 3 $EXEC/config/librun.list | sort -u))
+		for i in ${LIB_NAME[@]}
+		do
+			for j in ${FWD_NAME} ${RVS_NAME}
+			do
+				if [ $j == "$FWD_NAME" ] ; then k=${RVS_NAME} ; comb=FR ; else k=${FWD_NAME} ; comb=RF ; fi
+				if [ ! -z "$(find ./ -type f -name $j.*.$i.fwd.filtered.fastq)" ]
+				then
+					Rscript --vanilla $BIN/Rscript_dada2_single_run.R $NCPUS $i $j $k $comb $MIN_OV $PTRESH ${PREV_PATH##*/}
+				fi
+			done
+		done
+		Rscript --vanilla $BIN/Rscript_dada2_run.R $NCPUS $SUBPROJECT ${PREV_PATH##*/}
 	fi
 	FASTA_OTUS=$SUBPROJECT.dada2
 	COUNT_OTUS=$SUBPROJECT.dada2
@@ -200,11 +214,11 @@ then
 		i=$1
 		for j in $i/*fwd.filtered.fastq
 		do
-			sed -n '1~4{s/^@//;s/ .*//;p}' $j | nl -n ln | sort -k 1,1 | join -o 2.2,1.2 - <(sort -k 1,1 ${j%.*}.asv.index)
+			sed -n '1~4{s/^@//;s/ .*//;p}' $j | nl -n ln | sort -k 1,1 | join -o 2.2,1.2 - <(sort -k 2,2 ${j%.*}.asv.index | join -1 2 -2 2 -o 1.1,2.1 - <(paste - - < $FASTA_OTUS.fasta | sed 's/>//' | sort -k 2,2) | sort -k 1,1)
 			rm ${j%.*}.asv.index
 		done
 	}
-	export -f match_index
+	export -f match_index FASTA_OTUS
 	parallel -j $NCPUS match_index ::: $SAMP_NAME | sort --parallel=$NCPUS -k 1,1 | awk '{if(NR==1){p=$1;print p"\t"$2} else {if($1==p){print ","$2} else {p=$1;print p"\t"$2}}}' | sed -e :a -e '$!N;s/\n,/,/;ta' -e 'P;D' > ${NAMES_OTUS}.names
 fi
 

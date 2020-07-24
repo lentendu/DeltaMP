@@ -20,9 +20,9 @@ frnames<-rbind(cbind.data.frame(lib="fwd",dir=sub(paste0("\\.",lib,".*$"),"",fwd
                cbind.data.frame(lib="rvs",dir=sub(paste0("\\.",lib,".*$"),"",rvsin),stringsAsFactors=F))
 cl<-makeCluster(nrow(frnames))
 registerDoParallel(cl)
-derep<-dlply(frnames, .(lib,dir),
-             function(i) dada2::derepFastq(grep(i$dir,get(paste0(i$lib,"in")),value=T),n=1e5),
-             .parallel=T,.paropts=list(.export=c('fwdin','rvsin')))
+derep<-suppressWarnings(dlply(frnames, .(lib,dir),function(i) {
+  dada2::derepFastq(grep(i$dir,get(paste0(i$lib,"in")),value=T),n=1e5)
+  },.parallel=T,.paropts=list(.export=c('fwdin','rvsin'))))
 stopCluster(cl)
 
 # dada2

@@ -43,11 +43,11 @@ prior_seq<-dlply(prior_asv,.(lib),function(x) {
 # dada pseudo-pooling stategy with prior ASV from all libraries and track sequence map
 cl<-makeCluster(ncores)
 registerDoParallel(cl)
-dada_all<-dlply(filtered,.(sample,library,lib,dir),function(x) {
+dada_all<-suppressWarnings(dlply(filtered,.(sample,library,lib,dir),function(x) {
   tmp_err<-readRDS(file.path(x$sample,paste(x$library,x$lib,"err.rds",sep=".")))
   tmp_derep<-dada2::derepFastq(file.path(x$sample,x$filename),n=1e5)
   dada2::dada(tmp_derep,tmp_err,priors=prior_seq[[x$lib]])
-},.parallel=T,.paropts=list(.export='prior_seq'))
+},.parallel=T,.paropts=list(.export='prior_seq')))
 stopCluster(cl)
 
 # merge pairs
@@ -61,11 +61,11 @@ dada_pairs<-dlply(pairs,.(sample,library,comb),function(x) {
 rm(dada_all)
 cl<-makeCluster(ncores)
 registerDoParallel(cl)
-mergers_all<-llply(dada_pairs,function(x) {
+mergers_all<-suppressWarnings(llply(dada_pairs,function(x) {
   tmp_derep_F<-dada2::derepFastq(file.path(x$sample,x$filename_fwd),n=1e5)
   tmp_derep_R<-dada2::derepFastq(file.path(x$sample,x$filename_rvs),n=1e5)
   dada2::mergePairs(x$fwd, tmp_derep_F, x$rvs, tmp_derep_R, minOverlap=minov, maxMismatch=maxmis, trimOverhang=T)
-},.parallel=T,.paropts=list(.export=c('minov','maxmis')))
+},.parallel=T,.paropts=list(.export=c('minov','maxmis'))))
 stopCluster(cl)
 
 # sequence table for each paired library in each sample, sum per sample, reverse-coomplement if RF direction
