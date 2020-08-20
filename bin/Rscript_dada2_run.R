@@ -5,6 +5,7 @@ suppressMessages(library(tidyr))
 library(tibble)
 library(foreach)
 suppressMessages(library(doParallel))
+suppressMessages(library(dada2))
 
 ncores<-as.numeric(commandArgs()[7])
 subp<-commandArgs()[8]
@@ -15,10 +16,10 @@ list_seqtab<-data.frame(seqtab=list.files(pattern=".dada2_seqtab.rds$"),stringsA
   separate(seqtab,c("lib","comb","suf"),sep="##",remove=F) %>%
   select(-suf)
 seqtab<-dlply(list_seqtab,.(lib,comb),function(x) readRDS(x$seqtab)) %>%
-  dada2::mergeSequenceTables(tables=.)
+  mergeSequenceTables(tables=.)
 
 # Remove chimeras
-seqtab_clean<-dada2::removeBimeraDenovo(seqtab, method="pooled", multithread=ncores)
+seqtab_clean<-removeBimeraDenovo(seqtab, method="pooled", multithread=ncores)
 
 # percent of ASV and reads removed
 nbbim<-ncol(seqtab)-ncol(seqtab_clean)

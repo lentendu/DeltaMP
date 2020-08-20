@@ -62,7 +62,7 @@ else
 		for i in ${FWD_NAME} ${RVS_NAME}
 		do
 			if [ $i == "$FWD_NAME" ] ; then j=${RVS_NAME} ; else j=${FWD_NAME} ; fi
-			if [ ! -z "$(find ../libraries/fastq -name $i.$j.*.pairend.fastq.$EXT)" ]
+			if [ ! -z "$(find ./ -name $i.*.fwd.derep)" ]
 			then
 				cat */$i.*.fwd.asv.fasta | vsearch --quiet --derep_fulllength - --relabel_sha1 --output - | twofasta > $i.fwd.fasta
 				cat */$j.*.rvs.asv.fasta | vsearch --quiet --derep_fulllength - --relabel_sha1 --output - | twofasta > $j.rvs.fasta
@@ -218,7 +218,8 @@ then
 			rm ${j%.*}.asv.index
 		done
 	}
-	export -f match_index FASTA_OTUS
+	export -f match_index
+	export FASTA_OTUS
 	parallel -j $NCPUS match_index ::: $SAMP_NAME | sort --parallel=$NCPUS -k 1,1 | awk '{if(NR==1){p=$1;print p"\t"$2} else {if($1==p){print ","$2} else {p=$1;print p"\t"$2}}}' | sed -e :a -e '$!N;s/\n,/,/;ta' -e 'P;D' > ${NAMES_OTUS}.names
 fi
 

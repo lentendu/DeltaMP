@@ -216,12 +216,10 @@ do
 					vsearch --fastx_revcomp $RVS_NAME.$FWD_NAME.$i.pairend.fastq --fastqout - | vsearch --quiet --fastq_filter - --fastq_maxlen $MAXLEN --fastq_minlen $MINLEN --fastaout - | twofasta | awk '{if($1~"^>"){gsub(":","_",$1)};print $1}' > $i.pairend.trim.fasta
 					rm $RVS_NAME.$FWD_NAME.$i.pairend.fastq
 				fi
-				rm *.$i.fwd.filtered.fastq *.$i.rvs.filtered.fastq
-			elif [ ASV == "yes" ] && [ $PERRUN == "no" ]
-			then
-				Rscript --vanilla $BIN/Rscript_dada2_library.R $NCPUS $i
+			else
+				Rscript --vanilla $BIN/Rscript_dada2_library.R $NCPUS $i $PERRUN
 			fi
-		fi			
+		fi
 	fi
 done
 

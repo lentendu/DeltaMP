@@ -5,6 +5,7 @@ suppressMessages(library(tidyr))
 library(tibble)
 library(foreach)
 suppressMessages(library(doParallel))
+suppressMessages(library(dada2))
 
 ncores<-as.numeric(commandArgs()[7])
 subp<-commandArgs()[8]
@@ -17,61 +18,59 @@ prev<-commandArgs()[13]
 # libraries and samples
 lib3<-read.table("../config/lib3.list",sep="\t",stringsAsFactors=F)
 samples<-unique(lib3[,1])
-filtered<-foreach(i=samples,.combine=rbind) %do% {
+libraries<-foreach(i=samples,.combine=rbind) %do% {
   foreach(j=c("fwd","rvs"),.combine=rbind) %do% {
     foreach(k=c(fwdname,rvsname),.combine=rbind) %do% {
-      tmp<-list.files(path=i,pattern=paste(k,".*",j,"filtered\\.fastq",sep="."))
+      tmp<-list.files(path=i,pattern=paste(k,".*",j,"filtered.derep",sep="."))
       if (length(tmp)>0) {
         data.frame(sample=i,lib=j,dir=k,filename=tmp,stringsAsFactors=F) %>%
-          mutate(library=sub(paste0("^",k,"\\."),"",sub(paste0("\\.",j,"\\.filtered\\.fastq$"),"",filename)))
+          mutate(library=sub(paste0("^",k,"\\."),"",sub(paste0("\\.",j,"\\.filtered\\.derep$"),"",filename)))
       }
     }
   }
 }
-pairs<-mutate(filtered,comb=ifelse((lib=="fwd" & dir==fwdname) | (lib=="rvs" & dir==rvsname),"FR","RF")) %>%
+pairs<-mutate(libraries,comb=ifelse((lib=="fwd" & dir==fwdname) | (lib=="rvs" & dir==rvsname),"FR","RF")) %>%
   pivot_wider(names_from=lib,values_from=c(dir,filename))
 
 # priors ASV
 prior_asv<-data.frame(filename=list.files(pattern="*.[fr][wv][ds].fasta$"),stringsAsFactors=F) %>%
-  separate(filename,c("subp","dir","lib","ext"),sep="\\.",remove=F)
+  separate(filename,c("dir","lib","ext"),sep="\\.",remove=F)
 prior_seq<-dlply(prior_asv,.(lib),function(x) {
-  unique(foreach(y=iapply(x,1),.combine=c) %do% {
+  foreach(y=iapply(x,1),.combine=c) %do% {
     unlist(read.fasta(y$filename,seqonly=T))
-  })
+  }
 })
 
 # dada pseudo-pooling stategy with prior ASV from all libraries and track sequence map
 cl<-makeCluster(ncores)
 registerDoParallel(cl)
-dada_all<-suppressWarnings(dlply(filtered,.(sample,library,lib,dir),function(x) {
-  tmp_err<-readRDS(file.path(x$sample,paste(x$library,x$lib,"err.rds",sep=".")))
-  tmp_derep<-dada2::derepFastq(file.path(x$sample,x$filename),n=1e5)
-  dada2::dada(tmp_derep,tmp_err,priors=prior_seq[[x$lib]])
-},.parallel=T,.paropts=list(.export='prior_seq')))
+dada_pairs<-suppressWarnings(dlply(pairs,.(sample,library,comb),function(x) {
+  tmp_err_fwd<-readRDS(file.path(x$sample,paste0(x$library,".fwd.err.rds")))
+  tmp_derep_fwd<-readRDS(file.path(x$sample,x$filename_fwd))
+  tmp_err_rvs<-readRDS(file.path(x$sample,paste0(x$library,".rvs.err.rds")))
+  tmp_derep_rvs<-readRDS(file.path(x$sample,x$filename_rvs))
+  list(sample=x$sample,
+       fwd=dada(tmp_derep_fwd,tmp_err_fwd,priors=prior_seq$fwd),
+       filename_fwd=x$filename_fwd,
+       rvs=dada(tmp_derep_rvs,tmp_err_rvs,priors=prior_seq$fwd),
+       filename_rvs=x$filename_rvs)
+},.parallel=T,.paropts=list(.export='prior_seq',.packages='dada2')))
 stopCluster(cl)
 
 # merge pairs
-dada_pairs<-dlply(pairs,.(sample,library,comb),function(x) {
-  list(sample=x$sample,
-       fwd=dada_all[[paste(x$sample,x$library,"fwd",x$dir_fwd,sep=".")]],
-       filename_fwd=x$filename_fwd,
-       rvs=dada_all[[paste(x$sample,x$library,"rvs",x$dir_rvs,sep=".")]],
-       filename_rvs=x$filename_rvs)
-})
-rm(dada_all)
 cl<-makeCluster(ncores)
 registerDoParallel(cl)
 mergers_all<-suppressWarnings(llply(dada_pairs,function(x) {
-  tmp_derep_F<-dada2::derepFastq(file.path(x$sample,x$filename_fwd),n=1e5)
-  tmp_derep_R<-dada2::derepFastq(file.path(x$sample,x$filename_rvs),n=1e5)
-  dada2::mergePairs(x$fwd, tmp_derep_F, x$rvs, tmp_derep_R, minOverlap=minov, maxMismatch=maxmis, trimOverhang=T)
-},.parallel=T,.paropts=list(.export=c('minov','maxmis'))))
+  tmp_derep_fwd<-readRDS(file.path(x$sample,x$filename_fwd))
+  tmp_derep_rvs<-readRDS(file.path(x$sample,x$filename_rvs))
+  mergePairs(x$fwd, tmp_derep_fwd, x$rvs, tmp_derep_rvs, minOverlap=minov, maxMismatch=maxmis, trimOverhang=T)
+},.parallel=T,.paropts=list(.export=c('minov','maxmis'),.packages='dada2')))
 stopCluster(cl)
 
 # sequence table for each paired library in each sample, sum per sample, reverse-coomplement if RF direction
 seqtab_pairs<-llply(setNames(as.list(unique(pairs$comb)),unique(pairs$comb)),function(x) {
-  dada2::mergeSequenceTables(tables=llply(setNames(as.list(samples),samples),function(y) {
-    tmp<-colSums(dada2::makeSequenceTable(mergers_all[grep(paste(y,".*",x,sep="\\."),names(mergers_all),value=T)]))
+  mergeSequenceTables(tables=llply(setNames(as.list(samples),samples),function(y) {
+    tmp<-colSums(makeSequenceTable(mergers_all[grep(paste(y,".*",x,sep="\\."),names(mergers_all),value=T)]))
     if(x=="RF") {
       return(matrix(tmp,nrow=1,dimnames=list(paste(y,x,sep="_"),
                                              laply(names(tmp),function(x) c2s(rev(comp(s2c(x),forceToLower=F)))))))
@@ -83,13 +82,13 @@ seqtab_pairs<-llply(setNames(as.list(unique(pairs$comb)),unique(pairs$comb)),fun
 
 # merge to a single table
 if (length(seqtab_pairs)>1) {
-  seqtab<-dada2::mergeSequenceTables(tables=seqtab_pairs)
+  seqtab<-mergeSequenceTables(tables=seqtab_pairs)
 } else {
   seqtab<-seqtab_pairs[[1]]
 }
 
 # Remove chimeras
-seqtab_clean<-dada2::removeBimeraDenovo(seqtab, method="pooled", multithread=ncores)
+seqtab_clean<-removeBimeraDenovo(seqtab, method="pooled", multithread=ncores)
 
 # percent of ASV and reads removed
 nbbim<-ncol(seqtab)-ncol(seqtab_clean)
@@ -141,19 +140,19 @@ if (prev != "no") {
 
 # track all sequences
 map_track<-dlply(pairs,.(sample,library,comb),function(x) {
-  tmp_derep_F<-dada2::derepFastq(file.path(x$sample,x$filename_fwd),n=1e5)
-  tmp_derep_R<-dada2::derepFastq(file.path(x$sample,x$filename_rvs),n=1e5)
+  tmp_derep_F<-readRDS(file.path(x$sample,x$filename_fwd))
+  tmp_derep_R<-readRDS(file.path(x$sample,x$filename_rvs))
   tmp_dada_F<-dada_pairs[[paste(x$sample,x$library,x$comb,sep=".")]][["fwd"]]
   tmp_dada_R<-dada_pairs[[paste(x$sample,x$library,x$comb,sep=".")]][["rvs"]]
   tmp_mergers<-mergers_all[[paste(x$sample,x$library,x$comb,sep=".")]]
-  tmp_map<-full_join(data.frame(filtered=1:length(tmp_derep_F$map),derep_forward=tmp_derep_F$map,derep_reverse=tmp_derep_R$map),
+  tmp_map<-full_join(data.frame(libraries=1:length(tmp_derep_F$map),derep_forward=tmp_derep_F$map,derep_reverse=tmp_derep_R$map),
                             data.frame(derep_forward=1:length(tmp_dada_F$map),dada_forward=tmp_dada_F$map),by="derep_forward") %>%
     full_join(data.frame(derep_reverse=1:length(tmp_dada_R$map),dada_reverse=tmp_dada_R$map),by="derep_reverse") %>%
     full_join(data.frame(dada_forward=tmp_mergers$forward,dada_reverse=tmp_mergers$reverse,merged=1:length(tmp_mergers$forward),
                          seq=if(x$comb=="RF"){laply(tmp_mergers$sequence,function(y) c2s(rev(comp(s2c(y),forceToLower=F))))} else {tmp_mergers$sequence},
                          stringsAsFactors=F),by=c("dada_forward","dada_reverse")) %>%
     full_join(final_asv,by="seq") %>%
-    filter(!is.na(filtered)) %>%
+    filter(!is.na(libraries)) %>%
     select(-seq)
 })
 map_track_sample<-ldply(map_track) %>%
@@ -164,14 +163,14 @@ map_track_sample<-ldply(map_track) %>%
   summarize_all(~sum(.)) %>%
   rename(bimera_removed=asv)
 
-# export ASVs as fasta, the ASV table with named ASVs, the track index for each filtered sequence to each ASV and count statistic
+# export ASVs as fasta, the ASV table with named ASVs, the track index for each libraries sequence to each ASV and count statistic
 write(apply(final_asv,1,function(x) paste0(">",paste(x,collapse="\n"))),file=paste(subp,"dada2.fasta",sep="."),ncolumns=1)
 write.table(mat,paste0(subp,".dada2.count_table"),sep="\t",col.names=T,row.names=F,quote=F)
 write.table(map_track_sample,paste0(subp,".dada2.read_counts.tsv"),sep="\t",col.names=T,row.names=F,quote=F)
 it<-as.list(iapply(pairs,1))
 for(i in 1:length(it)) {
   x<-it[[i]]
-  write.table(select(map_track[[paste(x$sample,x$library,x$comb,sep=".")]],filtered,asv) %>%
+  write.table(select(map_track[[paste(x$sample,x$library,x$comb,sep=".")]],libraries,asv) %>%
     filter(!is.na(asv)),
-    file.path(x$sample,sub("\\.fastq$",".asv.index",x$filename_fwd)),col.names=F,row.names=F,quote=F)
+    file.path(x$sample,sub("\\.derep$",".asv.index",x$filename_fwd)),col.names=F,row.names=F,quote=F)
 }
