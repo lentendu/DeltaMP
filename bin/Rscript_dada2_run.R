@@ -40,7 +40,7 @@ final_asv<-data.frame(asv=colnames(mat_df)[-1],seq=colnames(seqtab_clean),string
 # transpose
 mat<-column_to_rownames(mat_df,"sample") %>%
   t() %>%
-  data.frame(total=colSums(mat_df[,-1]),.) %>%
+  data.frame(total=rowSums(.),.,check.names=F) %>%
   rownames_to_column("Representative_Sequence")
 
 # rename ASV after previous ASV, if any

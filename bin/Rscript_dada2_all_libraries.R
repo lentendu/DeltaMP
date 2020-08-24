@@ -109,7 +109,7 @@ final_asv<-data.frame(asv=colnames(mat_df)[-1],seq=colnames(seqtab_clean),string
 # transpose
 mat<-column_to_rownames(mat_df,"sample") %>%
   t() %>%
-  data.frame(total=colSums(mat_df[,-1]),.) %>%
+  data.frame(total=rowSums(.),.,check.names=F) %>%
   rownames_to_column("Representative_Sequence")
 
 # rename ASV after previous ASV, if any
@@ -159,7 +159,7 @@ map_track_sample<-ldply(map_track) %>%
   group_by(sample,library,comb) %>%
   summarise_all(~length(na.exclude(.))) %>%
   group_by(sample) %>%
-  select(-library,-comb,-starts_with("derep")) %>%
+  select(-library,-comb,-starts_with("derep"),-seq) %>%
   summarize_all(~sum(.)) %>%
   rename(bimera_removed=asv)
 

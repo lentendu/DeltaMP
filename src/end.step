@@ -116,7 +116,7 @@ do
 done | cat <(sed -n '1p' $SUBPROJECT.all_OTUs.tsv | awk -v L=$SAMP_SIZE '{for(i=2;i<=L+1;i++){printf "%s\t", $i}}' | sed 's/\t$/\n/') - | transpose | sort -k 1,1 | mimato | cat <(echo ${LABELS[@]} | sed 's/ /_OTUs /g;s/$/_OTUs/;s/^/Sample /') - | tr " " "\t" | sed '/^Sample/s/_/ /g' | cut -f 2- > tmp.read_counts.tsv
 if [ $CLUST == "dada2" ]
 then
-	sed '1d' $SUBPROJECT.dada2.read_counts.tsv | mimato | cat <(HEADER=($(head -1 $SUBPROJECT.dada2.read_counts.tsv)); echo ${HEADER[@]^} | tr " " "\t") - | cut -f 2- | paste <(cut -f 1-4,6 ../quality_check/$SUBPROJECT.summary.stat.tsv) - tmp.read_counts.tsv > $SUBPROJECT.read_counts.tsv
+	sed '1d' $SUBPROJECT.dada2.read_counts.tsv | sort -k 1,1 | mimato | cat <(HEADER=($(head -1 $SUBPROJECT.dada2.read_counts.tsv)); echo ${HEADER[@]^} | tr " " "\t") - | cut -f 2- | paste <(cut -f 1-4,6 ../quality_check/$SUBPROJECT.summary.stat.tsv) - tmp.read_counts.tsv > $SUBPROJECT.read_counts.tsv
 else
 	paste tmp.read_counts.tsv ../quality_check/$SUBPROJECT.summary.stat.tsv - > $SUBPROJECT.read_counts.tsv
 fi

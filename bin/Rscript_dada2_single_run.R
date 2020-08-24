@@ -95,6 +95,7 @@ map_track<-foreach(i=dada_all$fwd,j=derep$fwd,k=dada_all$rvs,l=derep$rvs,m=merge
                      }
 stopCluster(cl)
 map_track_sample<-ldply(map_track,.id="sample") %>%
+  select(-seq) %>%
   group_by(sample) %>%
   summarise_all(~length(na.exclude(.))) %>%
   select(-starts_with("derep")) %>%
