@@ -35,16 +35,16 @@ then
 	if [ $BDIFFS == "a" ]
 	then
 		unset BDIFFS
-		grep -v ">" fastq/oligos.$LIB_NAME | awk '{sub("\\^","");print "barcode "$1}' > MID.$LIB_NAME
+		sed -n '/^>/!{s/^[\^X]/barcode /;p}' fastq/oligos.$LIB_NAME > MID.$LIB_NAME
 		BDIFFS=$(barcode_mismatch_check.sh MID.$LIB_NAME)
 		rm MID.$LIB_NAME
 	fi
 else
 	if [ $BDIFFS == "a" ]
 	then
-		grep -v ">" fastq/oligos.F.$LIB_NAME | awk '{sub("\\^","");print "barcode "$1}' > MID.F.$LIB_NAME
+		sed -n '/^>/!{s/^[\^X]/barcode /;p}' fastq/oligos.F.$LIB_NAME > MID.F.$LIB_NAME
 		FBDIFFS=$(barcode_mismatch_check.sh MID.F.$LIB_NAME)
-		grep -v ">" fastq/oligos.R.$LIB_NAME | awk '{sub("\\^","");print "barcode "$1}' > MID.R.$LIB_NAME
+		sed -n '/^>/!{s/^[\^X]/barcode /;p}' fastq/oligos.R.$LIB_NAME > MID.R.$LIB_NAME
 		RBDIFFS=$(barcode_mismatch_check.sh MID.R.$LIB_NAME)
 		rm MID.F.$LIB_NAME MID.R.$LIB_NAME
 	else
@@ -53,7 +53,7 @@ else
 	fi
 fi
 
-# cutadapt with 5' anchored adaptors
+# cutadapt with 5' adaptors
 eval mkdir part_{01..$NCPUS}
 selfmerge () { cat $(find . -type f -path "./part_*/$1" | sort) > fastq/$1 ; }
 export -f selfmerge
@@ -61,7 +61,7 @@ export FWD_LIB RVS_LIB
 if [ $EXT == "gz" ]; then COMP="pigz -p 1 -b 1024" ; DECOMP="unpigz -p $NCPUS -b 1024 -ck" ; elif [ $EXT == "bz2" ] ; then COMP=bzip2 ; DECOMP="bunzip2 -ck" ; fi
 if [ -z $DUALID ]
 then
-	awk -v B=$BDIFFS '{if($1~"^>"){print} else {if(B==0){print $1";o="length($1)-1";e=0"} else {print $1";o="length($1)-1";e="(int(B/(length($1)-1)*100)+1)/100}}}' fastq/oligos.$LIB_NAME > oligos.$LIB_NAME.param
+	awk -v B=$BDIFFS '{if($1~"^>"){print} else {match($1,"[ATCG][ATCG]*");if(B==0){print $1";o="RLENGTH";e=0"} else {print $1";o="RLENGTH-B";e="(int(B/RLENGTH*100)+1)/100}}}' fastq/oligos.$LIB_NAME > oligos.$LIB_NAME.param
 	if [ $SBS == "both" ]
 	then
 		NLINES=$($DECOMP ${FWD_LIB}.fastq.$EXT | awk -v N=$NCPUS 'END{C=NR/4/N; if(C==int(C)){print C*4} else print int(C+1)*4}')
@@ -71,7 +71,8 @@ then
 		rm ${FWD_LIB}.part_* ${RVS_LIB}.part_*
 		tail -n +1 part_*/log_cutadapt.demultiplex.${LIB_NAME}.txt > fastq/log_cutadapt.demultiplex.${LIB_NAME}.txt
 	else
-		if [ $SBS == "forward" ] ; then FWDANCH="" ; RVSANCH="^" ; CUTDIR="-g" ; elif [ $SBS == "reverse" ] ; then FWDANCH="^" ; RVSANCH="" ; CUTDIR="-G" ; fi
+		FWDANCH="" ; RVSANCH=""
+		if [ $SBS == "forward" ] ; then if [ $PRIM_ANCH == "yes" ] ; then RVSANCH="^" ; fi ; CUTDIR="-g" ; elif [ $SBS == "reverse" ] ; then if [ $PRIM_ANCH == "yes" ] ; then FWDANCH="^" ; fi ; CUTDIR="-G" ; fi
 		FPDIFFS=$(awk -v P=$PDIFFS -v F=${#FWD} 'BEGIN{print (int(P/F*100)+1)/100}')
 		RPDIFFS=$(awk -v P=$PDIFFS -v R=${#RVS} 'BEGIN{print (int(P/R*100)+1)/100}')
 		cutadapt -j $NCPUS --no-indels --action=none -g "$FWDANCH$FWD;o=$((${#FWD}-2));e=$FPDIFFS" -G "$RVSANCH$RVS;o=$((${#RVS}-2));e=$RPDIFFS" --untrimmed-output unt.${FWD_LIB}.fastq.$EXT --untrimmed-paired-output unt.${RVS_LIB}.fastq.$EXT -o ${FWD_NAME}.${FWD_LIB}.fastq -p ${RVS_NAME}.${RVS_LIB}.fastq ${FWD_LIB}.fastq.$EXT ${RVS_LIB}.fastq.$EXT > fastq/log_cutadapt.demultiplex.raw_primers.FR.${LIB_NAME}.txt
@@ -94,8 +95,8 @@ then
 	parallel -j $NCPUS -k selfmerge ::: $(basename -a $(ls part_*/*fastq) | sort -u)
 	rm -r part_* oligos.$LIB_NAME.param
 else
-	awk -v F=$FBDIFFS '{if($1~"^>"){print} else {if(F==0){print $1";o="length($1)-1";e=0"} else {print $1";o="length($1)-1";e="(int(F/(length($1)-1)*100)+1)/100}}}' fastq/oligos.F.$LIB_NAME > oligos.F.$LIB_NAME.param
-	awk -v R=$RBDIFFS '{if($1~"^>"){print} else {if(R==0){print $1";o="length($1)-1";e=0"} else {print $1";o="length($1)-1";e="(int(R/(length($1)-1)*100)+1)/100}}}' fastq/oligos.R.$LIB_NAME > oligos.R.$LIB_NAME.param
+	awk -v F=$FBDIFFS '{if($1~"^>"){print} else {match($1,"[ATCG][ATCG]*");if(F==0){print $1";o="RLENGTH";e=0"} else {print $1";o="RLENGTH-F";e="(int(F/RLENGTH*100)+1)/100}}}' fastq/oligos.F.$LIB_NAME > oligos.F.$LIB_NAME.param
+	awk -v R=$RBDIFFS '{if($1~"^>"){print} else {match($1,"[ATCG][ATCG]*");if(R==0){print $1";o="RLENGTH";e=0"} else {print $1";o="RLENGTH-R";e="(int(R/RLENGTH*100)+1)/100}}}' fastq/oligos.R.$LIB_NAME > oligos.R.$LIB_NAME.param
 	if [ $BINDBP == "yes" ]
 	then
 		FPDIFFS=$(awk -v P=$PDIFFS -v F=${#FWD} 'BEGIN{print (int(P/F*100)+1)/100}')
@@ -132,7 +133,7 @@ else
 	tail -n +1 part_*/log_cutadapt.demultiplex.RF.${LIB_NAME}.txt > fastq/log_cutadapt.demultiplex.RF.${LIB_NAME}.txt
 	rm  -r part_* oligos.F.$LIB_NAME.param oligos.R.$LIB_NAME.param
 	# merge reads per sample
-	sed 's/^[>\^]//' fastq/oligos.F.$LIB_NAME | paste - - | sort -k 2,2 | join -1 2 - <(awk -v L=${LIB_NAME}$FWD_SUF 'BEGIN{FS="\t"} $3==L{split($1,a,",");print a[1],a[2],$2}' $EXEC/config/barcodes.txt | sort -k 1,1) | sort -k 3,3 | join -1 3 -2 2 - <(sed 's/^[>\^]//' fastq/oligos.R.$LIB_NAME | paste - - | sort -k 2,2) | awk '{print $4,$3,$5}' | sort -k 1,1 > fastq/oligo_pairs.${LIB_NAME}.txt
+	sed 's/^[>\^X]//' fastq/oligos.F.$LIB_NAME | paste - - | sort -k 2,2 | join -1 2 - <(awk -v L=${LIB_NAME}$FWD_SUF 'BEGIN{FS="\t"} $3==L{split($1,a,",");print a[1],a[2],$2}' $EXEC/config/barcodes.txt | sort -k 1,1) | sort -k 3,3 | join -1 3 -2 2 - <(sed 's/^[>\^X]//' fastq/oligos.R.$LIB_NAME | paste - - | sort -k 2,2) | awk '{print $4,$3,$5}' | sort -k 1,1 > fastq/oligo_pairs.${LIB_NAME}.txt
 	ls fastq/*.${FWD_LIB}.fastq > tmp.$FWD_LIB
 	ls fastq/*.${RVS_LIB}.fastq > tmp.$RVS_LIB
 	lib2sam () {

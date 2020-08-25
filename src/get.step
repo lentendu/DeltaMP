@@ -127,7 +127,7 @@ if [ $TECH == "454" ]
 then
 	cat <(echo "forward $FWD") <(echo "reverse $RVS") > fasta/oligos.$FWD_NAME.$RVS_NAME
 fi
-
+if [ $BARC_ANCH == "yes" ] ; then BANCH="^" ; else BANCH="X" ; fi
 while read lib fwd rvs
 do
 	if [[ $LIB_DIR == "/"* ]]
@@ -143,10 +143,10 @@ do
 	then
 		if [ -z $DUALID ]
 		then
-			awk -v I=$(echo "$lib$fwd") '$3==I{print ">"$2"\n^"$1}' $EXEC/config/barcodes.txt > fastq/oligos.$j
+			awk -v I=$(echo "$lib$fwd") -v B="$BANCH" '$3==I{print ">"$2"\n"B$1}' $EXEC/config/barcodes.txt > fastq/oligos.$j
 		else
-			awk -v I=$(echo "$lib$fwd") '$3==I{split($1,a,",");print a[1]}' $EXEC/config/barcodes.txt | sort -u | awk '{print ">F"NR"\n^"$1}' > fastq/oligos.F.$j
-			awk -v I=$(echo "$lib$fwd") '$3==I{split($1,a,",");print a[2]}' $EXEC/config/barcodes.txt | sort -u | awk '{print ">R"NR"\n^"$1}' > fastq/oligos.R.$j
+			awk -v I=$(echo "$lib$fwd") '$3==I{split($1,a,",");print a[1]}' $EXEC/config/barcodes.txt | sort -u | awk -v B="$BANCH" '{print ">F"NR"\n"B$1}' > fastq/oligos.F.$j
+			awk -v I=$(echo "$lib$fwd") '$3==I{split($1,a,",");print a[2]}' $EXEC/config/barcodes.txt | sort -u | awk -v B="$BANCH" '{print ">R"NR"\n"B$1}' > fastq/oligos.R.$j
 		fi
 	fi
 done < $EXEC/config/lib1.list

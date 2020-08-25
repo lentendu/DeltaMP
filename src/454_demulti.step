@@ -50,11 +50,12 @@ mothur "#set.dir(input=$EXEC/libraries, output=./);
 sffinfo(sff=$LIB_NAME.sff)"
 rm $LIB_NAME.sff
 
-# cutadapt with 5' anchored adaptors
+# cutadapt with 5' adaptors
 BLENGTH=$(grep -m 1 barcode oligos.${LIB_NAME} | awk '{print length($2)}')
 BDISS=$(awk -v L=$BLENGTH -v D=$BDIFFS 'BEGIN{printf "%.2g\n", D/L}')
-grep barcode oligos.${LIB_NAME} | awk '{print ">"$3"\n^"$2}' > oligos.${LIB_NAME}.fasta
-cutadapt -g file:oligos.${LIB_NAME}.fasta -e ${BDISS} -O $BLENGTH --no-indels --trimmed-only -o {name}.$LIB_NAME.fasta $LIB_NAME.fasta> log_cutadapt.demultiplex.${LIB_NAME}.txt
+if [ $BARC_ANCH == "yes" ] ; then BANCH="^" ; else BANCH="X" ; fi
+awk -v B="$BANCH" '$1=="barcode"{print ">"$3"\n"B$2}' oligos.$LIB_NAME > oligos.$LIB_NAME.fasta
+cutadapt -g file:oligos.${LIB_NAME}.fasta -e ${BDISS} -O $((BLENGTH-BDIFFS) --no-indels --trimmed-only -o {name}.$LIB_NAME.fasta $LIB_NAME.fasta > log_cutadapt.demultiplex.${LIB_NAME}.txt
 
 # create list of sequences to extract from main sff and oligo file per sample
 sed -n '/>/{s/>//;p}' oligos.$LIB_NAME.fasta > $LIB_NAME.groups.list

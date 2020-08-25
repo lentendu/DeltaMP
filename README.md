@@ -198,6 +198,8 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Libraries already demultiplexed__: “yes” or “no”. If the libraries are not demultiplexed, one fastq/sff file per sample in each library will be produced. An archive containing all demultiplexed libraries and labeled with "raw_fastq"/“raw_sff” will be created in the output directory. The default is “yes” for libraries already demultiplexed.
 
++ __Strict barcode anchoring__: “yes” or “no”. Wether the barcodes are strictly anchored at the 5'-end or partial match are also allowed (non-internal barcodes) in raw undemultiplexed libraries. The default is "yes".
+
 + __Single barcode side__: *Illumina specific parameter*, "both", "forward" or "reverse". For single-indexing (one barcode per library), provide the position of the barcode, "both" for both forward and reverse primers, "forward" for barcode only associated with the forward primer, "reverese"  for barcode only associated with the reverse primer. The default is “both”.
 
 + __Bind barcode to primer for demultiplexing__: *Illumina specific parameter*, "yes" or "no". For dual-indexing, control binding of barcodes with the forward/reverse primer to increase demultiplexing accuracy. The first barcode in a pair is only search associated with the forward primer at 5'-end and the second barcode is only search associated with the reverse primer at 5'-end, in both paired libraries. The default is “no”.
@@ -220,6 +222,8 @@ The default values for the optional parameters could be displayed by using the -
 + __Sequencing direction__: *454 specific parameter*, “forward”, “reverse” or "both" for libraries (column 3 of [SAMPLES section](#samples-section)) predominently orientated in the forward or reverse primer direction or for bi-directional sequencing, respectively. The default is “forward”.
 
 + __Remove primers at reads ends__: "no", "3prime", "5prime" or "both". Using cutadapt, "3prime" remove non-anchored reverse-complemented reverse and forward primers from 3'-end of forward and reverse libraries, respectively; "5prime" remove non-anchored forward and reverse primers from 5'-end of forward and reverse libraries, respectively; "both" combined both previous removal using the [linked adapter strategy](https://cutadapt.readthedocs.io/en/stable/guide.html#linked-adapters-combined-5-and-3-adapter) with anchored 5' adapter; value "no" avoid primer clipping. For "3prime", "5prime" and "both" values, unmatched reads are checked against the opposite primer/linked-adapter to allow for biderectionnal sequencing strategy detection, and the reads matched in this second step are reverse-complemented and append to the reads match at the first step. The default is "5prime".
+
++ __Anchored primers__: “yes” or “no”. Wether the primers are anchored to the 5'-end or not in demultiplexed libraries. The default is "yes".
 
 
 ### PAIR-END section
