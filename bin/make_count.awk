@@ -1,9 +1,9 @@
 BEGIN{
-	l=split(S,h)
+	l=split(S,h,"#")
 }
 {
 	if(NR==1){
-		for (i in h){
+		for (i=1;i<=l;i++){
 			samp[h[i]]=0
 		}
 		prev=$1
@@ -15,7 +15,7 @@ BEGIN{
 			samp[$3]=$4
 		} else {
 			printf "%s\t%s", prev,sum
-			for (i in h){
+			for (i=1;i<=l;i++){
 				printf "\t%s", samp[h[i]]
 				samp[h[i]]=0
 			}
@@ -27,7 +27,7 @@ BEGIN{
 	}
 } END {
 	printf "%s\t%s", prev,sum
-	for (i in h){
+	for (i=1;i<=l;i++){
 		printf "\t%s", samp[h[i]]
 	}
 	printf "\n"
