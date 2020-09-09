@@ -165,7 +165,7 @@ do
 			QUAL=`cat $EXEC/quality_check/optimized.quality.txt`
 			if [ $QFILT == "average" ]
 			then
-				$DECOMP $i.pairend.fastq.$EXT
+				$DECOMP -ck $i.pairend.fastq.$EXT > $i.pairend.fastq
 				mothur "#set.logfile(name=$LOG, append=T);
 				fastq.info(fastq=$i.pairend.fastq);
 				trim.seqs(fasta=$i.pairend.fasta, qfile=$i.pairend.qual, qaverage=$QUAL, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$MINLEN, maxlength=$MAXLEN, processors=$NCPUS)"
