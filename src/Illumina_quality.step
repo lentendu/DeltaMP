@@ -52,7 +52,17 @@ fi
 while read samp fwd rvs
 do
 	lib=$(echo $fwd $rvs | sed 's/\(.*\)[^ ]* \1.*$/\1/')
-	RAW_COUNT=$(grep -m 1 "^Total read pairs processed" libraries/fastq/log.cutadapt.$lib.fr.txt | awk '{print $NF}' | sed 's/,//g')
+	if [ $CLIPPING == "no" ]
+	then
+		if [ $PALG == "vsearch" ]
+		then
+			RAW_COUNT=$(awk '$2=="Pairs"{print $1;exit}' libraries/fastq/log.pairend.${FWD_NAME}.$lib.txt)
+		else
+			RAW_COUNT=$(tac libraries/fastq/log.pairend.${FWD_NAME}.$lib.txt | grep -m 1 -P "STAT\tREADS" | cut -f 4)
+		fi
+	else
+		RAW_COUNT=$(grep -m 1 "^Total read pairs processed" libraries/fastq/log.cutadapt.$lib.fr.txt | awk '{print $NF}' | sed 's/,//g')
+	fi
 	for i in ${FWD_NAME} ${RVS_NAME}
 	do
 		if [ $i == "$FWD_NAME" ] ; then j=${RVS_NAME} ; else j=${FWD_NAME} ; fi

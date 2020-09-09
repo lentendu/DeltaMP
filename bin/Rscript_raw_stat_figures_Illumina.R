@@ -23,14 +23,14 @@ if(trunc=="no") {
 list<-apply(expand.grid(types,c("meanqual","meanposqual","length")),1,paste,collapse=".")
 
 if(lib=="all") {
-  assign(paste0("files_",fwd),sub(paste0(fwd,"\\."),"",sub("\\.fwd\\.meanqual","",list.files(pattern=paste0(fwd,".*.fwd.meanqual")))))
-  assign(paste0("files_",rvs),sub(paste0(rvs,"\\."),"",sub("\\.rvs\\.meanqual","",list.files(pattern=paste0(rvs,".*.rvs.meanqual")))))
+  assign(paste0("files_",fwd),sub(paste0(fwd,"\\."),"",sub("\\.fwd\\.meanqual","\\.",list.files(pattern=paste0(fwd,".*.fwd.meanqual")))))
+  assign(paste0("files_",rvs),sub(paste0(rvs,"\\."),"",sub("\\.rvs\\.meanqual","\\.",list.files(pattern=paste0(rvs,".*.rvs.meanqual")))))
   samples<-unique(sort(sub("\\..*$","",c(get(paste0("files_",fwd)),get(paste0("files_",rvs))))))
   lname<-subp
   project<-paste0("Project: ",subp)
 } else {
-  assign(paste0("files_",fwd),sub(paste0(fwd,"\\."),"",sub("\\.fwd\\.meanqual","",list.files(pattern=paste0(fwd,".*",lib,".fwd.meanqual")))))
-  assign(paste0("files_",rvs),sub(paste0(rvs,"\\."),"",sub("\\.rvs\\.meanqual","",list.files(pattern=paste0(rvs,".*",lib,".rvs.meanqual")))))
+  assign(paste0("files_",fwd),sub(paste0(fwd,"\\."),"",sub("\\.fwd\\.meanqual","\\.",list.files(pattern=paste0(fwd,".*",lib,".fwd.meanqual")))))
+  assign(paste0("files_",rvs),sub(paste0(rvs,"\\."),"",sub("\\.rvs\\.meanqual","\\.",list.files(pattern=paste0(rvs,".*",lib,".rvs.meanqual")))))
   samples<-unique(c(sub(paste0("\\.",lib),"",get(paste0("files_",fwd))),sub(paste0("\\.",lib),"",get(paste0("files_",rvs)))))
   lname<-paste(subp,lib,sep=".")
   project<-paste0("Project: ",subp,"\nLibrary: ",lib)
@@ -51,9 +51,9 @@ meanqual<-foreach(x=types,.combine=rbind) %do% {
   foreach(y=samples,.combine=rbind) %do% {
     foreach(z=c(fwd,rvs),w=c(rvs,fwd),.combine=rbind) %do% {
       if(x %in% c("fwd","rvs")) {
-        tmp<-paste(z,grep(paste0("^",y,"\\."),get(paste0("files_",z)),value=T),x,"meanqual",sep=".")
+        tmp<-paste0(z,".",grep(paste0("^",y,"\\."),get(paste0("files_",z)),value=T),x,".meanqual")
       } else {
-        tmp<-paste(z,w,grep(paste0("^",y,"\\."),get(paste0("files_",z)),value=T),x,"meanqual",sep=".")
+        tmp<-paste0(z,".",w,".",grep(paste0("^",y,"\\."),get(paste0("files_",z)),value=T),x,".meanqual")
       }
       if(file.exists(tmp)) {
         data.frame(type=x,sample=y,dir=z,quality=0:41,reads=scan(tmp,quiet=T))
@@ -66,9 +66,9 @@ meanposqual<-foreach(x=types,.combine=rbind) %do% {
   foreach(y=samples,.combine=rbind) %do% {
     foreach(z=c(fwd,rvs),w=c(rvs,fwd),.combine=rbind) %do% {
       if(x %in% c("fwd","rvs")) {
-        tmp<-paste(z,grep(paste0("^",y,"\\."),get(paste0("files_",z)),value=T),x,"meanposqual",sep=".")
+        tmp<-paste0(z,".",grep(paste0("^",y,"\\."),get(paste0("files_",z)),value=T),x,".meanposqual")
       } else {
-        tmp<-paste(z,w,grep(paste0("^",y,"\\."),get(paste0("files_",z)),value=T),x,"meanposqual",sep=".")
+        tmp<-paste0(z,".",w,".",grep(paste0("^",y,"\\."),get(paste0("files_",z)),value=T),x,".meanposqual")
       }
       if(file.exists(tmp)) {
         data.frame(type=x,sample=y,dir=z,quality=scan(tmp,quiet=T)) %>%
@@ -82,9 +82,9 @@ seqlength<-foreach(x=types,.combine=rbind) %do% {
   foreach(y=samples,.combine=rbind) %do% {
     foreach(z=c(fwd,rvs),w=c(rvs,fwd),.combine=rbind) %do% {
       if(x %in% c("fwd","rvs")) {
-        tmp<-paste(z,grep(paste0("^",y,"\\."),get(paste0("files_",z)),value=T),x,"length",sep=".")
+        tmp<-paste0(z,".",grep(paste0("^",y,"\\."),get(paste0("files_",z)),value=T),x,".length")
       } else {
-        tmp<-paste(z,w,grep(paste0("^",y,"\\."),get(paste0("files_",z)),value=T),x,"length",sep=".")
+        tmp<-paste0(z,".",w,".",grep(paste0("^",y,"\\."),get(paste0("files_",z)),value=T),x,".length")
       }
       if(file.exists(tmp)) {
         data.frame(type=x,sample=y,dir=z,read.table(tmp,col.names=c("length","reads"))) 
