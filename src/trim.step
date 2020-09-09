@@ -201,7 +201,7 @@ do
 				fi
 			done
 			# Concatenate both direction
-			if [ ASV == "no" ]
+			if [ $ASV == "no" ]
 			then
 				if [ -f $FWD_NAME.$RVS_NAME.$i.pairend.fastq ]
 				then
@@ -227,7 +227,7 @@ done
 
 
 # Process trimmed reads of all libraries of the sample together
-if [ ASV == "no" ]
+if [ $ASV == "no" ]
 then
 	# concatenate fasta files
 	TRIMMED=(*.trim.fasta)

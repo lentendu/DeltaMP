@@ -31,7 +31,7 @@ SAMP_NAME=$(cut -f 1 config/lib4.list)
 cd processing
 
 # Merge all sample's fasta and count files (removing gaps if any)
-if [ ASV == "no" ]
+if [ $ASV == "no" ]
 then
 	parallel -j $NCPUS -k 'FASTA=$(sed -n "/^fasta=/{s/.*=//;p}" {}/current_files.summary); sed "/>/!s/[-\.]//g" {}/$FASTA' ::: $SAMP_NAME > $SUBPROJECT.fasta
 	parallel -j $NCPUS -k 'COUNT=$(sed -n "/^count=/{s/.*=//;p}" {}/current_files.summary); sed "1d;s/$/\t{}/" {}/$COUNT' ::: $SAMP_NAME > $SUBPROJECT.groups
@@ -288,13 +288,13 @@ then
 	if [ $CLUST != "dada2" ] # already included in dada2 scripts
 	then
 		# access previous subproject OTUs and amplicons
-		PREV_FASTA=${FASTA/$SUBPROJECT/$PREV_SUB}
-		PREV_FASTA_OTUS=${FASTA_OTUS/$SUBPROJECT/$PREV_SUB}
-		PREV_NAMES_OTUS=${NAMES_OTUS/$SUBPROJECT/$PREV_SUB}
+		tar xzvf $PREV_PATH/$PREV_SUB.processing.files.tar.gz $PREV_SUB.processing/OTU_env.txt
+		while read var val; do unset $var ; declare $var="$val" ; done < <(grep "^[FN]A" $PREV_SUB.processing/OTU_env.txt | sed 's/^/PREV_/')
 		tar xzvf $PREV_PATH/$PREV_SUB.processing.files.tar.gz $PREV_SUB.processing/$PREV_FASTA.fasta $PREV_SUB.processing/$PREV_NAMES_OTUS.names
-		# find exact similar amplicons and the OTU the are belonging to
-		awk '{print $1}' $FASTA.fasta | paste - - | sort --parallel=$NCPUS -k 2,2 | join -1 2 -2 2 - <(awk '{print $1}' $PREV_SUB.processing/$PREV_FASTA.fasta | paste - - | sort --parallel=$NCPUS -k 2,2) > aa.tmp
-		awk '{n=split($2,a,",");for(i in a){print a[i],$1,NR,n}}' $NAMES_OTUS.names | sort --parallel=$NCPUS -k 1,1 | join - <(cut -d " " -f 2-3 aa.tmp | sed 's/>//g' | sort -k 1,1) | sort -k 5,5 | join -1 5 - <(awk '{n=split($2,a,",");for(i in a){print a[i],$1,NR,n}}' $PREV_SUB.processing/$PREV_NAMES_OTUS.names | sort --parallel=$NCPUS -k 1,1) | sort -k 3,3 -k 6,6 | awk '{if(NR==1){os=$3;op=$6;nos=$4;nop=$7;s=$2"|"$1;sos=$5;sop=$8} else {if($3==os && $6==op){s=s","$2"|"$1} else {print os,op,nos,nop,sos,sop,s;os=$3;op=$6;nos=$4;nop=$7;s=$2"|"$1;sos=$5;sop=$8}}}END{print os,op,nos,nop,sos,sop,s}' > otus.aa.tmp
+		sed 's/[; ]*size=\([0-9]*\).*$/ size=\1;/' $PREV_SUB.processing/$PREV_FASTA.fasta | obigrep --uppercase -p "size>=$PREV_DOM" | twofasta > tmp_prev.fasta
+		# find exact similar amplicons (not between singletons amplicons, allow internal matches) and the OTU they are belonging to
+		sed 's/[; ]*size=\([0-9]*\).*$/ size=\1;/' $FASTA.fasta | obigrep --uppercase -p "size>=$PREV_DOM" | twofasta | vsearch --usearch_global - --threads $NCPUS --db tmp_prev.fasta --id 1 --maxaccepts 0 --userfields query+target+id+ql+tl --userout - | awk -v P=${PREV_PERC} '($5>=$4 && $4>=$5*P/100) || ($4>=$5 && $5>=$4*P/100){print $1,$2}' > aa.tmp
+		awk '{n=split($2,a,",");for(i in a){print a[i],$1,NR,n}}' $NAMES_OTUS.names | sort --parallel=$NCPUS -k 1,1 | join - <(sort -k 1,1 aa.tmp) | sort -k 5,5 | join -1 5 - <(awk '{n=split($2,a,",");for(i in a){print a[i],$1,NR,n}}' $PREV_SUB.processing/$PREV_NAMES_OTUS.names | sort --parallel=$NCPUS -k 1,1) | sort -k 3,3 -k 6,6 | awk '{if(NR==1){os=$3;op=$6;nos=$4;nop=$7;s=$2"|"$1;sos=$5;sop=$8} else {if($3==os && $6==op){s=s","$2"|"$1} else {print os,op,nos,nop,sos,sop,s;os=$3;op=$6;nos=$4;nop=$7;s=$2"|"$1;sos=$5;sop=$8}}}END{print os,op,nos,nop,sos,sop,s}' > otus.aa.tmp
 		# report
 		echo "There is $(sed -n '$=' aa.tmp) amplicons from $(cut -d " " -f 1 otus.aa.tmp | sort -u | wc -l) OTUs of $SUBPROJECT found in $(cut -d " " -f 2 otus.aa.tmp | sort -u | wc -l) OTUs of $PREV_SUB"
 		cut -f 2 -d " " otus.aa.tmp | sort | uniq -c | awk '$1>1{print $2}' | sort | join -2 2 - <(sort -k 2,2 otus.aa.tmp) | awk '{if(NR==1){op=$1;os=$2} else {if($1==op){os=os" "$2} else {print op"\t"os;op=$1;os=$2}}}END{if(op!=""){print op"\t"os}}' > otus.aa.sopmos.tmp
