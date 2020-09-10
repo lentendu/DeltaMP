@@ -640,7 +640,7 @@ then
 	if [ $CLUST == "dada2" ]
 	then
 		awk 'BEGIN{FS=OFS="\t"}{for(i=2;i<=NF;i++){print $1,$i}}' config/lib4.list | sed -r 's/(.*)\t\1\.(.*)$/\1\t\1.\2\t\2/' | awk '{if(NF==2){exit} else print}' > config/librun.list
-		if [ $PERRUN == "no" ]
+		if [ $PERRUN == "no" ] && [ -s config/librun.list ]
 		then
 			if [ $(sed -n '$=' config/librun.list) -eq $(sed -n '$=' config/lib4.list) ] && [ $(cut -f 3 config/librun.list | sort -u | sed -n '$=') -lt $(sed -n '$=' config/lib4.list) ]
 			then
@@ -648,6 +648,8 @@ then
 			else
 				rm config/librun.list
 			fi
+		else
+			rm config/librun.list
 		fi
 	fi
 fi

@@ -55,11 +55,8 @@ dada_pairs<-suppressWarnings(dlply(pairs,.(sample,library,comb),function(x) {
        rvs=dada(tmp_derep_rvs,tmp_err_rvs,priors=prior_seq$fwd),
        filename_rvs=x$filename_rvs)
 },.parallel=T,.paropts=list(.export='prior_seq',.packages='dada2')))
-stopCluster(cl)
 
 # merge pairs
-cl<-makeCluster(ncores)
-registerDoParallel(cl)
 mergers_all<-suppressWarnings(llply(dada_pairs,function(x) {
   tmp_derep_fwd<-readRDS(file.path(x$sample,x$filename_fwd))
   tmp_derep_rvs<-readRDS(file.path(x$sample,x$filename_rvs))
@@ -92,11 +89,11 @@ seqtab_clean<-removeBimeraDenovo(seqtab, method="pooled", multithread=ncores)
 
 # percent of ASV and reads removed
 nbbim<-ncol(seqtab)-ncol(seqtab_clean)
-print(paste0("Found ",nbbim," chimera (",round(nbbim/ncol(seqtab)*100,digits=2)," %) and ",
-             ncol(seqtab_clean)," (",round(ncol(seqtab_clean)/ncol(seqtab)*100,digits=2)," %) non-chimera ASVs."))
+print(paste0("Found ",nbbim," bimera (",round(nbbim/ncol(seqtab)*100,digits=2)," %) and ",
+             ncol(seqtab_clean)," (",round(ncol(seqtab_clean)/ncol(seqtab)*100,digits=2)," %) non-bimera ASVs."))
 countbim<-sum(seqtab)-sum(seqtab_clean)
-print(paste0("Found ",countbim," chimera (",round(countbim/sum(seqtab)*100,digits=2)," %) and ",
-             sum(seqtab_clean)," (",round(sum(seqtab_clean)/sum(seqtab)*100,digits=2)," %) non-chimera amplicons."))
+print(paste0("Found ",countbim," bimera (",round(countbim/sum(seqtab)*100,digits=2)," %) and ",
+             sum(seqtab_clean)," (",round(sum(seqtab_clean)/sum(seqtab)*100,digits=2)," %) non-bimera amplicons."))
 
 # merge sequence counts from both sequencing direction
 mat_df<-setNames(data.frame(seqtab_clean),paste0("ASV_",sprintf(paste0("%0",nchar(ncol(seqtab_clean)),"d"),1:ncol(seqtab_clean)))) %>%
@@ -159,7 +156,7 @@ map_track_sample<-ldply(map_track) %>%
   group_by(sample,library,comb) %>%
   summarise_all(~length(na.exclude(.))) %>%
   group_by(sample) %>%
-  select(-library,-comb,-starts_with("derep"),-seq) %>%
+  select(-library,-comb,-starts_with("derep")) %>%
   summarize_all(~sum(.)) %>%
   rename(bimera_removed=asv)
 
