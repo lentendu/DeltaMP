@@ -1,9 +1,7 @@
 library(seqinr)
 suppressMessages(library(plyr))
-suppressMessages(library(dplyr))
-suppressMessages(library(tidyr))
-library(tibble)
-library(foreach)
+suppressMessages(library(tidyverse))
+suppressMessages(library(foreach))
 suppressMessages(library(doParallel))
 suppressMessages(library(dada2))
 
@@ -107,8 +105,7 @@ saveRDS(map_track_sample,paste(runname,comb,"dada2_track.rds",sep="##"))
 it<-as.list(iapply(pairs,1))
 for(i in 1:length(it)) {
   x<-it[[i]]
-  write.table(select(map_track[[x$sample]],filtered,seq) %>%
-                filter(!is.na(seq)),
+  write.table(select(map_track[[x$sample]],filtered,seq) %>% filter(!is.na(seq)),
               file.path(sub("\\.derep$",".asv.index",x$filename_fwd)),col.names=F,row.names=F,quote=F)
 }
 

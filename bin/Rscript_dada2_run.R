@@ -1,9 +1,7 @@
 library(seqinr)
 suppressMessages(library(plyr))
-suppressMessages(library(dplyr))
-suppressMessages(library(tidyr))
-library(tibble)
-library(foreach)
+suppressMessages(library(tidyverse))
+suppressMessages(library(foreach))
 suppressMessages(library(doParallel))
 suppressMessages(library(dada2))
 

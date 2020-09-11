@@ -1,9 +1,6 @@
 library(plyr)
-suppressMessages(library(dplyr))
-library(tidyr)
-library(tibble)
-library(foreach)
-library(ggplot2)
+suppressMessages(library(tidyverse))
+suppressMessages(library(foreach))
 subp<-commandArgs()[7]
 bin<-commandArgs()[8]
 amp<-commandArgs()[9]

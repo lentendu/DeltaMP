@@ -1,9 +1,7 @@
 library(seqinr)
 suppressMessages(library(plyr))
-suppressMessages(library(dplyr))
-suppressMessages(library(tidyr))
-library(tibble)
-library(foreach)
+suppressMessages(library(tidyverse))
+suppressMessages(library(foreach))
 suppressMessages(library(doParallel))
 suppressMessages(library(dada2))
 
@@ -149,14 +147,13 @@ map_track<-dlply(pairs,.(sample,library,comb),function(x) {
                          seq=if(x$comb=="RF"){laply(tmp_mergers$sequence,function(y) c2s(rev(comp(s2c(y),forceToLower=F))))} else {tmp_mergers$sequence},
                          stringsAsFactors=F),by=c("dada_forward","dada_reverse")) %>%
     full_join(final_asv,by="seq") %>%
-    filter(!is.na(libraries)) %>%
-    select(-seq)
+    filter(!is.na(libraries))
 })
 map_track_sample<-ldply(map_track) %>%
   group_by(sample,library,comb) %>%
   summarise_all(~length(na.exclude(.))) %>%
   group_by(sample) %>%
-  select(-library,-comb,-starts_with("derep")) %>%
+  select(-library,-comb,-starts_with("derep"),-seq) %>%
   summarize_all(~sum(.)) %>%
   rename(bimera_removed=asv)
 
@@ -167,7 +164,6 @@ write.table(map_track_sample,paste0(subp,".dada2.read_counts.tsv"),sep="\t",col.
 it<-as.list(iapply(pairs,1))
 for(i in 1:length(it)) {
   x<-it[[i]]
-  write.table(select(map_track[[paste(x$sample,x$library,x$comb,sep=".")]],libraries,asv) %>%
-    filter(!is.na(asv)),
+  write.table(select(map_track[[paste(x$sample,x$library,x$comb,sep=".")]],libraries,seq) %>% filter(!is.na(seq)),
     file.path(x$sample,sub("\\.derep$",".asv.index",x$filename_fwd)),col.names=F,row.names=F,quote=F)
 }
