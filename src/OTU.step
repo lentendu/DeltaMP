@@ -220,7 +220,7 @@ then
 	}
 	export -f match_index
 	export FASTA_OTUS
-	parallel -j $NCPUS match_index ::: $SAMP_NAME | sort --parallel=$NCPUS -k 1,1 | awk '{if(NR==1){p=$1;print p"\t"$2} else {if($1==p){print ","$2} else {p=$1;print p"\t"$2}}}' | sed -e :a -e '$!N;s/\n,/,/;ta' -e 'P;D' > ${NAMES_OTUS}.names
+	parallel -j $NCPUS match_index ::: $SAMP_NAME | sort --parallel=$NCPUS -k 1,1 | awk '{if(NR==1){p=$1;print ">"p"\t"$2} else {if($1==p){print ","$2} else {p=$1;print ">"p"\t"$2}}}' | perl -0pe 's/\n,/,/g' > ${NAMES_OTUS}.names
 fi
 
 # Remove singletons
