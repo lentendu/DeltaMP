@@ -1,9 +1,9 @@
 # DeltaMP
  **A flexible, reproducible and resource efficient metabarcoding amplicon pipeline for HPC**
 
-DeltaMP is a command line tool for high performance computer taking advantage of queueing systems to parallelize and speed-up bioinformatic processing of metabarcoding raw read libraries.
+DeltaMP is a command line tool for high performance computer taking advantage of queueing systems to parallelize and standardize bioinformatic processing of metabarcoding raw read libraries.
 
-DeltaMP is initially developed to process **16S, 18S, ITS** raw read libraries with the most up-to-date bioinformatic workflows, but can also handle any other barcoding targets (e.g. 23/28S, COI, rbcL).
+DeltaMP is initially developed to process **16S, 18S, ITS and COI** raw read libraries with the most up-to-date bioinformatic workflows, but can also handle any other barcoding targets (e.g. 23/28S, rbcL).
 
 DeltaMP intend to be accessible for non-bioinformatician users with its fully tunable workflows based on a TAB-separated configuration file.
 
@@ -37,7 +37,7 @@ Last but not least, DeltaMP produces version controlled, reproducible and fully 
 
 ## Installation
 
-Source code of DeltaMP version 0.4 is available at <https://github.com/lentendu/DeltaMP/releases/tag/v0.4>
+Source code of DeltaMP version 0.5 is available at <https://github.com/lentendu/DeltaMP/releases/tag/v0.5>
 
 The repository could also be cloned using for example:
 ```
@@ -106,7 +106,7 @@ deltamp -h
 
 ```
 NAME
-	DeltaMP version 0.4 - a flexible, reproducible and resource efficient metabarcoding amplicon pipeline for HPC
+	DeltaMP version 0.5 - a flexible, reproducible and resource efficient metabarcoding amplicon pipeline for HPC
 
 SYNOPSIS
 	Usage: deltamp [-a account_or_project_name] [-cdfhnqtx] [-m max_running_tasks] [-p reference_subproject] [-r step] configuration_file

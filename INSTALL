@@ -6,20 +6,20 @@
 
 2. retrieve DeltaMP
 	a. either by downloading the last release:
-		wget https://github.com/lentendu/DeltaMP/archive/v0.3.tar.gz && tar xzvf DeltaMP-0.3.tar.gz
+		wget https://github.com/lentendu/DeltaMP/archive/v0.3.tar.gz && tar xzvf DeltaMP-0.5.tar.gz
 	
 	b. alternatively, by cloning the development version:
-		git clone https://github.com/lentendu/DeltaMP.git DeltaMP-0.3
+		git clone https://github.com/lentendu/DeltaMP.git DeltaMP-0.5
 
 
 3. cd to the newly created directory:
-	cd DeltaMP-0.3 
+	cd DeltaMP-0.5 
 
 
 4. edit the TAB-separated configuration file config.txt, by keeping the unmodified variable name on the first column and by modifying the second column values fitting your queueing system and HPC:
 	a. BATCH_QUEUE: name of the batch queuing system, either 'GridEngine' or 'Slurm'
 	
-	b. MODULE_NAME: name of the module used to create the modulefile name and directory name (default is "DeltaMP/0.3")
+	b. MODULE_NAME: name of the module used to create the modulefile name and directory name (default is "DeltaMP/0.5")
 	
 	c. MODULEFILES_DIR: path of the modulefiles directory, either full or relative to the installation directory (default is "modulefiles")
 	
@@ -53,12 +53,12 @@
 		make clean
 
 
-6. A modulefiles directory will be created inside the DeltaMP directory. To load the DeltaMP/0.3 module you have two options:
+6. A modulefiles directory will be created inside the DeltaMP directory. To load the DeltaMP/0.5 module you have two options:
 	a. either add the DeltaMP/modulefiles directory to your MODULEPATH variable by adding at the end of your ~/.bashrc or ~/.bash_profile file the following line :
 		export MODULEPATH=/FULL/PATH/TO/DeltaMP/modulefiles:$MODULEPATH
 	with /FULL/PATH/TO/ being the full path to your DeltaMP directory
 	
-	b. or copy the DeltaMP/modulefiles/DeltaMP directory to your preferred modulefiles directory which is already in your MODULEPATH (or copy only the modulefile "0.3" if you already have a DeltaMP directory in your preferred modulefiles directory)
+	b. or copy the DeltaMP/modulefiles/DeltaMP directory to your preferred modulefiles directory which is already in your MODULEPATH (or copy only the modulefile "0.5" if you already have a DeltaMP directory in your preferred modulefiles directory)
 
 
 7. If you choose 6.a., you first need to reload your bash configurations to allow the detection of the newly set MODULEPATH variable:
@@ -68,4 +68,4 @@ or
 
 
 8. Finally, you can load the DeltaMP module with:
-    module load DeltaMP/0.3
+    module load DeltaMP/0.5
