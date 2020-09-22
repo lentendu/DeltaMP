@@ -189,7 +189,7 @@ then
 	if [ $PERRUN == "no" ]
 	then
 		# pseudo-pool approach
-		Rscript --vanilla $BIN/Rscript_dada2_all_libraries.R $NCPUS $SUBPROJECT $FWD_NAME $RVS_NAME $MIN_OV $PTRESH ${PREV_PATH##*/}
+		Rscript --vanilla $BIN/Rscript_dada2_all_libraries.R $NCPUS $SUBPROJECT $FWD_NAME $RVS_NAME $MIN_OV $PTRESH $MINLEN ${PREV_PATH##*/}
 	elif [ $PERRUN == "yes" ]
 	then
 		# pooled approach
@@ -220,7 +220,7 @@ then
 	}
 	export -f match_index
 	export FASTA_OTUS
-	parallel -j $NCPUS match_index ::: $SAMP_NAME | sort --parallel=$NCPUS -k 1,1 | awk '{if(NR==1){p=$1;print ">"p"\t"$2} else {if($1==p){print ","$2} else {p=$1;print ">"p"\t"$2}}}' | perl -0pe 's/\n,/,/g' > ${NAMES_OTUS}.names
+	parallel -j $NCPUS match_index ::: $SAMP_NAME | sort --parallel=$NCPUS -k 1,1 | awk '{if(NR==1){p=$1;print p"\t"$2} else {if($1==p){print ","$2} else {p=$1;print p"\t"$2}}}' | perl -0pe 's/\n,/,/g' > ${NAMES_OTUS}.names
 fi
 
 # Remove singletons

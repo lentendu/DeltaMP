@@ -11,7 +11,8 @@ fwdname<-commandArgs()[9]
 rvsname<-commandArgs()[10]
 minov<-as.numeric(commandArgs()[11])
 maxmis<-minov*(1-as.numeric(commandArgs()[12]))
-prev<-commandArgs()[13]
+minlen<-as.numeric(commandArgs()[13])
+prev<-commandArgs()[14]
 
 # libraries and samples
 lib3<-read.table("../config/lib3.list",sep="\t",stringsAsFactors=F)
@@ -82,8 +83,11 @@ if (length(seqtab_pairs)>1) {
   seqtab<-seqtab_pairs[[1]]
 }
 
+# Remove too short sequences
+seqtab_ok<-seqtab[,nchar(colnames(seqtab))>=minlen]
+
 # Remove chimeras
-seqtab_clean<-removeBimeraDenovo(seqtab, method="pooled", multithread=ncores)
+seqtab_clean<-removeBimeraDenovo(seqtab_ok, method="pooled", multithread=ncores)
 
 # percent of ASV and reads removed
 nbbim<-ncol(seqtab)-ncol(seqtab_clean)

@@ -28,7 +28,7 @@ if(lib=="all") {
 } else {
   assign(paste0("files_",fwd),sub(paste0(fwd,"\\."),"",sub("\\.fwd\\.meanqual","\\.",list.files(pattern=paste0(fwd,".*",lib,".fwd.meanqual")))))
   assign(paste0("files_",rvs),sub(paste0(rvs,"\\."),"",sub("\\.rvs\\.meanqual","\\.",list.files(pattern=paste0(rvs,".*",lib,".rvs.meanqual")))))
-  samples<-unique(c(sub(paste0("\\.",lib),"",get(paste0("files_",fwd))),sub(paste0("\\.",lib),"",get(paste0("files_",rvs)))))
+  samples<-unique(c(sub(paste0("\\.",lib,"\\.*"),"",get(paste0("files_",fwd))),sub(paste0("\\.",lib,"\\.*"),"",get(paste0("files_",rvs)))))
   lname<-paste(subp,lib,sep=".")
   project<-paste0("Project: ",subp,"\nLibrary: ",lib)
 }
