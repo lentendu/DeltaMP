@@ -462,7 +462,7 @@ FULLCITATION[TAXO]="Wang Q, Garrity GM, Tiedje JM, Cole JR (2007) Naïve Bayesia
 	# OBITools and ecoPCR
 CITATION[OBI]="Boyer et al., 2016"
 FULLCITATION[OBI]="Boyer F, Mercier C, Bonin A et al. (2016) obitools: a unix-inspired software package for DNA metabarcoding. Molecular Ecology Resources, 16, 176–182."
-VERSION[OBI]=`pip show OBITools | grep Version | awk '{print $2}'`
+VERSION[OBI]=`pip show OBITools 2> /dev/null | grep Version | awk '{print $2}'`
 CITATION[ECO]="Ficetola et al. 2010"
 FULLCITATION[ECO]="Ficetola GF, Coissac E, Zundel S et al. (2010) An in silico approach for the evaluation of DNA barcodes. Bmc Genomics, 11, 434."
 
@@ -542,7 +542,7 @@ fi
 	# QIIME for demultiplexing
 CITATION[QIIME]="Caporaso et al., 2010"
 FULLCITATION[QIIME]="Caporaso JG, Kuczynski J, Stombaugh J et al. (2010) QIIME allows analysis of high-throughput community sequencing data. Nature Methods, 7, 335–336."
-VERSION[QIIME]=`pip show QIIME | grep Version | awk '{print $2}'`
+VERSION[QIIME]=`pip show QIIME 2> /dev/null | grep Version | awk '{print $2}'`
 
 # [Create and] dive to output PROJECT directory
 if [ -d $OUT_PATH/$PROJECT ]
