@@ -18,6 +18,19 @@
 
 #!/bin/bash
 
+if [ ! -z "$ARRAY_TASK" ]
+then
+	if [ $ARRAY_TASK -eq $ARRAY_MAX_TASK ]
+	then
+		while [ $(QUEUE_ARRAY_STAT $JOB_ID | sed -n '$=') -gt 2 ]
+		do
+			sleep 10
+		done
+	else
+		exit 0
+	fi
+fi
+
 MY_TMP_NAME=`echo $JOBNAME | sed "s/$DELTAMP_VER\.//;s/\.$SUBPROJECT//"`
 find $EXEC/* -type d | sort > $EXEC/config/${MY_TMP_NAME}.dir
 find $EXEC ! -type d | cat - <(echo $EXEC/config/${MY_TMP_NAME}.files) | sort > $EXEC/config/${MY_TMP_NAME}.files

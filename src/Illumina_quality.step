@@ -123,7 +123,7 @@ do
 			echo "Aborting"
 			awk 'BEGIN{FS=OFS="\t"};{print $1,$2,$3,$4,$5}' $SUBPROJECT.sample_counts.tsv > $SUBPROJECT.summary.stat.tsv
 			ln -s $PWD/$SUBPROJECT.summary.stat.tsv $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.read_counts.tsv
-			. $BIN/list_step_files.sh
+			(. $BIN/list_step_files.sh)
 			exit 100
 		fi
 	else
@@ -226,7 +226,7 @@ else
 fi
 
 # list files and directories
-. $BIN/list_step_files.sh
+(. $BIN/list_step_files.sh)
 
 echo END
 

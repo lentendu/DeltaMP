@@ -345,6 +345,6 @@ comm -23 <(set -o posix; set | sort) <(sort config/OTU.set) | tr "=" "\t" | grep
 rm config/OTU.set
 
 # list files and directories
-. $BIN/list_step_files.sh
+(. $BIN/list_step_files.sh)
 
 echo END

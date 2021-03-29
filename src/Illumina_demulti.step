@@ -177,6 +177,6 @@ fi
 ls fastq/*${LIB_NAME}*.fastq | parallel -j $NCPUS $COMP
 
 # list files and directories
-. $BIN/list_step_files.sh
+(. $BIN/list_step_files.sh)
 
 echo END

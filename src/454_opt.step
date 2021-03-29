@@ -108,6 +108,6 @@ done
 wait
 
 # list files and directories
-. $BIN/list_step_files.sh
+(. $BIN/list_step_files.sh)
 
 echo END

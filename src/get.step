@@ -152,6 +152,6 @@ do
 done < $EXEC/config/lib1.list
 
 # list files and directories
-. $BIN/list_step_files.sh
+(. $BIN/list_step_files.sh)
 
 echo END

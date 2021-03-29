@@ -67,6 +67,6 @@ fi
 dd if="$ARCHIVE" ibs=1M 2> /dev/null | md5sum | sed "s#$(dirname $ARCHIVE)/##" > "$ARCHIVE".md5
 
 # List files
-. $BIN/list_step_files.sh
+(. $BIN/list_step_files.sh)
 
 echo END

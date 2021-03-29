@@ -80,6 +80,6 @@ parallel -a $LIB_NAME.groups.list -j $NCPUS "rm -r {}.$LIB_NAME {}.$LIB_NAME.fas
 rm $LIB_NAME.flow $LIB_NAME.qual
 
 # list files and directories
-. $BIN/list_step_files.sh
+(. $BIN/list_step_files.sh)
 
 echo END

@@ -148,6 +148,6 @@ do
 done > ../archives/$SUBPROJECT.outputs/$SUBPROJECT.log
 
 # List files
-. $BIN/list_step_files.sh
+(. $BIN/list_step_files.sh)
 
 echo END
