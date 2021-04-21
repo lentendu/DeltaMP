@@ -27,25 +27,26 @@ while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var
 # load environment of previous step
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; if [ $REF_SUBPROJECT != "no" ] ; then declare $var=$(eval echo "$"$var | sed 's/'$REF_SUBPROJECT'/'$SUBPROJECT'/') ; fi ; done < config/id_env.txt
 
-# OTU table
+# OTU/ASV table
 cd processing
 LABELS=(all abundant all_$TARG_ORG abundant_$TARG_ORG)
+if [ $ASV == "yes" ] ; then SUFF=ASV ; else SUFF=OTU ; fi
 if [ $CLASSIF == "bayesian" ]
 then
-	paste $COUNT_OTUS.count_table $CTAXO.taxonomy | awk -v L=$SAMP_SIZE 'NR>1{printf "%s",$(L+3);for(i=3;i<=L+2;i++){printf "\t%s",$i};printf "\t%s\t%s\t%s\t%s\n", $(L+5),$1}' | cat <(head -1 ${COUNT_OTUS}.count_table | cut -f 3- | sed 's/^/OTU\t/;s/$/\ttaxonomy\trepseq/') - > $SUBPROJECT.${LABELS[0]}_OTUs.tsv
-	elif [ $CLASSIF == "vsearch" ]
+	sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,3- | sort -t $'\t' -k 1,1 | join -t $'\t' -2 4 - <(sed '1d' $CTAXO.taxonomy | sort -k 4,4) | awk -v L=$SAMP_SIZE 'BEGIN{FS="\t"}{printf "%s",$(L+2);for(i=2;i<=L+1;i++){printf "\t%s",$i};printf "\t%s\t%s\t%s\n", $(L+3),$(L+4),$1}' | sort -t $'\t' -k 1,1 | cat <(head -1 ${COUNT_OTUS}.count_table | cut -f 3- | sed 's/^/'$SUFF'\t/;s/$/\ttotal\ttaxonomy\trepseq/') - > $SUBPROJECT.${LABELS[0]}_${SUFF}s.tsv
+elif [ $CLASSIF == "vsearch" ]
 then
-	paste $COUNT_OTUS.count_table $CTAXO.taxonomy | awk -v L=$SAMP_SIZE 'NR>1{printf "%s",$(L+3);for(i=3;i<=L+2;i++){printf "\t%s",$i};printf "\t%s\t%s\t%s\t%s\n", $(L+5),$(L+6),$(L+7),$1}' | cat <(head -1 ${COUNT_OTUS}.count_table | cut -f 3- | sed 's/^/OTU\t/;s/$/\ttaxonomy\tsimilarity\treference\trepseq/') - > $SUBPROJECT.${LABELS[0]}_OTUs.tsv
+	sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,3- | sort -t $'\t' -k 1,1 | join -t $'\t' -2 6 - <(sed '1d' $CTAXO.taxonomy| sort -t $'\t' -k 6,6) | awk -v L=$SAMP_SIZE 'BEGIN{FS="\t"}{printf "%s",$(L+2);for(i=2;i<=L+1;i++){printf "\t%s",$i};printf "\t%s\t%s\t%s\t%s\t%s\n", $(L+3),$(L+4),$(L+5),$(L+6),$1}' | sort -k 1,1 | cat <(head -1 ${COUNT_OTUS}.count_table | cut -f 3- | sed 's/^/'$SUFF'\t/;s/$/\ttotal\ttaxonomy\tsimilarity\treference\trepseq/') - > $SUBPROJECT.${LABELS[0]}_${SUFF}s.tsv
 fi
 if [[ $TARG_ORG =~ [Pp]rotist[as]* ]]
 then
-	grep -P "[\t;_:]Eukaryota[()0-9]*;" $SUBPROJECT.${LABELS[0]}_OTUs.tsv | grep -v ";Fungi[()0-9]*;\|;Streptophyta[()0-9]*;\|;Metazoa[()0-9]*;" | cat <(sed -n '1p' $SUBPROJECT.${LABELS[0]}_OTUs.tsv) - > $SUBPROJECT.${LABELS[2]}_OTUs.tsv
+	grep -P "[\t;_:]Eukaryota[()0-9]*;" $SUBPROJECT.${LABELS[0]}_${SUFF}s.tsv | grep -v ";Fungi[()0-9]*;\|;Streptophyta[()0-9]*;\|;Metazoa[()0-9]*;" | cat <(sed -n '1p' $SUBPROJECT.${LABELS[0]}_${SUFF}s.tsv) - > $SUBPROJECT.${LABELS[2]}_${SUFF}s.tsv
 else
-	grep -P "[\t;_:]$TARG_ORG[()0-9]*;" $SUBPROJECT.${LABELS[0]}_OTUs.tsv | cat <(sed -n '1p' $SUBPROJECT.${LABELS[0]}_OTUs.tsv) - > $SUBPROJECT.${LABELS[2]}_OTUs.tsv
+	grep -P "[\t;_:]$TARG_ORG[()0-9]*;" $SUBPROJECT.${LABELS[0]}_${SUFF}s.tsv | cat <(sed -n '1p' $SUBPROJECT.${LABELS[0]}_${SUFF}s.tsv) - > $SUBPROJECT.${LABELS[2]}_${SUFF}s.tsv
 fi
 for i in 0 2
 do
-	awk -v M=$MIN_DOM -v S=$MIN_SAMP -v L=$SAMP_SIZE '{if(NR==1){print $0} else {seq=0;sam=0;for(i=2;i<=L+1;i++){if($i>0){seq+=$i;sam+=1}};if(seq>=M && sam>=S){print $0}}}' $SUBPROJECT.${LABELS[$i]}_OTUs.tsv > $SUBPROJECT.${LABELS[$((i+1))]}_OTUs.tsv
+	awk -v M=$MIN_DOM -v S=$MIN_SAMP -v L=$SAMP_SIZE '{if(NR==1){print $0} else {seq=0;sam=0;for(i=2;i<=L+1;i++){if($i>0){seq+=$i;sam+=1}};if(seq>=M && sam>=S){print $0}}}' $SUBPROJECT.${LABELS[$i]}_${SUFF}s.tsv > $SUBPROJECT.${LABELS[$((i+1))]}_${SUFF}s.tsv
 done
 
 # retrieve BioProject sample's associated metadata
@@ -75,13 +76,13 @@ then
 	cd ..
 fi
 
-# biom format (all OTUs only)
+# biom format (all OTUs/ASVs only)
 if [ $CLASSIF == "bayesian" ]
 then
-	sed 's/^OTU\t/#OTU\t/;s/NA;/NA(0);/g;s/)*;\t/\t/;s/);/|/g;s/(/##/g' $SUBPROJECT.${LABELS[0]}_OTUs.tsv | awk -v S=$SAMP_SIZE 'BEGIN{FS=OFS="\t"}{if(NR==1){print $1,$NF,$(S+2),"bootstrap"} else {l=split($(S+2),a,"|");tax="";boot="";for(i=1;i<=l;i++){split(a[i],b,"##");tax=tax""b[1]";";boot=boot""b[2]";"};print $1,$NF,tax,boot}}' | sed 's/;\t/\t/;s/;$//' > $CTAXO.taxo
+	sed 's/^\('$SUFF'\t\)/#\1/;s/NA;/NA(0);/g;s/)*;\t/\t/;s/);/|/g;s/(/##/g' $SUBPROJECT.${LABELS[0]}_${SUFF}s.tsv | awk -v S=$SAMP_SIZE 'BEGIN{FS=OFS="\t"}{if(NR==1){print $1,$NF,$(S+2),"bootstrap"} else {l=split($(S+2),a,"|");tax="";boot="";for(i=1;i<=l;i++){split(a[i],b,"##");tax=tax""b[1]";";boot=boot""b[2]";"};print $1,$NF,tax,boot}}' | sed 's/;\t/\t/;s/;$//' > $CTAXO.taxo
 elif [ $CLASSIF == "vsearch" ]
 then
-	sed 's/^OTU\t/#OTU\t/;s/NA;/NA(0);/g;s/)*;\t/\t/;s/);/|/g;s/(/##/g' $SUBPROJECT.${LABELS[0]}_OTUs.tsv | awk -v S=$SAMP_SIZE 'BEGIN{FS=OFS="\t"}{if(NR==1){print $1,$NF,$(S+2),"bootstrap",$(NF-2),$(NF-1)} else {l=split($(S+2),a,"|");tax="";boot="";for(i=1;i<=l;i++){split(a[i],b,"##");tax=tax""b[1]";";boot=boot""b[2]";"};print $1,$NF,tax,boot,$(NF-2),$(NF-1)}}' | sed 's/;\t/\t/g' > $CTAXO.taxo
+	sed 's/^\('$SUFF'\t\)/#\1/;s/NA;/NA(0);/g;s/)*;\t/\t/;s/);/|/g;s/(/##/g' $SUBPROJECT.${LABELS[0]}_${SUFF}s.tsv | awk -v S=$SAMP_SIZE 'BEGIN{FS=OFS="\t"}{if(NR==1){print $1,$NF,$(S+2),"bootstrap",$(NF-2),$(NF-1)} else {l=split($(S+2),a,"|");tax="";boot="";for(i=1;i<=l;i++){split(a[i],b,"##");tax=tax""b[1]";";boot=boot""b[2]";"};print $1,$NF,tax,boot,$(NF-2),$(NF-1)}}' | sed 's/;\t/\t/g' > $CTAXO.taxo
 fi
 
 # Functional assignment
@@ -91,7 +92,7 @@ then
 	mv tmp.$CTAXO $CTAXO.taxo
 fi
 
-cut -f 1-$((SAMP_SIZE + 1)) $SUBPROJECT.${LABELS[0]}_OTUs.tsv > $CTAXO.otu
+cut -f 1-$((SAMP_SIZE + 1)) $SUBPROJECT.${LABELS[0]}_${SUFF}s.tsv > $CTAXO.otu
 biom convert -i $CTAXO.otu -o $CTAXO.json.biom  --table-type="OTU table" --to-json
 
 if [[ $LIB_DIR != "/"* ]]
@@ -105,15 +106,15 @@ rm $CTAXO.taxo $CTAXO.otu $CTAXO.json.biom
 
 # Representative sequences
 twofasta $FASTA_OTUS.fasta > $SUBPROJECT.${LABELS[0]}_repseq.fasta
-obigrep --without-progress-bar --uppercase --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[1]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[1]}_repseq.fasta
-obigrep --without-progress-bar --uppercase --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[2]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[2]}_repseq.fasta
-obigrep --without-progress-bar --uppercase --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[3]}_OTUs.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[3]}_repseq.fasta
+obigrep --without-progress-bar --uppercase --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[1]}_${SUFF}s.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[1]}_repseq.fasta
+obigrep --without-progress-bar --uppercase --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[2]}_${SUFF}s.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[2]}_repseq.fasta
+obigrep --without-progress-bar --uppercase --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[3]}_${SUFF}s.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[3]}_repseq.fasta
 
 # Sequences stat
 for i in "${LABELS[@]}"
 do
-	awk -v L=$SAMP_SIZE 'NR>1{for(i=2;i<=(L+1);i++){sum[i]+=$i}}END{for(i=2;i<=(L+1);i++){printf "%s\t", sum[i]}}' $SUBPROJECT.${i}_OTUs.tsv | sed 's/\t$/\n/'
-done | cat <(sed -n '1p' $SUBPROJECT.all_OTUs.tsv | awk -v L=$SAMP_SIZE '{for(i=2;i<=L+1;i++){printf "%s\t", $i}}' | sed 's/\t$/\n/') - | transpose | sort -k 1,1 | mimato | cat <(echo ${LABELS[@]} | sed 's/ /_OTUs /g;s/$/_OTUs/;s/^/Sample /') - | tr " " "\t" | sed '/^Sample/s/_/ /g' | cut -f 2- > tmp.read_counts.tsv
+	awk -v L=$SAMP_SIZE 'NR>1{for(i=2;i<=(L+1);i++){sum[i]+=$i}}END{for(i=2;i<=(L+1);i++){printf "%s\t", sum[i]}}' $SUBPROJECT.${i}_${SUFF}s.tsv | sed 's/\t$/\n/'
+done | cat <(sed -n '1p' $SUBPROJECT.all_${SUFF}s.tsv | awk -v L=$SAMP_SIZE '{for(i=2;i<=L+1;i++){printf "%s\t", $i}}' | sed 's/\t$/\n/') - | transpose | sort -k 1,1 | mimato | cat <(echo ${LABELS[@]} | sed 's/ /_${SUFF} /g;s/$/_${SUFF}/;s/^/Sample /') - | tr " " "\t" | sed '/^Sample/s/_/ /g' | cut -f 2- > tmp.read_counts.tsv
 if [ $CLUST == "dada2" ]
 then
 	sed '1d' $SUBPROJECT.dada2.read_counts.tsv | sort -k 1,1 | mimato | cat <(HEADER=($(head -1 $SUBPROJECT.dada2.read_counts.tsv)); echo ${HEADER[@]^} | tr " " "\t") - | cut -f 2- | paste <(cut -f 1-4,6 ../quality_check/$SUBPROJECT.summary.stat.tsv) - tmp.read_counts.tsv > $SUBPROJECT.read_counts.tsv
