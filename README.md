@@ -418,6 +418,7 @@ For 454 or Illumina specific steps, step script filenames follow â€œ454_xxx.shâ€
    * quality: control sequencing depth for raw, cut, pair-end and trimmed reads; optimize the quality trimming parameters; one serial job
 + cut_db: reduce database reference sequences to the amplified region or to the ITS-covered region; format to mothur and vsearch udb; only one time per database version and pair of primer names; one parallel job
 + trim: group each sample reads if multiple libraries for one sample; denoise; trim or truncate; per library ASV inference; dereplicate; subsample; align and remove badly aligned sequences; precluster; remove chimeras; one parallel array job per sample
++ asv: for dada2 denoising of Illumina reads, when the samples could be group by run or library, this step perform the first step of the ASV inference by building one error model per run/library; one parallel array job per library/run
 + OTU: cluster sequences into OTUs or infer ASVs; pick representative sequences; remove singletons (optional); chimera check; one parallel job
 + id: classify all or only OTU representative sequences against a reference database; create OTU consensus assignment if needed; one parallel job
 + end: create OTU tables, extract representative sequences and count reads; combine each logs from all steps; add sample's metadata from ENA BioProject to BIOM file; add functional annotation; one serial job

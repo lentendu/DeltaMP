@@ -7,6 +7,7 @@ Illumina_opt
 Illumina_quality
 cut_db
 trim
+asv
 OTU
 id
 end

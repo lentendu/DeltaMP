@@ -277,6 +277,7 @@ fi
 if [ $TECH == "454" ]
 then
 	RAW_EXT=sff
+	ASV=no
 	if [ $SEQ_DIR == "forward" ]
 	then
 		FLIP=false
@@ -562,6 +563,13 @@ cp $METAD config/configuration.$SUBPROJECT.tsv && METADATA=configuration.$SUBPRO
 OUT=$OUT_PATH/$PROJECT/$SUBPROJECT
 EXEC=$EXEC_PATH/$SUBPROJECT
 
+if [ $DEMULTI == "no" ]
+then
+	RAW_DIR=$EXEC/libraries/$RAW_EXT
+else
+	RAW_DIR=$EXEC/libraries
+fi
+
 # Store barcodes, libraries and sample lists into files
 sed '1,/^Barcode sequence/d;/^$/d;s/^\t/barcode\t/' config/$METADATA > config/barcodes.txt
 COMP_EXT=($(sed "s/.*${RAW_EXT}\([^ \t$]*\).*/\1/;s/\.//" config/barcodes.txt | sort -u))
@@ -648,8 +656,10 @@ then
 			else
 				rm config/librun.list
 			fi
-		else
-			rm config/librun.list
+		fi
+		if [ $PERRUN == "yes" ]
+		then
+			NBRUN=`cut -f 3 config/librun.list | sort -u | wc -l`
 		fi
 	fi
 fi
@@ -670,10 +680,8 @@ then
 	if [ $DEMULTI == "no" ]
 	then
 		. $BIN/pipeline_master | sed '/^trim/,${s/^/#/};/^#output/,/^#raw_arch/{s/^#//}' > config/steps
-		RAW_DIR=$EXEC/libraries/$RAW_EXT
 	else
 		. $BIN/pipeline_master | sed '/^trim/,${s/^/#/};/^#output/s/^#//' > config/steps
-		RAW_DIR=$EXEC/libraries
 	fi
 else
 	if [ $DEMULTI == "no" ]

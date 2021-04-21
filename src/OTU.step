@@ -168,44 +168,14 @@ then
 
 elif [ $CLUST == "dada2" ]
 then
-	# access previous subproject ASVs
-	if [ "$PREV_PATH" != "no" ]
-	then
-		PREV_ASV=${PREV_SUB}.all_repseq
-		tar xzvf ${PREV_PATH}/${PREV_SUB}.outputs.tar.gz ${PREV_SUB}.outputs/${PREV_ASV}.fasta
-		# cut previous ASVs to forward and reverse truncation length
-		for i in ${FWD_NAME} ${RVS_NAME}
-		do
-			if [ $i == "$FWD_NAME" ] ; then j=${RVS_NAME} ; else j=${FWD_NAME} ; fi
-			if [ -f ../quality_check/$i.fwd.optimized.quality.txt ]
-			then
-				OQUAL=($(cat ../quality_check/TAReuk454FWD1.fwd.optimized.quality.txt))
-				obicut --without-progress-bar --uppercase -b 1 -e ${OQUAL[0]} ${PREV_SUB}.outputs/${PREV_ASV}.fasta | twofasta > ${PREV_SUB}.$i.fwd.fasta
-				vsearch --quiet --fastx_revcomp ${PREV_SUB}.outputs/${PREV_ASV}.fasta --fastaout - | obicut --without-progress-bar --uppercase -b 1 -e ${OQUAL[0]} | twofasta > ${PREV_SUB}.$j.rvs.fasta
-				unset OQUAL
-			fi
-		done
-	fi
 	if [ $PERRUN == "no" ]
 	then
 		# pseudo-pool approach
 		Rscript --vanilla $BIN/Rscript_dada2_all_libraries.R $NCPUS $SUBPROJECT $FWD_NAME $RVS_NAME $MIN_OV $PTRESH $MINLEN ${PREV_PATH##*/}
 	elif [ $PERRUN == "yes" ]
 	then
-		# pooled approach
-		LIB_NAME=($(cut -f 3 $EXEC/config/librun.list | sort -u))
-		for i in ${LIB_NAME[@]}
-		do
-			for j in ${FWD_NAME} ${RVS_NAME}
-			do
-				if [ $j == "$FWD_NAME" ] ; then k=${RVS_NAME} ; comb=FR ; else k=${FWD_NAME} ; comb=RF ; fi
-				if [ ! -z "$(find ./ -type f -name $j.*.$i.fwd.filtered.fastq)" ]
-				then
-					Rscript --vanilla $BIN/Rscript_dada2_single_run.R $NCPUS $i $j $k $comb $MIN_OV $PTRESH ${PREV_PATH##*/}
-				fi
-			done
-		done
-		Rscript --vanilla $BIN/Rscript_dada2_run.R $NCPUS $SUBPROJECT ${PREV_PATH##*/}
+		# finalise pooled approach
+		Rscript --vanilla $BIN/Rscript_dada2_run.R $NCPUS $SUBPROJECT $MINLEN
 	fi
 	FASTA_OTUS=$SUBPROJECT.dada2
 	COUNT_OTUS=$SUBPROJECT.dada2

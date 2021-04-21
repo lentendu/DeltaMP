@@ -9,8 +9,9 @@ deltamp := $(patsubst src/%,bin/%,$(patsubst %.main,%,$(wildcard $(addsuffix *.m
 batch_spec := $(addprefix bin/,$(notdir $(shell ls lib/$(batch)/deltamp.*)))
 steps := $(patsubst src/%,bin/%,$(patsubst %.step,%.sh,$(wildcard $(addsuffix *.step,src/))))
 arrays := $(patsubst %.options,%_array.options,$(shell ls lib/$(batch)/*.options | grep -v "_"))
+large_arrays := $(patsubst %.options,%_array_large.options,$(shell ls lib/$(batch)/mp.options | grep -v "_"))
 highmems := $(patsubst %.options,%_highmem.options,$(shell ls lib/$(batch)/*.options | grep -v "_"))
-options := $(arrays) $(highmems) $(shell ls lib/$(batch)/*.options | grep -v "_")
+options := $(arrays) $(large_arrays) $(highmems) $(shell ls lib/$(batch)/*.options | grep -v "_")
 heads := $(patsubst %.options,%.head,$(options))
 test_config := $(patsubst src/%,test/%,$(patsubst %.config,%.tsv,$(wildcard $(addsuffix *.config,src/))))
 
@@ -51,6 +52,7 @@ bin/end.sh : serial_highmem.head
 bin/get.sh bin/OTU.sh : mp.head
 bin/Illumina_demulti.sh bin/454_demulti.sh bin/454_sff.sh bin/454_opt.sh bin/trim.sh : mp_array.head
 bin/cut_db.sh bin/id.sh : mp_highmem.head
+bin/asv.sh : mp_array_large.head
 
 # rule to set parameters of job headers
 $(heads): lib/$(batch)/%.head :  %.options
@@ -63,7 +65,15 @@ $(arrays): lib/$(batch)/%_array.options : %.options
 ifeq ($(batch),GridEngine)
 	sed 's/NAME/NAME.$$TASK_ID/' $@ > $@.temp && mv $@.temp $@
 else ifeq ($(batch),Slurm)
-	sed 's/NAME/NAME.%a/' $@ | cat - <(echo 'sleep $$SLURM_ARRAY_TASK_ID') > $@.temp && mv $@.temp $@
+	sed 's/NAME/NAME.%a/' $@ | cat - <(echo 'sleep $$(( $$SLURM_ARRAY_TASK_ID / 2 ))') > $@.temp && mv $@.temp $@
+endif
+
+# rules to build large array job headers
+$(large_arrays): lib/$(batch)/%_array_large.options : %.options
+ifeq ($(batch),GridEngine)
+	sed 's/NAME/NAME.$$TASK_ID/' $< > $@
+else ifeq ($(batch),Slurm)
+	sed 's/NAME/NAME.%a/' $< > $@
 endif
 
 # rules to build high memory job headers
@@ -83,4 +93,4 @@ $(test_config): test/%.tsv : %.config
 
 # clean rule
 clean :
-	rm -r $(deltamp) $(steps) $(heads) $(arrays) $(highmems) $(batch_spec) $(test_config)
+	rm -r $(deltamp) $(steps) $(heads) $(arrays) $(large_arrays) $(highmems) $(batch_spec) $(test_config)

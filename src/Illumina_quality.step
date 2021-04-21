@@ -225,6 +225,26 @@ else
 	gs -q -sDEVICE=pdfwrite -o $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.raw_and_pair-end_reads_statistics.pdf $SUBPROJECT.quality*.pdf $SUBPROJECT.length*.pdf $SUBPROJECT.position_quality*.pdf $SUBPROJECT.legend.pdf
 fi
 
+# access previous subproject ASVs
+if [ $CLUST == "dada2" ] && [ "$PREV_PATH" != "no" ]
+then
+	cd $EXEC/processing
+	PREV_ASV=${PREV_SUB}.all_repseq
+	tar xzvf ${PREV_PATH}/${PREV_SUB}.outputs.tar.gz ${PREV_SUB}.outputs/${PREV_ASV}.fasta
+	# cut previous ASVs to forward and reverse truncation length
+	for i in ${FWD_NAME} ${RVS_NAME}
+	do
+		if [ $i == "$FWD_NAME" ] ; then j=${RVS_NAME} ; else j=${FWD_NAME} ; fi
+		if [ -f ../quality_check/$i.fwd.optimized.quality.txt ]
+		then
+			OQUAL=($(cat ../quality_check/$i.fwd.optimized.quality.txt))
+			obicut --without-progress-bar --uppercase -b 1 -e ${OQUAL[0]} ${PREV_SUB}.outputs/${PREV_ASV}.fasta | twofasta | sed '/>/s/_SUB.*$//' > ${PREV_SUB}.$i.fwd.fasta
+			vsearch --quiet --fastx_revcomp ${PREV_SUB}.outputs/${PREV_ASV}.fasta --fastaout - | obicut --without-progress-bar --uppercase -b 1 -e ${OQUAL[0]} | twofasta | sed '/>/s/_SUB.*$//'  > ${PREV_SUB}.$j.rvs.fasta
+			unset OQUAL
+		fi
+	done
+fi
+
 # list files and directories
 (. $BIN/list_step_files.sh)
 
