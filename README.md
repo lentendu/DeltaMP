@@ -239,7 +239,7 @@ The default values for the optional parameters could be displayed by using the -
 ### TRIMMING section
 + __Denoising__: *454 specific parameter*, "yes" or "no", whether to perform 454 flowgram denoising using FlowClus or nothing. The default is "no".
 
-+ __Minimum number of flows__: *454 specific parameter*, a number between 300 and 600, minimum length of flowgrams to be kept for denoising. The default is 360.
++ __Minimum number of flows__: *454 specific parameter*, a number between 100 and 600, minimum length of flowgrams to be kept for denoising. The default is 360.
 
 + __Number of mismatches allowed on the barcode sequence__: a number between 0 and 2, or 'a' for automatic detection of maximum allowed mismatch on a barcode to avoid mislabeling of sequence inside one library. This value is used for demultiplexing only. The default is 1.
 

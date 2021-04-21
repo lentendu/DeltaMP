@@ -63,7 +63,7 @@ sed '1d' $SUBPROJECT.lib_counts.tsv | sort -k 1,1 | awk '{if(NR==1){for(i=3;i<=N
 rm header
 
 # Signal and stop if two few sequences
-if [ $MIN_DEPTH -gt 1 ]
+if (( $(echo "$MIN_DEPTH > 1" | bc -l) ))
 then
 	head -n -4 $SUBPROJECT.quality.stat.txt | awk -v M=$MIN_DEPTH '$2<M{print $1,$2}' > min_depth.raw.test
 	head -n -4 $SUBPROJECT.quality.stat.txt | awk -v M=$MIN_DEPTH '$3<M{print $1,$3}' > min_depth.trim.test
@@ -73,6 +73,7 @@ else
 	TEST=(trim)
 fi
 
+SKIP_SAMP=$(awk -v S=$(sed -n '$=' $SUBPROJECT.quality.stat.txt) -v T=$SKIP_TRESH 'BEGIN{M=(S-5)*T/100; printf "%.0f", int(M) }')
 for i in ${TEST[@]}
 do
 	if [ -s min_depth.$i.test ]
@@ -81,11 +82,19 @@ do
 		echo "Sample Reads"
 		cat min_depth.$i.test
 		echo ""
-		echo "Aborting"
-		awk 'BEGIN{FS=OFS="\t"};{print $1,$2,$3}' $SUBPROJECT.quality.stat.txt > $SUBPROJECT.summary.stat.tsv
-		ln -s $PWD/$SUBPROJECT.summary.stat.tsv $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.read_counts.tsv
-		. $BIN/list_step_files.sh
-		exit 100
+		# compare amount of samples to the skip threshod
+		if [ $(cat min_depth.$i.test | wc -l) -le $SKIP_SAMP ]
+		then
+			echo "However, $SKIP_SAMP samples are allowed to have their read count below the minimum threshold, so the qualtiy check continues."
+			echo ""
+		else
+			if [ $SKIP_TRESH -gt 0 ]; then echo "This is more than the allowed amount of samples to be below the minimum threshold fixed at $SKIP_SAMP :"; fi
+			echo "Aborting"
+			awk 'BEGIN{FS=OFS="\t"};{print $1,$2,$3}' $SUBPROJECT.quality.stat.txt > $SUBPROJECT.summary.stat.tsv
+			ln -s $PWD/$SUBPROJECT.summary.stat.tsv $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.read_counts.tsv
+			(. $BIN/list_step_files.sh)
+			exit 100
+		fi
 	else
 		echo "All samples have at least $MIN_DEPTH $i reads"
 	fi
@@ -93,7 +102,10 @@ done
 
 # Select best trimming criteria (at least $MIN_DEPTH and 75 % of $MINLEN.$MINQUAL for each sample, or $MIN_DEPTH * raw counts if MIN_DEPTH is a ratio)
 echo "$MINLEN.$MINQUAL" > trimming.parameters.txt
-if [ $MIN_DEPTH -gt 1 ]
+if [ $SKIP_TRESH -eq 100 ]
+then
+	cut -f 1-3 $SUBPROJECT.quality.stat.txt > $SUBPROJECT.summary.stat.tsv
+elif (( $(echo $MIN_DEPTH > 1 | bc -l) ))
 then
 	cut -f 3 $SUBPROJECT.quality.stat.txt | head -n -4 | transpose_tab > ref.tmp
 	if [ $CLIPPING == "both" ]
@@ -118,8 +130,8 @@ else
 		TRIM=`cat trimming.parameters.txt`
 		awk -v T=$TRIM 'BEGIN{R=3;OFS="\t"} {if(NR==1){printf "%s\t%s" ,$1,$2; for (i=3;i<=NF;i++){if($i==T) {printf "\t%s %s\n", "Trimmed at",$i; R=i}}} else print $1,$2,$R}' $SUBPROJECT.quality.stat.txt > $SUBPROJECT.summary.stat.tsv
 	fi
+	rm ref.tmp
 fi
-rm ref.tmp
 ln -s $PWD/$SUBPROJECT.summary.stat.tsv $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.read_counts.tsv
 
 # raw reads statistics
