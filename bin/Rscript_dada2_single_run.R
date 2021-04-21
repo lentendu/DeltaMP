@@ -1,4 +1,5 @@
 library(seqinr)
+library(digest)
 suppressMessages(library(plyr))
 suppressMessages(library(tidyverse))
 suppressMessages(library(foreach))
@@ -23,8 +24,10 @@ librun<-read.table("../config/librun.list",sep="\t",col.names=c("sample","librar
 libs<-ddply(librun,.(sample),function(x){
   fwdin<-list.files(path=x$sample,pattern=paste(fwdname,x$library,"fwd.filtered.derep",sep="."),full.names=T)
   rvsin<-list.files(path=x$sample,pattern=paste(rvsname,x$library,"rvs.filtered.derep",sep="."),full.names=T)
-  rbind(data.frame(lib="fwd",filename=fwdin,stringsAsFactors=F),
-        data.frame(lib="rvs",filename=rvsin,stringsAsFactors=F))
+  if(length(fwdin)>0 & length(rvsin)>0) {
+    rbind(data.frame(lib="fwd",filename=fwdin,stringsAsFactors=F),
+          data.frame(lib="rvs",filename=rvsin,stringsAsFactors=F))
+  }
 }) %>%
   mutate(dir=sub("\\..*$","",basename(filename)))
 pairs<-pivot_wider(libs,names_from=lib,values_from=c(dir,filename))
@@ -54,7 +57,7 @@ dada_all<-dlply(libs,.(lib),function(x) {
   tmp_err<-err[[unique(x$lib)]]
   tmp_derep<-derep[[unique(x$lib)]]
  if (prev != "no") {
-   tmp_prior<-prior_seq[[unique(paste(y$dir,y$lib,sep="."))]]
+   tmp_prior<-prior_seq[[unique(paste(x$dir,x$lib,sep="."))]]
    dada(tmp_derep,tmp_err,pool=T,multithread=ncores,priors=tmp_prior)
  } else {
    dada(tmp_derep,tmp_err,pool=T,multithread=ncores)
@@ -105,7 +108,7 @@ saveRDS(map_track_sample,paste(runname,comb,"dada2_track.rds",sep="##"))
 it<-as.list(iapply(pairs,1))
 for(i in 1:length(it)) {
   x<-it[[i]]
-  write.table(select(map_track[[x$sample]],filtered,seq) %>% filter(!is.na(seq)),
+  write.table(filter(map_track[[x$sample]],!is.na(seq)) %>% rowwise() %>% mutate(sha1=sha1(seq)) %>% select(filtered,sha1),
               file.path(sub("\\.derep$",".asv.index",x$filename_fwd)),col.names=F,row.names=F,quote=F)
 }
 

@@ -11,17 +11,23 @@ perrun<-commandArgs()[9]
 fwdin<-list.files(pattern=paste0(lib,".fwd.filtered.fastq"))
 rvsin<-list.files(pattern=paste0(lib,".rvs.filtered.fastq"))
 
+# avoid empty files
+for (i in c("fwdin","rvsin")) {
+  assign(i,get(i)[file.info(get(i))$size>0])
+}
+
 # dereplicate and export
 frnames<-rbind(cbind.data.frame(lib="fwd",dir=sub(paste0("\\.",lib,".*$"),"",fwdin),stringsAsFactors=F),
                cbind.data.frame(lib="rvs",dir=sub(paste0("\\.",lib,".*$"),"",rvsin),stringsAsFactors=F))
-cl<-makeCluster(nrow(frnames))
+if(nrow(frnames)>ncores) {ncpus<-ncores} else {ncpus<-nrow(frnames)}
+cl<-makeCluster(ncpus)
 registerDoParallel(cl)
 derep<-suppressWarnings(dlply(frnames, .(lib,dir),function(i) {
   tmpf<-grep(i$dir,get(paste0(i$lib,"in")),value=T)
   tmp<-derepFastq(tmpf,n=1e5)
   saveRDS(tmp,sub("fastq$","derep",tmpf))
   return(tmp)
-  },.parallel=T,.paropts=list(.export=c('fwdin','rvsin'),.packages='dada2')))
+},.parallel=T,.paropts=list(.export=c('fwdin','rvsin'),.packages='dada2')))
 stopCluster(cl)
 
 

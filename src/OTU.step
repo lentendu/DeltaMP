@@ -171,7 +171,7 @@ then
 	if [ $PERRUN == "no" ]
 	then
 		# pseudo-pool approach
-		Rscript --vanilla $BIN/Rscript_dada2_all_libraries.R $NCPUS $SUBPROJECT $FWD_NAME $RVS_NAME $MIN_OV $PTRESH $MINLEN ${PREV_PATH##*/}
+		Rscript --vanilla $BIN/Rscript_dada2_all_libraries.R $NCPUS $SUBPROJECT $FWD_NAME $RVS_NAME $MIN_OV $PTRESH $MINLEN
 	elif [ $PERRUN == "yes" ]
 	then
 		# finalise pooled approach
@@ -180,12 +180,12 @@ then
 	FASTA_OTUS=$SUBPROJECT.dada2
 	COUNT_OTUS=$SUBPROJECT.dada2
 	NAMES_OTUS=$SUBPROJECT.dada2
+	# create the names file (index in the asv.index file correspond to the seqeunce position in the filtered.fastq file) 
 	match_index () {
 		i=$1
-		for j in $i/*fwd.filtered.fastq
+		for j in $i/*fwd.filtered.derep
 		do
-			sed -n '1~4{s/^@//;s/ .*//;p}' $j | nl -n ln | sort -k 1,1 | join -o 2.2,1.2 - <(sort -k 2,2 ${j%.*}.asv.index | join -1 2 -2 2 -o 1.1,2.1 - <(paste - - < $FASTA_OTUS.fasta | sed 's/>//' | sort -k 2,2) | sort -k 1,1)
-			rm ${j%.*}.asv.index
+			sed -n '1~4{s/^@//;s/ .*//;p}' ${j%.*}.fastq | nl -n ln | sort -k 1,1 | join -o 2.2,1.2 - <(sort -k 2,2 ${j%.*}.asv.index | join -1 2 -o 1.1,0 - <(grep "^>" $FASTA_OTUS.fasta | sed 's/>//' | sort) | sort -k 1,1)
 		done
 	}
 	export -f match_index
