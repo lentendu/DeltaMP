@@ -88,11 +88,14 @@ then
 			mothur "#cluster(method=unique, name=$NAMES_OTUS.names);
 			classify.otu(taxonomy=$TAXO.taxonomy, list=current, count=$COUNT.count_table, cutoff=$CONS);
 			get.current()"
+			LIST=`sed -n '/^list=/{s/.*=//;s/\.list//;p}' current_files.summary`
 			CTAXO=`sed -n '/^constaxonomy=/{s/.*=//;s/\.cons.taxonomy//;p}' current_files.summary`
-			rm *.rabund *.sabund *.list
+			transpose_tab $LIST.list | awk 'NR>2{split($2,a,",");for(i in a){print $1"\t"a[i]}}' | sort -k 2,2 | join -1 2 - <(awk '$1~"^>"{sub(">","",$1);print $1}' ${FASTA_OTUS}.fasta | sort) | sort -k 2,2 | join -2 2 <(sed '1d' $CTAXO.taxonomy) - | tr " " "\t" | cat <(paste <(head -1 $CTAXO.taxonomy) <(echo "repseq")) - > ${FASTA_OTUS}.cons.taxonomy
+			rm $CTAXO.taxonomy $CTAXO.tax.summary $LIST.list *.rabund *.sabund
+			CTAXO=${FASTA_OTUS}.cons
 		else
 			CTAXO=$TAXO.cons
-			sort -k 1,1 $TAXO.taxonomy | join -2 2 - <(cut -f 1 ${NAMES_OTUS}.names | nl -n rz -w ${#NBOTUS} | sort -k 2,2) | join - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 1,1) | sort -k 3,3n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy"} {print "Otu"$3,$4,$2}' > $CTAXO.taxonomy
+			sort -k 1,1 ${FASTA_OTUS}.taxonomy | join -2 2 - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 2,2nr -k 1,1 | nl -n rz -w ${#NBOTUS} | sort -k 2,2) | sort -k 3,3n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy","repseq"} {print "Otu"$3,$4,$2,$1}' > $CTAXO.taxonomy
 		fi
 		rm $TAXO.taxonomy
 	elif [ $CLASSIF == "vsearch" ]
@@ -122,7 +125,7 @@ then
 			sed 's/;\t/\t/;s/;$//;s/;tax=/\t/' ${TAXO}.hits | sort --parallel=$NCPUS -k 1,1 -k 4,4 | awk '$1 != p{printf ">"}{p=$1}1' | parallel -j $NCPUS --recstart ">" --pipe -k lca > ${TAXO}.taxonomy
 		fi
 		CTAXO=$TAXO.cons
-		sort -k 1,1 ${FASTA_OTUS}.taxonomy | join -2 2 - <(cut -f 1 ${NAMES_OTUS}.names | nl -n rz -w ${#NBOTUS} | sort -k 2,2) | join - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 1,1) | sort -k 5,5n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy","similarity","references"} {print "Otu"$5,$6,$3,$2,$4}' > $CTAXO.taxonomy
+		sort -k 1,1 ${FASTA_OTUS}.taxonomy | join -2 2 - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 2,2nr -k 1,1 | nl -n rz -w ${#NBOTUS} | sort -k 2,2) | sort -k 5,5n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy","similarity","references","repseq"} {print "Otu"$5,$6,$3,$2,$4,$1}' > $CTAXO.taxonomy
 		rm ${TAXO}.hits ${TAXO}.taxonomy
 	fi
 else
@@ -144,15 +147,18 @@ else
 			cluster(method=unique, name=$NAMES_OTUS.names);
 			classify.otu(taxonomy=current, list=current, count=$COUNT.count_table, cutoff=$CONS);
 			get.current()"
+			LIST=`sed -n '/^list=/{s/.*=//;s/\.list//;p}' current_files.summary`
 			CTAXO=`sed -n '/^constaxonomy=/{s/.*=//;s/\.cons.taxonomy//;p}' current_files.summary`
-			rm *.rabund *.sabund *.list *.tax.summary
+			transpose_tab $LIST.list | awk 'NR>2{split($2,a,",");for(i in a){print $1"\t"a[i]}}' | sort -k 2,2 | join -1 2 - <(awk '$1~"^>"{sub(">","",$1);print $1}' ${FASTA_OTUS}.fasta | sort) | sort -k 2,2 | join -2 2 <(sed '1d' $CTAXO.taxonomy) - | tr " " "\t" | cat <(paste <(head -1 $CTAXO.taxonomy) <(echo "repseq")) - > ${FASTA_OTUS}.cons.taxonomy
+			rm $CTAXO.taxonomy $LIST.list *.rabund *.sabund *.tax.summary
+			CTAXO=${FASTA_OTUS}.cons
 		else
 			mothur "#set.dir(tempdefault=$DBFOLD);
 			classify.seqs(fasta=${FASTA_OTUS}.fasta, template=$TEMPLATE.fasta, taxonomy=$TEMPLATE.taxonomy, cutoff=$CONS, method=wang, processors=$NCPUS);
 			get.current()"
 			TAXO=`sed -n '/^taxonomy=/{s/.*=//;s/\.taxonomy//;p}' current_files.summary`
 			CTAXO=$TAXO.cons
-			sort -k 1,1 $TAXO.taxonomy | join -2 2 - <(cut -f 1 ${NAMES_OTUS}.names | nl -n rz -w ${#NBOTUS} | sort -k 2,2) | join - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 1,1) | sort -k 3,3n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy"} {print "Otu"$3,$4,$2}' > $CTAXO.taxonomy
+			sort -k 1,1 ${FASTA_OTUS}.taxonomy | join -2 2 - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 2,2nr -k 1,1 | nl -n rz -w ${#NBOTUS} | sort -k 2,2) | sort -k 3,3n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy","repseq"} {print "Otu"$3,$4,$2,$1}' > $CTAXO.taxonomy
 			rm $TAXO.tax.summary $TAXO.taxonomy
 		fi
 	elif [ $CLASSIF == "vsearch" ]
@@ -168,27 +174,52 @@ else
 			sed 's/;\t/\t/;s/;$//;s/;tax=/\t/' ${FASTA_OTUS}.hits | sort --parallel=$NCPUS -k 1,1 -k 4,4 | awk '$1 != p{printf ">"}{p=$1}1' | parallel -j $NCPUS --recstart ">" --pipe -k lca > ${FASTA_OTUS}.taxonomy
 		fi
 		CTAXO=${FASTA_OTUS}.cons
-		sort -k 1,1 ${FASTA_OTUS}.taxonomy | join -2 2 - <(cut -f 1 ${NAMES_OTUS}.names | nl -n rz -w ${#NBOTUS} | sort -k 2,2) | join - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 1,1) | sort -k 5,5n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy","similarity","references"} {print "Otu"$5,$6,$3,$2,$4}' > $CTAXO.taxonomy
+		sort -k 1,1 ${FASTA_OTUS}.taxonomy | join -2 2 - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 2,2nr -k 1,1 | nl -n rz -w ${#NBOTUS} | sort -k 2,2) | sort -k 5,5n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy","similarity","references","repseq"} {print "Otu"$5,$6,$3,$2,$4,$1}' > $CTAXO.taxonomy
 		rm ${FASTA_OTUS}*.hits ${FASTA_OTUS}.taxonomy
 	fi
 fi
 
-# Integrate back OTUs found in previous subproject OTUs and re-number OTUs starting from last OTU of previous subproject
-if [ $PREV_PATH != "no" ] # not implemented yet for dada2
+if [ $CLUST == "dada2" ]
 then
-	PREV_CTAXO=$(basename $(tar tzvf $PREV_PATH/$PREV_SUB.processing.files.tar.gz | awk '$NF~"cons\.taxonomy"{sub("\.taxonomy","",$NF);print $NF}'))
-	tar xzvf $PREV_PATH/$PREV_SUB.processing.files.tar.gz $PREV_SUB.processing/$PREV_CTAXO.taxonomy
-	PREV_NBOTUS=$(($(sed -n '$=' $PREV_SUB.processing/$PREV_CTAXO.taxonomy) -1))
-	TOT_NBOTUS=$((NBOTUS+PREV_NBOTUS))
-	sort -k 1,1 otus.aa.tmp | join -v 1 - <(cut -f 1 -d " " otus.aa.sosmop.tmp) | awk -v P=${#PREV_NBOTUS} '{printf "%s Otu%0"P"d\n", $1,$4}' > otus.ao.tmp
-	awk '{print $1,split($2,a,",")}' $PREV_SUB.match_otu.pick.names | sort -k 1,1 | join -o 1.2,2.2 otus.ao.tmp - | sort -k 1,1 | awk '{if(NR==1){p=$1;s=$2} else {if($1==p){s+=$2} else {print p"\t"s;p=$1;s=$2}}}END{print p"\t"s}' | join -t $'\t' - <(sed '1d' $PREV_SUB.processing/$PREV_CTAXO.taxonomy | cut -f 1,3-) | sed 's/^Otu0*//' | awk -v T=${#TOT_NBOTUS} '{a=$1;sub("^[^\t]*\t",""); printf "Otu%0"T"d\t%s\n",a,$0}' | cat <(head -1 $CTAXO.taxonomy) - <(sed '1d' $CTAXO.taxonomy | sed 's/^Otu0*//' | awk -v P=$PREV_NBOTUS -v T=${#TOT_NBOTUS} '{a=$1;sub("^[^\t]*\t",""); printf "Otu%0"T"d\t%s\n",a+P,$0}') > $CTAXO.match.taxonomy
-	sort -k 1,1 $PREV_SUB.match_otu.pick.names | awk '{print $1,split($2,a,","),$2}' | join otus.ao.tmp - | sort -k 2,2 -k 3,3nr | awk '{if(NR==1){p=$2;r=$1;a=$4} else {if($2==p){a=a","$4} else {print r"\t"a;p=$2;r=$1;a=$4}}}END{print r"\t"a}' | cat - $NAMES_OTUS.names > $NAMES_OTUS.match.names
-	obigrep --without-progress-bar --uppercase --id-list=<(head -n $(cut -d " " -f 2 otus.ao.tmp | sort -u | wc -l) $NAMES_OTUS.match.names | cut -f 1) $PREV_SUB.match_otu.pick.fasta | twofasta | cat - $FASTA_OTUS.fasta > $FASTA_OTUS.match.fasta
-	sed '1d' $PREV_SUB.match_otu.pick.count_table | sort -k 1,1 | join otus.ao.tmp - | join <(awk '{print $1,split($2,a,",")}' $PREV_SUB.match_otu.pick.names | sort -k 1,1) - | sort -k 3,3 -k 2,2nr | awk '{if(NR==1){p=$3;r=$1;for(i=4;i<=NF;i++){s[i]=$i}} else {if($3==p){for(i=4;i<=NF;i++){s[i]+=$i}} else {printf "%s",r;for(i=4;i<=NF;i++){printf "\t%s",s[i]};printf "\n";p=$3;r=$1;for(i=4;i<=NF;i++){s[i]=$i}}}}END{printf "%s",r;for(i=4;i<=NF;i++){printf "\t%s",s[i]};printf "\n"}' | cat <(head -1 $COUNT_OTUS.count_table) - <(sed '1d' $COUNT_OTUS.count_table) > $COUNT_OTUS.match.count_table
-	cat $PREV_SUB.match.pick.fasta $FASTA.fasta > $FASTA.match.fasta
-	cat $PREV_SUB.match.pick.count_table <(sed '1d' $COUNT.count_table) > $COUNT.match.count_table
-	rm $CTAXO.taxonomy
-	for i in CTAXO FASTA_OTUS COUNT_OTUS NAMES_OTUS FASTA COUNT; do j=$i ; eval "$i=${!i}.match" ; done
+	sed 's/O[Tt][Uu]/ASV/' $CTAXO.taxonomy > tmp.$CTAXO.taxonomy && mv tmp.$CTAXO.taxonomy $CTAXO.taxonomy
+fi
+
+# Integrate back OTUs found in previous subproject OTUs and re-number OTUs starting from last OTU of previous subproject
+if [ $PREV_PATH != "no" ]
+then
+	if [ $CLUST == "dada2" ]
+	then
+		PREV_TABLE=$PREV_SUB.all_ASVs.tsv
+		tar xzvf $PREV_PATH/$PREV_SUB.outputs.tar.gz $PREV_SUB.outputs/$PREV_TABLE
+		PREV_NBOTUS=$(tail -1 $PREV_SUB.outputs/$PREV_TABLE | cut -f 1 | sed 's/ASV//')
+		TOT_NBOTUS=$((NBOTUS+PREV_NBOTUS))
+		PREV_REPSEQ=$(awk 'BEGIN{FS="\t"}NR==1{for(i=1;i<=NF;i++){if($i=="repseq"){print i}}}' $PREV_SUB.outputs/$PREV_TABLE)
+		if [ $CLASSIF == "bayesian" ]
+		then
+			cut -f 1-2 $PREV_SUB.match_otu.pick.count_table | sed '1d' | sort -t $'\t' -k 1,1 | join -t $'\t' -2 3 - <(cut -f 1,$((PREV_REPSEQ-1))-${PREV_REPSEQ} $PREV_SUB.outputs/$PREV_TABLE | sed '1d' | sort -k 3,3 -t $'\t') | sort -k 3,3 -t $'\t' | awk 'BEGIN{FS=OFS="\t"}{print $3,$2,$4,$1}' | cat <(head -1 $CTAXO.taxonomy) - <(sed '1d;s/^ASV0*//' $CTAXO.taxonomy | awk -v P=$PREV_NBOTUS -v T=${#TOT_NBOTUS} 'BEGIN{FS="\t"}{printf "ASV%0"T"d\t%s\t%s\n",$1+P,$2,$3,$4}') > $CTAXO.match.taxonomy
+		elif [ $CLASSIF == "vsearch" ]
+		then
+			cut -f 1-2 $PREV_SUB.match_otu.pick.count_table | sed '1d' | sort -t $'\t' -k 1,1 | join -t $'\t' -2 5 - <(cut -f 1,$((PREV_REPSEQ-3))-${PREV_REPSEQ} $PREV_SUB.outputs/$PREV_TABLE | sed '1d' | sort -k 5,5 -t $'\t') | sort -k 3,3 -t $'\t' | awk 'BEGIN{FS=OFS="\t"}{print $3,$2,$4,$5,$6,$1}' | cat <(head -1 $CTAXO.taxonomy) - <(sed '1d;s/^ASV0*//' $CTAXO.taxonomy | awk -v P=$PREV_NBOTUS -v T=${#TOT_NBOTUS} 'BEGIN{FS="\t"}{printf "ASV%0"T"d\t%s\t%s\t%s\t%s\t%s\n",$1+P,$2,$3,$4,$5,$6}') > $CTAXO.match.taxonomy
+		fi
+		cat $PREV_SUB.match_otu.pick.fasta $FASTA_OTUS.fasta > $FASTA_OTUS.match.fasta
+		cat $PREV_SUB.match_otu.pick.count_table <(sed '1d' $COUNT_OTUS.count_table) > $COUNT_OTUS.match.count_table
+		rm $PREV_SUB.outputs/$PREV_TABLE
+	else
+		PREV_CTAXO=$(basename $(tar tzvf $PREV_PATH/$PREV_SUB.processing.files.tar.gz | sed -n '/cons\.taxonomy/{s/^.* //;s/\.taxonomy//;p}'))
+		tar xzvf $PREV_PATH/$PREV_SUB.processing.files.tar.gz $PREV_SUB.processing/$PREV_CTAXO.taxonomy
+		PREV_NBOTUS=$(($(sed -n '$=' $PREV_SUB.processing/$PREV_CTAXO.taxonomy) -1))
+		TOT_NBOTUS=$((NBOTUS+PREV_NBOTUS))
+		sort -k 1,1 otus.aa.tmp | join -v 1 - <(cut -f 1 -d " " otus.aa.sosmop.tmp) | awk -v P=${#PREV_NBOTUS} '{printf "%s Otu%0"P"d\n", $1,$4}' > otus.ao.tmp
+		awk '{print $1,split($2,a,",")}' $PREV_SUB.match_otu.pick.names | sort -k 1,1 | join -o 1.2,2.2 otus.ao.tmp - | sort -k 1,1 | awk '{if(NR==1){p=$1;s=$2} else {if($1==p){s+=$2} else {print p"\t"s;p=$1;s=$2}}}END{print p"\t"s}' | join -t $'\t' - <(sed '1d' $PREV_SUB.processing/$PREV_CTAXO.taxonomy | cut -f 1,3-) | cat <(head -1 $CTAXO.taxonomy) - <(sed '1d' $CTAXO.taxonomy | sed 's/^Otu0*//' | awk -v P=$PREV_NBOTUS -v T=${#TOT_NBOTUS} '{a=$1;sub("^[^\t]*\t",""); printf "Otu%0"T"d\t%s\n",a+P,$0}') > $CTAXO.match.taxonomy
+		sort -k 1,1 $PREV_SUB.match_otu.pick.names | awk '{print $1,split($2,a,","),$2}' | join otus.ao.tmp - | sort -k 2,2 -k 3,3nr | awk '{if(NR==1){p=$2;r=$1;a=$4} else {if($2==p){a=a","$4} else {print r"\t"a;p=$2;r=$1;a=$4}}}END{print r"\t"a}' | cat - $NAMES_OTUS.names > $NAMES_OTUS.match.names
+		obigrep --without-progress-bar --uppercase --id-list=<(head -n $(cut -d " " -f 2 otus.ao.tmp | sort -u | wc -l) $NAMES_OTUS.match.names | cut -f 1) $PREV_SUB.match_otu.pick.fasta | twofasta | cat - $FASTA_OTUS.fasta > $FASTA_OTUS.match.fasta
+		sed '1d' $PREV_SUB.match_otu.pick.count_table | sort -k 1,1 | join otus.ao.tmp - | join <(awk '{print $1,split($2,a,",")}' $PREV_SUB.match_otu.pick.names | sort -k 1,1) - | sort -k 3,3 -k 2,2nr | awk '{if(NR==1){p=$3;r=$1;for(i=4;i<=NF;i++){s[i]=$i}} else {if($3==p){for(i=4;i<=NF;i++){s[i]+=$i}} else {printf "%s",r;for(i=4;i<=NF;i++){printf "\t%s",s[i]};printf "\n";p=$3;r=$1;for(i=4;i<=NF;i++){s[i]=$i}}}}END{printf "%s",r;for(i=4;i<=NF;i++){printf "\t%s",s[i]};printf "\n"}' | cat <(head -1 $COUNT_OTUS.count_table) - <(sed '1d' $COUNT_OTUS.count_table) > $COUNT_OTUS.match.count_table
+		cat $PREV_SUB.match.pick.fasta $FASTA.fasta > $FASTA.match.fasta
+		for i in FASTA COUNT; do j=$i ; eval "$i=${!i}.match" ; done
+		cat $PREV_SUB.match.pick.count_table <(sed '1d' $COUNT.count_table) > $COUNT.match.count_table
+		rm $CTAXO.taxonomy $PREV_SUB.processing/$PREV_CTAXO.taxonomy
+	fi
+	for i in CTAXO FASTA_OTUS COUNT_OTUS NAMES_OTUS; do j=$i ; eval "$i=${!i}.match" ; done
 fi
 
 
