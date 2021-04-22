@@ -202,6 +202,28 @@ then
 			cut -f 1-2 $PREV_SUB.match_otu.pick.count_table | sed '1d' | sort -t $'\t' -k 1,1 | join -t $'\t' -2 5 - <(cut -f 1,$((PREV_REPSEQ-3))-${PREV_REPSEQ} $PREV_SUB.outputs/$PREV_TABLE | sed '1d' | sort -k 5,5 -t $'\t') | sort -k 3,3 -t $'\t' | awk 'BEGIN{FS=OFS="\t"}{print $3,$2,$4,$5,$6,$1}' | cat <(head -1 $CTAXO.taxonomy) - <(sed '1d;s/^ASV0*//' $CTAXO.taxonomy | awk -v P=$PREV_NBOTUS -v T=${#TOT_NBOTUS} 'BEGIN{FS="\t"}{printf "ASV%0"T"d\t%s\t%s\t%s\t%s\t%s\n",$1+P,$2,$3,$4,$5,$6}') > $CTAXO.match.taxonomy
 		fi
 		cat $PREV_SUB.match_otu.pick.fasta $FASTA_OTUS.fasta > $FASTA_OTUS.match.fasta
+		# add back missing sample(s) in count tables
+		if [ ! -z "$(diff <(head -1 $PREV_SUB.match_otu.pick.count_table | tr "\t" "\n") <(head -1 $COUNT_OTUS.count_table | tr "\t" "\n"))" ]
+		then
+			LMISS=$(comm -13 <(head -1 $PREV_SUB.match_otu.pick.count_table | tr "\t" "\n") <(head -1 $COUNT_OTUS.count_table | tr "\t" "\n"))
+			RMISS=$(comm -23 <(head -1 $PREV_SUB.match_otu.pick.count_table | tr "\t" "\n") <(head -1 $COUNT_OTUS.count_table | tr "\t" "\n"))
+			declare -A MISSF
+			MISSF[LMISS]=$PREV_SUB.match_otu.pick.count_table
+			MISSF[RMISS]=$COUNT_OTUS.count_table
+			SAMP_NAME=$(cut -f 1 $EXEC/config/lib4.list)
+			for i in LMISS RMISS
+			do
+				if [ ! -z "${!i}" ]
+				then
+					for j in ${!i}
+					do
+						pos=$(echo $SAMP_NAME | awk -v J="$j" '{if($1==J){print "total#2"} else {for(i=2;i<=NF;i++){if($i==J){print $(i-1)"#"i+1}}}}')
+						awk -v P="$pos" -v J="$j" 'BEGIN{FS=OFS="\t"; split(P,a,"#")}{if(NR==1){sub(a[1],a[1]"\t"J,$0)} else {sub("$","\t0",$(a[2]))};print}' ${MISSF[$i]} > tmp.${MISSF[$i]} && mv tmp.${MISSF[$i]} ${MISSF[$i]}
+					done
+				fi
+			done
+			unset SAMP_NAME LMISS RMISS MISSF
+		fi
 		cat $PREV_SUB.match_otu.pick.count_table <(sed '1d' $COUNT_OTUS.count_table) > $COUNT_OTUS.match.count_table
 		rm $PREV_SUB.outputs/$PREV_TABLE
 	else
