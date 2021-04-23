@@ -45,7 +45,7 @@ do
 		LENGTH=`cut -d "." -f 1 $EXEC/quality_check/trimming.parameters.txt`
 		if [ $BARC_ANCH == "yes" ] ; then BANCH="^" ; else BANCH="X" ; fi
 		if [ $PRIM_ANCH == "yes" ] ; then PANCH="^" ; else PANCH="" ; fi
-		if [ $DENOISE == "flowclus" ]
+		if [ $DENOISE == "yes" ]
 		then
 			#trim flows with FlowClus, using all set of primers allowed by PDIFFS mismatches as detected by cutadapt (also work with MOTHUR trim.seqs) because FlowClust does not take into account homopolymers extension in primer mismatches (which append quite often for example for ITS4)
 			if [ $EXT == "bz2" ]
@@ -63,7 +63,7 @@ do
 			while read name samp mid
 			do
 				MID_E=$(awk -v F=${#mid} -v B=$BDIFFS 'BEGIN{printf "%.2f",B/F+0.005}')
-				awk '{print $1}' $EXEC/libraries/fasta/$i.fasta | cutadapt -g ${BANCH}${mid} -e ${MID_E} -O ${#mid} --no-indels --trimmed-only - | cutadapt -g ${PANCH}${FWD} -e ${FWD_E} --trimmed-only --info-file=cutadapt.${i}_$mid - > ${i}_$mid.cut.fasta
+				awk '{print $1}' $EXEC/libraries/fasta/$i.fasta | cutadapt -g ${BANCH}${mid} -e ${MID_E} -O ${#mid} --no-indels --trimmed-only - 2> log.cutadapt.${i}_${mid} | cutadapt -g ${PANCH}${FWD} -e ${FWD_E} --trimmed-only --info-file=cutadapt.${i}_$mid - 2>> log.cutadapt.${i}_${mid} > ${i}_$mid.cut.fasta
 				while read count prim
 				do
 					sed '1 s/,[^,]*$/_'$count','$prim'/' master.$i.csv
@@ -71,10 +71,10 @@ do
 			done < <(grep "^midtag" master.$i.csv | tr "," "\t") > master.all.$i.csv
 			# Filter reads for each combination of barcode and primer variant into flows
 			MID=$(grep -m 1 midtag master.all.$i.csv | cut -d "," -f 3)
-			if [ $TARG == "ITS" ] && [ $ITSX != "no" ]
+			if [[ ($TARG == "ITS") && ($ITSX != "no") ]] || [[ $CLIPPING == "both" ]]
 			then
 				FlowClus -a -m master.all.$i.csv -i $i.txt -em $BDIFFS -ep 0 -r -er $PDIFFS -l $((LENGTH + ${#MID} + ${#FWD})) -n $MAXAMBIG -g $MAXHOMOP -s $QUAL -lf $MINFLOW -c FlowClus.$i.stat.txt #-Lf $MAXFLOW
-			else
+			else # truncate end of sequences
 				FlowClus -a -m master.all.$i.csv -i $i.txt -em $BDIFFS -ep 0 -r -er $PDIFFS -l $((LENGTH + ${#MID} + ${#FWD})) -t $((LENGTH + ${#MID} + ${#FWD})) -n $MAXAMBIG -g $MAXHOMOP -s $QUAL -lf $MINFLOW -c FlowClus.$i.stat.txt #-Lf $MAXFLOW 
 			fi
 			# Merge flows for each barcode
@@ -189,23 +189,26 @@ do
 					join <(sed -n '1~4{s/[\t ].*$//;p}' $x.${FWD_LIB}.trunc.fastq | sort) <(sed -n '1~4{s/[\t ].*$//;p}' $y.${RVS_LIB}.trunc.fastq | sort) | sed 's/^@//' > $x.$y.$i.trunc.accnos
 					obigrep --without-progress-bar --uppercase --id-list=$x.$y.$i.trunc.accnos $x.${FWD_LIB}.trunc.fastq | sed '/^@/s/  */ /' > $x.$i.fwd.filtered.fastq
 					obigrep --without-progress-bar --uppercase --id-list=$x.$y.$i.trunc.accnos $y.${RVS_LIB}.trunc.fastq | sed '/^@/s/  */ /' > $y.$i.rvs.filtered.fastq
-					if [ $PALG == "vsearch" ]
+					if [ $ASV == "no" ]
 					then
-						ASCII=$(vsearch --fastq_chars $x.$i.fwd.filtered.fastq 2>&1 | grep -m 1 "^Guess" | sed 's/.* //')
-						PCTTRESH=$(awk -v P=$PTRESH 'BEGIN{print (1-P)*100}')
-						vsearch --quiet --threads $NCPUS --fastq_mergepairs $x.$i.fwd.filtered.fastq --reverse $y.$i.rvs.filtered.fastq --fastq_ascii $ASCII --fastq_minovlen $MIN_OV --fastq_maxdiffpct $PCTTRESH --fastq_allowmergestagger --fastqout $x.$y.$i.pairend.fastq 2> log.pairend.$x.$i.txt
-					else
-						pandaseq -f $x.$i.fwd.filtered.fastq -r $y.$i.rvs.filtered.fastq -g log.pairend.$x.$i.txt -F -A $PALG -o $MIN_OV -O $((MAXLEN+MIN_OV-MINLEN)) -t $PTRESH -T $NCPUS > $x.$y.$i.pairend.fastq
+						if [ $PALG == "vsearch" ]
+						then
+							ASCII=$(vsearch --fastq_chars $x.$i.fwd.filtered.fastq 2>&1 | grep -m 1 "^Guess" | sed 's/.* //')
+							PCTTRESH=$(awk -v P=$PTRESH 'BEGIN{print (1-P)*100}')
+							vsearch --quiet --threads $NCPUS --fastq_mergepairs $x.$i.fwd.filtered.fastq --reverse $y.$i.rvs.filtered.fastq --fastq_ascii $ASCII --fastq_minovlen $MIN_OV --fastq_maxdiffpct $PCTTRESH --fastq_allowmergestagger --fastqout $x.$y.$i.pairend.fastq 2> log.pairend.$x.$i.txt
+						else
+							pandaseq -f $x.$i.fwd.filtered.fastq -r $y.$i.rvs.filtered.fastq -g log.pairend.$x.$i.txt -F -A $PALG -o $MIN_OV -O $((MAXLEN+MIN_OV-MINLEN)) -t $PTRESH -T $NCPUS > $x.$y.$i.pairend.fastq
+						fi
 					fi
 					rm $x.${FWD_LIB}.trunc.fastq $y.${RVS_LIB}.trunc.fastq $x.$y.$i.trunc.accnos
 				fi
 			done
-			# Concatenate both direction
+			# Concatenate both direction or start pseudo-pooling approach for dada2
 			if [ $ASV == "no" ]
 			then
-				if [ -f $FWD_NAME.$RVS_NAME.$i.pairend.fastq ]
+				if [ -s $FWD_NAME.$RVS_NAME.$i.pairend.fastq ]
 				then
-					if [ -f $RVS_NAME.$FWD_NAME.$i.pairend.fastq ]
+					if [ -s $RVS_NAME.$FWD_NAME.$i.pairend.fastq ]
 					then
 						vsearch --fastx_revcomp $RVS_NAME.$FWD_NAME.$i.pairend.fastq --fastqout - | cat $FWD_NAME.$RVS_NAME.$i.pairend.fastq - | vsearch --quiet --fastq_filter - --fastq_maxlen $MAXLEN --fastq_minlen $MINLEN --fastaout - | twofasta | awk '{if($1~"^>"){gsub(":","_",$1)};print $1}' > $i.pairend.trim.fasta
 						rm $RVS_NAME.$FWD_NAME.$i.pairend.fastq $FWD_NAME.$RVS_NAME.$i.pairend.fastq
@@ -213,7 +216,7 @@ do
 						vsearch --quiet --fastq_filter $FWD_NAME.$RVS_NAME.$i.pairend.fastq --fastq_maxlen $MAXLEN --fastq_minlen $MINLEN --fastaout - | twofasta | awk '{if($1~"^>"){gsub(":","_",$1)};print $1}' > $i.pairend.trim.fasta
 						rm $FWD_NAME.$RVS_NAME.$i.pairend.fastq
 					fi
-				elif [ -f $RVS_NAME.$FWD_NAME.$i.pairend.fastq ]
+				elif [ -s $RVS_NAME.$FWD_NAME.$i.pairend.fastq ]
 				then
 					vsearch --fastx_revcomp $RVS_NAME.$FWD_NAME.$i.pairend.fastq --fastqout - | vsearch --quiet --fastq_filter - --fastq_maxlen $MAXLEN --fastq_minlen $MINLEN --fastaout - | twofasta | awk '{if($1~"^>"){gsub(":","_",$1)};print $1}' > $i.pairend.trim.fasta
 					rm $RVS_NAME.$FWD_NAME.$i.pairend.fastq
@@ -329,7 +332,7 @@ then
 	then
 		if [ $TECH == "454" ] || [ $(sed -n '$=' $COUNT.count_table) -lt 20000 ]
 		then
-			twofasta $FASTA.fasta | awk '{print $1}' | paste - - | sed 's/^>//' | sort -k 1,1 | join - <(sort -k 1,1 $COUNT.count_table) | awk '{print ">"$1,"size="$3";\n"$2}' | vsearch --no_progress --uchime_denovo - --nonchimeras - | twofasta > $FASTA.ok.fasta
+			twofasta $FASTA.fasta | awk '{print $1}' | paste - - | sed 's/^>//' | sort -k 1,1 | join - <(sort -k 1,1 $COUNT.count_table) | awk '{print ">"$1";size="$3"\n"$2}' | vsearch --no_progress --uchime_denovo - --nonchimeras - --xsize | twofasta > $FASTA.ok.fasta
 		else
 			. $BIN/parallel_uchime.sh
 		fi
