@@ -61,7 +61,7 @@ export LIB_NAME FWD_LIB RVS_LIB
 if [ $EXT == "gz" ]; then COMP="pigz -p 1 -b 1024" ; DECOMP="unpigz -p $NCPUS -b 1024 -ck" ; elif [ $EXT == "bz2" ] ; then COMP=bzip2 ; DECOMP="bunzip2 -ck" ; fi
 if [ -z $DUALID ]
 then
-	awk -v B=$BDIFFS '{if($1~"^>"){print} else {match($1,"[ATCG][ATCG]*");if(B==0){print $1";o="RLENGTH";e=0"} else {print $1";o="RLENGTH-B";e="(int(B/RLENGTH*100)+1)/100}}}' fastq/oligos.$LIB_NAME > oligos.$LIB_NAME.param
+	awk -v B=$BDIFFS '{if($1~"^>"){print} else {match($1,"[ATCG][ATCG]*");if(B==0){print $1";o="RLENGTH";e=0"} else {print $1";o="RLENGTH";e="(int(B/RLENGTH*100)+1)/100}}}' fastq/oligos.$LIB_NAME > oligos.$LIB_NAME.param
 	if [ $SBS == "both" ]
 	then
 		NLINES=$($DECOMP ${FWD_LIB}.fastq.$EXT | awk -v N=$NCPUS 'END{C=NR/4/N; if(C==int(C)){print C*4} else print int(C+1)*4}')
@@ -95,8 +95,8 @@ then
 	parallel -j $NCPUS -k selfmerge ::: $(basename -a $(ls ${LIB_NAME}_part_*/*fastq) | sort -u)
 	rm -r ${LIB_NAME}_part_* oligos.$LIB_NAME.param
 else
-	awk -v F=$FBDIFFS '{if($1~"^>"){print} else {match($1,"[ATCG][ATCG]*");if(F==0){print $1";o="RLENGTH";e=0"} else {print $1";o="RLENGTH-F";e="(int(F/RLENGTH*100)+1)/100}}}' fastq/oligos.F.$LIB_NAME > oligos.F.$LIB_NAME.param
-	awk -v R=$RBDIFFS '{if($1~"^>"){print} else {match($1,"[ATCG][ATCG]*");if(R==0){print $1";o="RLENGTH";e=0"} else {print $1";o="RLENGTH-R";e="(int(R/RLENGTH*100)+1)/100}}}' fastq/oligos.R.$LIB_NAME > oligos.R.$LIB_NAME.param
+	awk -v F=$FBDIFFS '{if($1~"^>"){print} else {match($1,"[ATCG][ATCG]*");if(F==0){print $1";o="RLENGTH";e=0"} else {print $1";o="RLENGTH";e="(int(F/RLENGTH*100)+1)/100}}}' fastq/oligos.F.$LIB_NAME > oligos.F.$LIB_NAME.param
+	awk -v R=$RBDIFFS '{if($1~"^>"){print} else {match($1,"[ATCG][ATCG]*");if(R==0){print $1";o="RLENGTH";e=0"} else {print $1";o="RLENGTH";e="(int(R/RLENGTH*100)+1)/100}}}' fastq/oligos.R.$LIB_NAME > oligos.R.$LIB_NAME.param
 	if [ $BINDBP == "yes" ]
 	then
 		FPDIFFS=$(awk -v P=$PDIFFS -v F=${#FWD} 'BEGIN{print (int(P/F*100)+1)/100}')

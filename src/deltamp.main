@@ -614,9 +614,9 @@ then
 	then
 		sed 's/\.'$RAW_EXT'[^\t$]*//g;s/ftp\.sra[^\t]*\///g' config/barcodes.txt | awk '{print $2"\t"$2"."$3"\t"$2"."$4}' | sort -u > config/lib3.list
 		# control potential dual indexing
-		if [ $(cut -f 1 config/barcodes.txt | grep -c "^[ATCG]*,[ATCG]*$") -gt 0 ]
+		if [ $(cut -f 1 config/barcodes.txt | grep -c "^[NATCG]*,[NATCG]*$") -gt 0 ]
 		then
-			if [ $(cut -f 1 config/barcodes.txt | grep -c "^[ATCG]*,[ATCG]*$") -eq $(sed -n '$=' config/barcodes.txt) ]
+			if [ $(cut -f 1 config/barcodes.txt | grep -c "^[NATCG]*,[NATCG]*$") -eq $(sed -n '$=' config/barcodes.txt) ]
 			then
 				DUALID=yes
 			else
