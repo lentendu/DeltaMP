@@ -3,7 +3,7 @@
 
 DeltaMP is a command line tool for high performance computer taking advantage of queueing systems to parallelize and standardize bioinformatic processing of metabarcoding raw read libraries.
 
-DeltaMP is initially developed to process **16S, 18S, ITS and COI** raw read libraries with the most up-to-date bioinformatic workflows, but can also handle any other barcoding targets (e.g. 23/28S, rbcL).
+DeltaMP is initially developed to process **16S, 18S, 28S, ITS, COI and rbcl** raw read libraries with the most up-to-date bioinformatic workflows, but can also handle any other barcoding targets (e.g. 23/28S, rbcL).
 
 DeltaMP intend to be accessible for non-bioinformatician users with its fully tunable workflows based on a TAB-separated configuration file.
 
@@ -209,7 +209,7 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Target organisms__: Latin name of the targeted group as labelled in the reference sequence database (eg. Fungi, Glomeromycota, Bacteria, Archea, Eukaryota), or protists (Eukaryota excluding Fungi, Metazoa and Streptophyta). The OTUs assigned to the target group will be extracted from the main OTU table and copied into an additional OTU table labeled with the provided name (see [Outputs](#outputs)). The default is “protist”.
 
-+ __Target region__: any name is accepted here, but specific workflows will be allowed with “16S”, “18S”, “ITS” or “COI” respectively for prokaryotes, eukaryotes, Fungi or Metazoa workflows. The default is “18S”.
++ __Target region__: any name is accepted here, but specific workflows will be allowed with “16S”, “18S”, "28S", “ITS”, “COI” or "rbcl" respectively for prokaryotes, eukaryotes (18S and 28S), Fungi, Metazoa or plants workflows. The default is “18S”.
 
 + __Forward primer name__: the biological forward primer. The 5'-3' orientation of the forward primer must be the same than the reference database sequence orientation. The default is “TAReuk454FWD1”.
 

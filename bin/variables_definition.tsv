@@ -7,12 +7,12 @@ LIB_DIR	/home/$USER	Directory path to archives or libraries OR BioProject access
 ARCHIVES	no	Tab separated list of archives	no ^.+$
 DEMULTI	yes	Libraries already demultiplexed	no yes
 BARC_ANCH	yes	Strict barcode anchoring	no yes
-TARG_ORG	cellular organisms	Target organisms	^.+$
-TARG	ITS	Target region	16S 18S ITS COI
-FWD_NAME	fITS7	Forward primer name	^.+$
-FWD	GTGARTCATCGAATCTTTG	Forward primer sequence (5' to 3')	^[GATCRYSWKMBDHVNgatcryswkmbdhvn]{10,30}$
-RVS_NAME	ITS4	Reverse primer name	^.+$
-RVS	TCCTCCGCTTATTGATATGC	Reverse primer sequence (5' to 3')	^[GATCRYSWKMBDHVNgatcryswkmbdhvn]{10,30}$
+TARG_ORG	protist	Target organisms	^.+$
+TARG	18S	Target region	16S 18S 28S ITS COI rbcl
+FWD_NAME	TAReuk454FWD1	Forward primer name	^.+$
+FWD	CCAGCASCYGCGGTAATTCC	Forward primer sequence (5' to 3')	^[GATCRYSWKMBDHVNgatcryswkmbdhvn]{10,30}$
+RVS_NAME	TAReukREV3	Reverse primer name	^.+$
+RVS	ACTTTCGTTCTTGATYRA	Reverse primer sequence (5' to 3')	^[GATCRYSWKMBDHVNgatcryswkmbdhvn]{10,30}$
 CLIPPING	5prime	Remove primers at reads ends	no 5prime 3prime both
 PRIM_ANCH	yes	Anchored primers	no yes
 BDIFFS	1	Number of mismatches allowed on the barcode sequence	^[0-9a]+$
