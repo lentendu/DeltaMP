@@ -94,11 +94,11 @@ then
 	echo "Used primers with IUPAC and gap allowed"
 	cat <(echo ${!PRIMER_I[@]}) <(echo ${PRIMER_I[@]}) | column -t
 	
-	# cutadapt for non-aligned version (1 mismatch allowed)
+	# cutadapt for non-aligned version (number of mismatch set from config)
 	mkdir $DBCUT.temp
 	cd $DBCUT.temp
-	FWD_E=$(awk -v F=${#FWD} 'BEGIN{printf "%.2f",1/F+0.005}')
-	RVS_E=$(awk -v F=${#RVS} 'BEGIN{printf "%.2f",1/F+0.005}')
+	FWD_E=$(awk -v P=$PDIFFS -v F=${#FWD} 'BEGIN{printf "%.2f",P/F+0.005}')
+	RVS_E=$(awk -v P=$PDIFFS -v F=${#RVS} 'BEGIN{printf "%.2f",P/F+0.005}')
 	twofasta $DBFOLD/$DB.fasta | cutadapt -g ${FWD} -e ${FWD_E} -O ${#FWD} --no-indels --trimmed-only - | cutadapt -a ${PRIMER[$RVS_NAME.rc]} -e ${RVS_E} -O ${#RVS} --no-indels --trimmed-only - > $DBCUT.cut.fasta
 	
 	# clean (remove sequences with n's, longer than 800 nt, with a taxonomic path with less than 3 ranks and containing the primer sequence internaly) and annotate for obitools (at genus level for 16S)
@@ -196,8 +196,8 @@ then
 else
 	RVS_RC=$(echo ">a $RVS" | tr " " "\n" | obicomplement --uppercase | grep -v ">")
 	mkdir $DBCUT.temp && cd $DBCUT.temp
-	FWD_E=$(awk -v F=${#FWD} 'BEGIN{printf "%.2f",1/F+0.005}')
-	RVS_E=$(awk -v F=${#RVS} 'BEGIN{printf "%.2f",1/F+0.005}')
+	FWD_E=$(awk -v P=$PDIFFS -v F=${#FWD} 'BEGIN{printf "%.2f",P/F+0.005}')
+	RVS_E=$(awk -v P=$PDIFFS -v F=${#RVS} 'BEGIN{printf "%.2f",P/F+0.005}')
 	twofasta ../$DB.fasta | cutadapt -j $NCPUS -a "${FWD};e=${FWD_E};o=${#FWD}...${RVS_RC};e=${RVS_E};o=${#RVS_RC}" --no-indels --trimmed-only - > $DBCUT.cut.fasta 2> ../log.cutadapt.$DBCUT.txt
 	# clean: remove sequences with n's, longer than 800 nt, smaller than MINLEN, with a taxonomic path with less than 3 ranks and containing the primer sequence internaly
 	PRIMER_REG=$(for i in $FWD $RVS_RC; do TMP=$(awk -v I=$i 'BEGIN{print I}') ; while read A B; do TMP=`echo $TMP | sed "s/$A/$B/g"` ; done < $BIN/IUPAC.txt ; echo $TMP ; done)
