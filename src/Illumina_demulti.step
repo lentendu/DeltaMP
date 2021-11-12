@@ -54,7 +54,8 @@ else
 fi
 
 # cutadapt with 5' adaptors
-eval mkdir ${LIB_NAME}_part_{01..$NCPUS}
+DIRS=($(eval echo ${LIB_NAME}_part_{01..$NCPUS}))
+mkdir ${DIRS[@]}
 selfmerge () { cat $(find . -type f -path "./${LIB_NAME}_part_*/$1" | sort) > fastq/$1 ; }
 export -f selfmerge
 export LIB_NAME FWD_LIB RVS_LIB
@@ -92,7 +93,7 @@ then
 		tail -n +1 ${LIB_NAME}_part_*/log_cutadapt.demultiplex.FR.${LIB_NAME}.txt > fastq/log_cutadapt.demultiplex.FR.${LIB_NAME}.txt
 		tail -n +1 ${LIB_NAME}_part_*/log_cutadapt.demultiplex.RF.${LIB_NAME}.txt > fastq/log_cutadapt.demultiplex.RF.${LIB_NAME}.txt
 	fi
-	parallel -j $NCPUS -k selfmerge ::: $(basename -a $(ls ${LIB_NAME}_part_*/*fastq) | sort -u)
+	find ${DIRS[@]} -type f -name "*.${LIB_NAME}*.fastq" | sed 's@.*/@@' | sort -u | parallel -j $NCPUS -k selfmerge
 	rm -r ${LIB_NAME}_part_* oligos.$LIB_NAME.param
 else
 	awk -v F=$FBDIFFS '{if($1~"^>"){print} else {match($1,"[ATCG][ATCG]*");if(F==0){print $1";o="RLENGTH";e=0"} else {print $1";o="RLENGTH";e="(int(F/RLENGTH*100)+1)/100}}}' fastq/oligos.F.$LIB_NAME > oligos.F.$LIB_NAME.param
@@ -111,22 +112,23 @@ else
 		split -l $NLINES --numeric-suffixes=1 --additional-suffix='.fastq' ${RVS_NAME}.${FWD_LIB}.fastq ${RVS_NAME}.${FWD_LIB}.part_
 		split -l $NLINES --numeric-suffixes=1 --additional-suffix='.fastq' ${FWD_NAME}.${RVS_LIB}.fastq ${FWD_NAME}.${RVS_LIB}.part_
 		parallel -j $NCPUS "cutadapt --no-indels --trimmed-only -g file:oligos.R.$LIB_NAME.param -G file:oligos.F.$LIB_NAME.param -o ${LIB_NAME}_{}/{name1}-{name2}.${FWD_LIB}.fastq -p ${LIB_NAME}_{}/{name1}-{name2}.${RVS_LIB}.fastq ${RVS_NAME}.${FWD_LIB}.{}.fastq ${FWD_NAME}.${RVS_LIB}.{}.fastq > ${LIB_NAME}_{}/log_cutadapt.demultiplex.RF.${LIB_NAME}.txt" ::: $(eval echo part_{01..$NCPUS})
-		parallel -j $NCPUS selfmerge ::: $(basename -a $(ls ${LIB_NAME}_part_*/*fastq) | sort -u)
+		find ${DIRS[@]} -type f -name "*.${LIB_NAME}*.fastq" | sed 's@.*/@@' | sort -u | parallel -j $NCPUS -k selfmerge
 		rm ${FWD_NAME}.${FWD_LIB}.*fastq ${RVS_NAME}.${RVS_LIB}.*fastq ${RVS_NAME}.${FWD_LIB}.*fastq ${FWD_NAME}.${RVS_LIB}.*fastq unt.${FWD_LIB}.fastq.$EXT unt.${RVS_LIB}.fastq.$EXT
 	else
 		NLINES=$($DECOMP ${FWD_LIB}.fastq.$EXT | awk -v N=$NCPUS 'END{C=NR/4/N; if(C==int(C)){print C*4} else print int(C+1)*4}')
 		$DECOMP ${FWD_LIB}.fastq.$EXT | split -l $NLINES --numeric-suffixes=1 --additional-suffix='.fastq' - ${FWD_LIB}.part_
 		$DECOMP ${RVS_LIB}.fastq.$EXT | split -l $NLINES --numeric-suffixes=1 --additional-suffix='.fastq' - ${RVS_LIB}.part_
 		parallel -j $NCPUS "cutadapt --no-indels -g file:oligos.F.$LIB_NAME.param -G file:oligos.R.$LIB_NAME.param -o ${LIB_NAME}_{}/{name1}-{name2}.${FWD_LIB}.fastq -p ${LIB_NAME}_{}/{name1}-{name2}.${RVS_LIB}.fastq ${FWD_LIB}.{}.fastq ${RVS_LIB}.{}.fastq > ${LIB_NAME}_{}/log_cutadapt.demultiplex.FR.${LIB_NAME}.txt" ::: $(eval echo part_{01..$NCPUS})
-		parallel -j $NCPUS -k selfmerge ::: $(basename -a $(ls ${LIB_NAME}_part_*/*fastq) | sort -u)
+		find ${DIRS[@]} -type f -name "*.${LIB_NAME}*.fastq" | sed 's@.*/@@' | sort -u | parallel -j $NCPUS -k selfmerge
 		cat fastq/*unknown*.${FWD_LIB}.fastq > unt.${FWD_LIB}.fastq
 		cat fastq/*unknown*.${RVS_LIB}.fastq > unt.${RVS_LIB}.fastq
-		rm fastq/*unknown*.${FWD_LIB}.fastq fastq/*unknown*.${RVS_LIB}.fastq ${LIB_NAME}_part_*/*fastq
+		find fastq/ -type f -name "*unknown*.${FWD_LIB}.fastq" -delete && find fastq -type f -name "*unknown*.${RVS_LIB}.fastq" -delete
+		find ${DIRS[@]} -type f -name "${LIB_NAME}_part_*/*fastq" -delete
 		NLINES=$(awk -v N=$NCPUS 'END{C=NR/4/N; if(C==int(C)){print C*4} else print int(C+1)*4}' unt.${FWD_LIB}.fastq)
 		split -l $NLINES --numeric-suffixes=1 --additional-suffix='.fastq' unt.${FWD_LIB}.fastq unt.${FWD_LIB}.part_
 		split -l $NLINES --numeric-suffixes=1 --additional-suffix='.fastq' unt.${RVS_LIB}.fastq unt.${RVS_LIB}.part_
 		parallel -j $NCPUS "cutadapt --no-indels --trimmed-only -g file:oligos.R.$LIB_NAME.param -G file:oligos.F.$LIB_NAME.param -o ${LIB_NAME}_{}/{name1}-{name2}.${FWD_LIB}.fastq -p ${LIB_NAME}_{}/{name1}-{name2}.${RVS_LIB}.fastq unt.${FWD_LIB}.{}.fastq unt.${RVS_LIB}.{}.fastq > ${LIB_NAME}_{}/log_cutadapt.demultiplex.RF.${LIB_NAME}.txt" ::: $(eval echo part_{01..$NCPUS})
-		parallel -j $NCPUS -k selfmerge ::: $(basename -a $(ls ${LIB_NAME}_part_*/*fastq) | sort -u)
+		find ${DIRS[@]} -type f -name "*.${LIB_NAME}*.fastq" | sed 's@.*/@@' | sort -u | parallel -j $NCPUS -k selfmerge
 		rm ${FWD_LIB}.part_[0-9]*.fastq ${RVS_LIB}.part_[0-9]*.fastq unt.${FWD_LIB}.part* unt.${RVS_LIB}.part*
 	fi
 	tail -n +1 ${LIB_NAME}_part_*/log_cutadapt.demultiplex.FR.${LIB_NAME}.txt > fastq/log_cutadapt.demultiplex.FR.${LIB_NAME}.txt
