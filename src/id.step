@@ -28,13 +28,13 @@ while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var
 (set -o posix; set > config/id.set)
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; if [ $REF_SUBPROJECT != "no" ] ; then declare $var=$(eval echo "$"$var | sed 's/'$REF_SUBPROJECT'/'$SUBPROJECT'/') ; fi ; done < config/OTU_env.txt
 
-# Taxonomic identification
 cd processing
 NBOTUS=$(sed -n '$=' $NAMES_OTUS.names)
 if [ $TARG == "COI" ] && [ $CLASSIF == "bayesian" ]
 then
 	NCPUS=`awk -v N=$NCPUS 'BEGIN{printf "%.f",N/2}'`
 fi
+
 # LCA function
 lca() {
 	parallel --recstart ">" --remove-rec-sep --pipe -k -N1 awk -v cons=$CONS -f $BIN/lca_vsearch.awk
@@ -42,143 +42,58 @@ lca() {
 export -f lca
 export CONS BIN
 
-# ITS
-if [ $TARG == "ITS" ]
+# use full or primer/ITSx cut database
+if [ -z $DBCUT ]
+then
+	TEMPLATE=$DB
+	IDDEF=2 # end gap allowed
+else
+	TEMPLATE=$DBCUT
+	IDDEF=1 # no end gap allowed
+fi
+
+# taxonomic assignment
+if [ $CLASSIF == "bayesian" ]
 then
 	if [ $ASSIGN_ALL == "yes" ]
 	then
-		CAND=$FASTA
-	else
-		CAND=$FASTA_OTUS
-	fi
-	if [ $ITSX != "no" ]
-	then
-		TEMPLATE=($DB.$ITSX ${DB}_s.$ITSX)
-		IDDEF=1 # no end gap allowed
-	else
-		TEMPLATE=($DB ${DB}_s)
-		IDDEF=2 # end gap allowed
-	fi
-	if [ $CLASSIF == "bayesian" ]
-	then
-		# First identification with UNITE dynamic DB
 		mothur "#set.dir(tempdefault=$DBFOLD);
-		classify.seqs(fasta=$CAND.fasta, template=${TEMPLATE[0]}.fasta, taxonomy=${TEMPLATE[0]}.taxonomy, cutoff=$CONS, method=wang, processors=$NCPUS);
+		classify.seqs(fasta=$FASTA.fasta, template=$TEMPLATE.fasta, taxonomy=$TEMPLATE.taxonomy, cutoff=$CONS, method=wang, processors=$NCPUS);
+		cluster(method=unique, name=$NAMES_OTUS.names);
+		classify.otu(taxonomy=current, list=current, count=$COUNT.count_table, cutoff=$CONS);
+		get.current()"
+		LIST=`sed -n '/^list=/{s/.*=//;s/\.list//;p}' current_files.summary`
+		CTAXO=`sed -n '/^constaxonomy=/{s/.*=//;s/\.cons.taxonomy//;p}' current_files.summary`
+		transpose_tab $LIST.list | awk 'NR>2{split($2,a,",");for(i in a){print $1"\t"a[i]}}' | sort -k 2,2 | join -1 2 - <(awk '$1~"^>"{sub(">","",$1);print $1}' ${FASTA_OTUS}.fasta | sort) | sort -k 2,2 | join -2 2 <(sed '1d' $CTAXO.taxonomy) - | tr " " "\t" | cat <(paste <(head -1 $CTAXO.taxonomy) <(echo "repseq")) - > ${FASTA_OTUS}.cons.taxonomy
+		rm $CTAXO.taxonomy $LIST.list *.rabund *.sabund *.tax.summary
+		CTAXO=${FASTA_OTUS}.cons
+	else
+		mothur "#set.dir(tempdefault=$DBFOLD);
+		classify.seqs(fasta=${FASTA_OTUS}.fasta, template=$TEMPLATE.fasta, taxonomy=$TEMPLATE.taxonomy, cutoff=$CONS, method=wang, processors=$NCPUS);
 		get.current()"
 		TAXO=`sed -n '/^taxonomy=/{s/.*=//;s/\.taxonomy//;p}' current_files.summary`
-		# Alternative classification of Fungi only or non-fungus identified sequences against the UNITE dynamic DB including reps singletons
-		awk -F";" '$2=="unclassified" || $1!~"Fungi" || $2=="unidentified"{print $1}' $TAXO.taxonomy | cut -f 1 > $TAXO.nofungi.accnos
-		if [ -s $TAXO.nofungi.accnos ]
-		then
-			obigrep --without-progress-bar --id-list=$TAXO.nofungi.accnos $CAND.fasta > $CAND.nofungi.fasta
-			mothur "#set.dir(tempdefault=$DBFOLD);
-			classify.seqs(fasta=$CAND.nofungi.fasta, template=${TEMPLATE[1]}.fasta, taxonomy=${TEMPLATE[1]}.taxonomy, cutoff=$CONS, method=wang, processors=$NCPUS);
-			get.current()"
-			TAXO2=`sed -n '/^taxonomy=/{s/.*=//;s/\.taxonomy//;p}' current_files.summary`
-		# merge
-			sort -k 1,1 $TAXO.taxonomy | join -v 1 - <(sort $TAXO.nofungi.accnos) | cat - $TAXO2.taxonomy > $CAND.unite.wang.taxonomy
-			rm $TAXO.taxonomy $TAXO2.taxonomy $CAND.nofungi.fasta
-		else
-			cp $TAXO.taxonomy $CAND.unite.wang.taxonomy
-		fi
-		rm $TAXO.nofungi.accnos *.tax.summary
-		TAXO=$CAND.unite.wang
-		if [ $ASSIGN_ALL == "yes" ]
-		then
-			mothur "#cluster(method=unique, name=$NAMES_OTUS.names);
-			classify.otu(taxonomy=$TAXO.taxonomy, list=current, count=$COUNT.count_table, cutoff=$CONS);
-			get.current()"
-			LIST=`sed -n '/^list=/{s/.*=//;s/\.list//;p}' current_files.summary`
-			CTAXO=`sed -n '/^constaxonomy=/{s/.*=//;s/\.cons.taxonomy//;p}' current_files.summary`
-			transpose_tab $LIST.list | awk 'NR>2{split($2,a,",");for(i in a){print $1"\t"a[i]}}' | sort -k 2,2 | join -1 2 - <(awk '$1~"^>"{sub(">","",$1);print $1}' ${FASTA_OTUS}.fasta | sort) | sort -k 2,2 | join -2 2 <(sed '1d' $CTAXO.taxonomy) - | tr " " "\t" | cat <(paste <(head -1 $CTAXO.taxonomy) <(echo "repseq")) - > ${FASTA_OTUS}.cons.taxonomy
-			rm $CTAXO.taxonomy $CTAXO.tax.summary $LIST.list *.rabund *.sabund
-			CTAXO=${FASTA_OTUS}.cons
-		else
-			CTAXO=$TAXO.cons
-			sort -k 1,1 ${FASTA_OTUS}.taxonomy | join -2 2 - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 2,2nr -k 1,1 | nl -n rz -w ${#NBOTUS} | sort -k 2,2) | sort -k 3,3n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy","repseq"} {print "Otu"$3,$4,$2,$1}' > $CTAXO.taxonomy
-		fi
-		rm $TAXO.taxonomy
-	elif [ $CLASSIF == "vsearch" ]
-	then
-		# First identification with UNITE dynamic DB
-		vsearch --no_progress --usearch_global ${CAND}.fasta --threads $NCPUS --db ${DBFOLD}/${TEMPLATE[0]}.udb --dbmask none --qmask none --rowlen 0 --notrunclabels --userfields query+id${IDDEF}+target --maxaccepts 0 --maxrejects 32 --top_hits_only --output_no_hits --id 0.6 --iddef ${IDDEF} --userout ${CAND}.hits
-		# Alternative classification of Fungi only or non-fungus identified sequences against the UNITE dynamic DB including singletons
-		awk '$3=="\\*" || $3!~"k__Fungi" || $3~"k__Fungi;NA" {print $1}' ${CAND}.hits | sed 's/;$//;' | cut -f 1 | sort -u > ${CAND}.nofungi.accnos
-		if [ -s ${CAND}.nofungi.accnos ]
-		then
-			obigrep --without-progress-bar --id-list=${CAND}.nofungi.accnos ${CAND}.fasta > ${CAND}.nofungi.fasta
-			vsearch --no_progress --usearch_global ${CAND}.nofungi.fasta --threads $NCPUS --db ${DBFOLD}/${TEMPLATE[1]}.udb --dbmask none --qmask none --rowlen 0 --notrunclabels --userfields query+id${IDDEF}+target --maxaccepts 0 --maxrejects 32 --top_hits_only --output_no_hits --id 0.6 --iddef ${IDDEF} --userout ${CAND}.nofungi.hits
-		# Merge
-			TAXO=${CAND}.unite
-			sort ${CAND}.hits | sed 's/;\t/\t/;s/;$//' | join -v 1 - <(sort ${CAND}.nofungi.accnos) | cat - <(sed 's/;\t/\t/;s/;$//' ${CAND}.nofungi.hits) > $TAXO.hits
-			rm ${CAND}.nofungi.fasta ${CAND}.nofungi.hits ${CAND}.hits
-		else
-			TAXO=$CAND
-		fi
-		rm ${CAND}.nofungi.accnos
-		# Consensus
-		if [ $ASSIGN_ALL == "yes" ]
-		then
-			# Consensus among best matches (allow max 1 % similarity range per OTU)
-			awk '{split($2,a,",");for(i in a){print a[i],$1}}' $NAMES_OTUS.names | sort --parallel=$NCPUS -k 1,1 | join -o 1.2,2.2,2.3 - <(sed 's/;\t/\t/;s/;$//;s/ size=[0-9]*//' ${TAXO}.hits | sort --parallel=$NCPUS -k 1,1) | sed 's/;tax=/\t/' | sort --parallel=$NCPUS -k 1,1 -k 2,2nr | awk '{if($1!=p){sim=$2};if($2>=sim-1){print;p=$1}}' | sort --parallel=$NCPUS -k 1,1 -k 4,4 -k 3,3 | awk '$1 != p{printf ">"}{p=$1}1' | parallel -j $NCPUS --recstart ">" --pipe -k lca > ${TAXO}.taxonomy
-		else
-			sed 's/;\t/\t/;s/;$//;s/;tax=/\t/' ${TAXO}.hits | sort --parallel=$NCPUS -k 1,1 -k 4,4 | awk '$1 != p{printf ">"}{p=$1}1' | parallel -j $NCPUS --recstart ">" --pipe -k lca > ${TAXO}.taxonomy
-		fi
 		CTAXO=$TAXO.cons
-		sort -k 1,1 ${FASTA_OTUS}.taxonomy | join -2 2 - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 2,2nr -k 1,1 | nl -n rz -w ${#NBOTUS} | sort -k 2,2) | sort -k 5,5n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy","similarity","references","repseq"} {print "Otu"$5,$6,$3,$2,$4,$1}' > $CTAXO.taxonomy
-		rm ${TAXO}.hits ${TAXO}.taxonomy
+		sort -k 1,1 ${FASTA_OTUS}.taxonomy | join -2 2 - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 2,2nr -k 1,1 | nl -n rz -w ${#NBOTUS} | sort -k 2,2) | sort -k 3,3n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy","repseq"} {print "Otu"$3,$4,$2,$1}' > $CTAXO.taxonomy
+		rm $TAXO.tax.summary $TAXO.taxonomy
 	fi
-else
-# Other targets
-	if [ -z $DBCUT ]
+elif [ $CLASSIF == "vsearch" ]
+then
+	if [ $ASSIGN_ALL == "yes" ]
 	then
-		TEMPLATE=$DB
-		IDDEF=2 # end gap allowed
+		vsearch --no_progress --usearch_global ${FASTA}.fasta --threads $NCPUS --db ${DBFOLD}/${TEMPLATE}.udb --dbmask none --qmask none --rowlen 0 --notrunclabels --userfields query+id${IDDEF}+target --maxaccepts 0 --maxrejects 32 --top_hits_only --output_no_hits --id 0.6 --iddef ${IDDEF} --userout ${FASTA}.hits
+		# Consensus among best matches
+		awk '{split($2,a,",");for(i in a){print a[i],$1}}' $NAMES_OTUS.names | sort --parallel=$NCPUS -k 1,1 | join -o 1.2,2.2,2.3 - <(sed 's/;\t/\t/;s/;$//;s/ size=[0-9]*//' ${FASTA}.hits | sort --parallel=$NCPUS -k 1,1) | sed 's/;tax=/\t/' | sort --parallel=$NCPUS -k 1,1 -k 2,2nr | awk '{if($1!=p){sim=$2};if($2>=sim-1){print;p=$1}}' | sort --parallel=$NCPUS -k 1,1 -k 4,4 -k 3,3 | awk '$1 != p{printf ">"}{p=$1}1' | parallel -j $NCPUS --recstart ">" --pipe -k lca > ${FASTA_OTUS}.taxonomy
 	else
-		TEMPLATE=$DBCUT
-		IDDEF=1 # no end gap allowed
+		vsearch --no_progress --usearch_global ${FASTA_OTUS}.fasta --threads $NCPUS --db ${DBFOLD}/${TEMPLATE}.udb --dbmask none --qmask none --rowlen 0 --notrunclabels --userfields query+id${IDDEF}+target --maxaccepts 0 --maxrejects 32 --top_hits_only --output_no_hits --id 0.6 --iddef ${IDDEF} --userout ${FASTA_OTUS}.hits
+		# Consensus among best matches
+		sed 's/;\t/\t/;s/;$//;s/;tax=/\t/' ${FASTA_OTUS}.hits | sort --parallel=$NCPUS -k 1,1 -k 4,4 | awk '$1 != p{printf ">"}{p=$1}1' | parallel -j $NCPUS --recstart ">" --pipe -k lca > ${FASTA_OTUS}.taxonomy
 	fi
-	if [ $CLASSIF == "bayesian" ]
-	then
-		if [ $ASSIGN_ALL == "yes" ]
-		then
-			mothur "#set.dir(tempdefault=$DBFOLD);
-			classify.seqs(fasta=$FASTA.fasta, template=$TEMPLATE.fasta, taxonomy=$TEMPLATE.taxonomy, cutoff=$CONS, method=wang, processors=$NCPUS);
-			cluster(method=unique, name=$NAMES_OTUS.names);
-			classify.otu(taxonomy=current, list=current, count=$COUNT.count_table, cutoff=$CONS);
-			get.current()"
-			LIST=`sed -n '/^list=/{s/.*=//;s/\.list//;p}' current_files.summary`
-			CTAXO=`sed -n '/^constaxonomy=/{s/.*=//;s/\.cons.taxonomy//;p}' current_files.summary`
-			transpose_tab $LIST.list | awk 'NR>2{split($2,a,",");for(i in a){print $1"\t"a[i]}}' | sort -k 2,2 | join -1 2 - <(awk '$1~"^>"{sub(">","",$1);print $1}' ${FASTA_OTUS}.fasta | sort) | sort -k 2,2 | join -2 2 <(sed '1d' $CTAXO.taxonomy) - | tr " " "\t" | cat <(paste <(head -1 $CTAXO.taxonomy) <(echo "repseq")) - > ${FASTA_OTUS}.cons.taxonomy
-			rm $CTAXO.taxonomy $LIST.list *.rabund *.sabund *.tax.summary
-			CTAXO=${FASTA_OTUS}.cons
-		else
-			mothur "#set.dir(tempdefault=$DBFOLD);
-			classify.seqs(fasta=${FASTA_OTUS}.fasta, template=$TEMPLATE.fasta, taxonomy=$TEMPLATE.taxonomy, cutoff=$CONS, method=wang, processors=$NCPUS);
-			get.current()"
-			TAXO=`sed -n '/^taxonomy=/{s/.*=//;s/\.taxonomy//;p}' current_files.summary`
-			CTAXO=$TAXO.cons
-			sort -k 1,1 ${FASTA_OTUS}.taxonomy | join -2 2 - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 2,2nr -k 1,1 | nl -n rz -w ${#NBOTUS} | sort -k 2,2) | sort -k 3,3n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy","repseq"} {print "Otu"$3,$4,$2,$1}' > $CTAXO.taxonomy
-			rm $TAXO.tax.summary $TAXO.taxonomy
-		fi
-	elif [ $CLASSIF == "vsearch" ]
-	then
-		if [ $ASSIGN_ALL == "yes" ]
-		then
-			vsearch --no_progress --usearch_global ${FASTA}.fasta --threads $NCPUS --db ${DBFOLD}/${TEMPLATE}.udb --dbmask none --qmask none --rowlen 0 --notrunclabels --userfields query+id${IDDEF}+target --maxaccepts 0 --maxrejects 32 --top_hits_only --output_no_hits --id 0.6 --iddef ${IDDEF} --userout ${FASTA}.hits
-			# Consensus among best matches
-			awk '{split($2,a,",");for(i in a){print a[i],$1}}' $NAMES_OTUS.names | sort --parallel=$NCPUS -k 1,1 | join -o 1.2,2.2,2.3 - <(sed 's/;\t/\t/;s/;$//;s/ size=[0-9]*//' ${FASTA}.hits | sort --parallel=$NCPUS -k 1,1) | sed 's/;tax=/\t/' | sort --parallel=$NCPUS -k 1,1 -k 2,2nr | awk '{if($1!=p){sim=$2};if($2>=sim-1){print;p=$1}}' | sort --parallel=$NCPUS -k 1,1 -k 4,4 -k 3,3 | awk '$1 != p{printf ">"}{p=$1}1' | parallel -j $NCPUS --recstart ">" --pipe -k lca > ${FASTA_OTUS}.taxonomy
-		else
-			vsearch --no_progress --usearch_global ${FASTA_OTUS}.fasta --threads $NCPUS --db ${DBFOLD}/${TEMPLATE}.udb --dbmask none --qmask none --rowlen 0 --notrunclabels --userfields query+id${IDDEF}+target --maxaccepts 0 --maxrejects 32 --top_hits_only --output_no_hits --id 0.6 --iddef ${IDDEF} --userout ${FASTA_OTUS}.hits
-			# Consensus among best matches
-			sed 's/;\t/\t/;s/;$//;s/;tax=/\t/' ${FASTA_OTUS}.hits | sort --parallel=$NCPUS -k 1,1 -k 4,4 | awk '$1 != p{printf ">"}{p=$1}1' | parallel -j $NCPUS --recstart ">" --pipe -k lca > ${FASTA_OTUS}.taxonomy
-		fi
-		CTAXO=${FASTA_OTUS}.cons
-		sort -k 1,1 ${FASTA_OTUS}.taxonomy | join -2 2 - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 2,2nr -k 1,1 | nl -n rz -w ${#NBOTUS} | sort -k 2,2) | sort -k 5,5n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy","similarity","references","repseq"} {print "Otu"$5,$6,$3,$2,$4,$1}' > $CTAXO.taxonomy
-		rm ${FASTA_OTUS}*.hits ${FASTA_OTUS}.taxonomy
-	fi
+	CTAXO=${FASTA_OTUS}.cons
+	sort -k 1,1 ${FASTA_OTUS}.taxonomy | join -2 2 - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 2,2nr -k 1,1 | nl -n rz -w ${#NBOTUS} | sort -k 2,2) | sort -k 5,5n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy","similarity","references","repseq"} {print "Otu"$5,$6,$3,$2,$4,$1}' > $CTAXO.taxonomy
+	rm ${FASTA_OTUS}*.hits ${FASTA_OTUS}.taxonomy
 fi
 
+# ASV renaming
 if [ $CLUST == "dada2" ]
 then
 	sed 's/O[Tt][Uu]/ASV/' $CTAXO.taxonomy > tmp.$CTAXO.taxonomy && mv tmp.$CTAXO.taxonomy $CTAXO.taxonomy
