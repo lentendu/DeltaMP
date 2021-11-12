@@ -263,6 +263,8 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Minimum length truncation of unpaired reads__: *Illumina specific parameter*, "no" or a number between __Minimum sequence length__ / 2 and ( __Maximum sequence length__ + __Minimum overlap__ ) / 2. When a length is provided, a length truncation is performed before pair-end join, using the length maximizing the length of the read while minimizing the maximum expected error on the truncated length, which allows to keep the read counts fixed by the __Minimum number of trimmed reads per sample__ parameter. The truncation length and the maximum expected error are optimized for all combinations of libraries (R1 and R2) and directions (forward and reverse primers) separately. The default is "no".
 
++ __Maximum length truncation of unpaired reads__: *Illumina specific parameter*, "no" or a number between __Minimum sequence length__ and __Maximum sequence length__ , and higher than __Minimum length truncation of unpaired reads__ + __Increment for length truncation optimiation__ .
+
 + __Increment for length truncation optimiation__: *Illumina specific parameter*, a number between 1 and 10, which is the number of nucleotide by which the __Minimum length truncation of unpaired reads__ is incremented for the optimization procedure. The default is 5.
 
 

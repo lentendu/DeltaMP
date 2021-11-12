@@ -324,6 +324,10 @@ then
 	then
 		error_doc "length of unpaired reads cannot be truncated when using the average quality filtering method, use maxee instead"
 	fi
+	if [ $TRUNCLEN == "no" ] && [ $MAXTRUNCLEN == "no" ]
+	then
+		error_doc "first set a Minimum length truncation of unpaired reads to be able to use the Maximum length truncation of unpaired reads option"
+	fi
 fi
 
 # Databases

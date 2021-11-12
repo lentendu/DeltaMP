@@ -62,8 +62,14 @@ do
 			sed -n '/RatePct/,/^$/p' fasta/$i.$j.$LIB_NAME.pairend_trim.stats | sed '1,2d;$d' | awk '{print $3}' > raw_stat/$i.$j.$LIB_NAME.pairend_trim.meanposqual
 			rm fasta/$i.$j.$LIB_NAME.pairend_trim.stats fasta/$i.$j.$LIB_NAME.pairend.trim.fastq
 		else
-			vsearch --quiet --fastq_eestats2 fastq/$i.${FWD_LIB}.fastq.$EXT --length_cutoffs $TRUNCLEN,*,$LENSTEP --ee_cutoffs $(seq 0.5 $EESTEP $MAXEE | tr "\n" "," | sed 's/,$//') --output - | sed '1,/^---/d;s/^  *//;s/  */\t/g;s/\([0-9]*\)(\t*\([0-9\.]*\)%)/\1 \2/g' > ../quality_check/$i.${FWD_LIB}.eestat
-			vsearch --quiet --fastq_eestats2 fastq/$j.${RVS_LIB}.fastq.$EXT --length_cutoffs $TRUNCLEN,*,$LENSTEP --ee_cutoffs $(seq 0.5 $EESTEP $MAXEE | tr "\n" "," | sed 's/,$//') --output - | sed '1,/^---/d;s/^  *//;s/  */\t/g;s/\([0-9]*\)(\t*\([0-9\.]*\)%)/\1 \2/g' > ../quality_check/$j.${RVS_LIB}.eestat
+			if [ $MAXTRUNCLEN != "no" ]
+			then
+				KEEP=$MAXTRUNCLEN
+			else
+				KEEP="*"
+			fi	
+			vsearch --quiet --fastq_eestats2 fastq/$i.${FWD_LIB}.fastq.$EXT --length_cutoffs $TRUNCLEN,"$KEEP",$LENSTEP --ee_cutoffs $(seq 0.5 $EESTEP $MAXEE | tr "\n" "," | sed 's/,$//') --output - | sed '1,/^---/d;s/^  *//;s/  */\t/g;s/\([0-9]*\)(\t*\([0-9\.]*\)%)/\1 \2/g' > ../quality_check/$i.${FWD_LIB}.eestat
+			vsearch --quiet --fastq_eestats2 fastq/$j.${RVS_LIB}.fastq.$EXT --length_cutoffs $TRUNCLEN,"$KEEP",$LENSTEP --ee_cutoffs $(seq 0.5 $EESTEP $MAXEE | tr "\n" "," | sed 's/,$//') --output - | sed '1,/^---/d;s/^  *//;s/  */\t/g;s/\([0-9]*\)(\t*\([0-9\.]*\)%)/\1 \2/g' > ../quality_check/$j.${RVS_LIB}.eestat
 		fi
 	fi
 done

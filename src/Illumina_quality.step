@@ -167,6 +167,11 @@ else
 			# initialize
 			MAXLF=$(for x in ../libraries/raw_stat/$i.*.fwd.length ; do awk 'END{print $1}' $x ; done | sort -n | head -1)
 			MAXLR=$(for x in ../libraries/raw_stat/$j.*.rvs.length ; do awk 'END{print $1}' $x ; done | sort -n | head -1)
+			if [ $MAXTRUNCLEN != "no" ]
+			then
+				if [ $MAXTRUNCLEN -lt $MAXLF ] ; then MAXLF=$MAXTRUNCLEN ; fi
+				if [ $MAXTRUNCLEN -lt $MAXLR ] ; then MAXLR=$MAXTRUNCLEN ; fi
+			fi
 			parallel -k echo ::: $(seq $TRUNCLEN $LENSTEP $MAXLF) ::: $(seq 0.5 $EESTEP $MAXEE) | awk -v EE=$MAXEE -v ES=$EESTEP -v L=$TRUNCLEN -v LS=$LENSTEP '{print $1,$2,($1-L+LS)/LS*((EE-$2+ES)/ES)^2}' > $i.fwd.stat
 			parallel -k echo ::: $(seq $TRUNCLEN $LENSTEP $MAXLR) ::: $(seq 0.5 $EESTEP $MAXEE) | awk -v EE=$MAXEE -v ES=$EESTEP -v L=$TRUNCLEN -v LS=$LENSTEP '{print $1,$2,($1-L+LS)/LS*((EE-$2+ES)/ES)^2}' > $j.rvs.stat
 			# optimize combination of length and maxEE

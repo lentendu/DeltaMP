@@ -6,4 +6,5 @@ SBS	both	Single barcode side	both forward reverse
 MAXEE	2	Maximum expected error on the trimmed length	^[0-9]+(.[0-9]+)?$
 EESTEP	0.5	Increment for maximum expected error optimiation	^[0-9]+(.[0-9]+)?$
 TRUNCLEN	no	Minimum length truncation of unpaired reads	no ^[0-9]+$
+MAXTRUNCLEN	no	Maximum length truncation of unpaired reads	no ^[0-9]+$
 LENSTEP	5	Increment for length truncation optimiation	^[0-9]+$

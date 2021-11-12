@@ -40,16 +40,16 @@ then
 	# cutadapt
 	if [ $CLIPPING == "both" ]
 	then
-		cutadapt -a "$PANCH$FWD;e=$FDIFFS...$RVS_RC;e=$RDIFFS" -A "$PANCH$RVS;e=$RDIFFS...$FWD_RC;e=$FDIFFS" --no-indels --untrimmed-output=fastq/${FWD_LIB}.unt.fastq.$EXT --untrimmed-paired-output=fastq/${RVS_LIB}.unt.fastq.$EXT -o fastq/${FWD_NAME}.${FWD_LIB}.fastq.$EXT -p fastq/${RVS_NAME}.${RVS_LIB}.fastq.$EXT ${RAWPATH}${FWD_LIB}.fastq.$EXT ${RAWPATH}${RVS_LIB}.fastq.$EXT > fastq/log.cutadapt.${LIB_NAME}.fr.txt
-		cutadapt -a "$PANCH$RVS;e=$RDIFFS...$FWD_RC;e=$FDIFFS" -A "$PANCH$FWD;e=$FDIFFS...$RVS_RC;e=$RDIFFS" --no-indels --trimmed-only -o fastq/${RVS_NAME}.${FWD_LIB}.fastq.$EXT -p fastq/${FWD_NAME}.${RVS_LIB}.fastq.$EXT fastq/${FWD_LIB}.unt.fastq.$EXT fastq/${RVS_LIB}.unt.fastq.$EXT > fastq/log.cutadapt.${LIB_NAME}.rf.txt
+		cutadapt -m 8 -a "$PANCH$FWD;e=$FDIFFS;o=$((${#FWD}-2))...$RVS_RC;e=$RDIFFS;o=8" -A "$PANCH$RVS;e=$RDIFFS;o=$((${#RVS}-2))...$FWD_RC;e=$FDIFFS;o=8" --no-indels --untrimmed-output=fastq/${FWD_LIB}.unt.fastq.$EXT --untrimmed-paired-output=fastq/${RVS_LIB}.unt.fastq.$EXT -o fastq/${FWD_NAME}.${FWD_LIB}.fastq.$EXT -p fastq/${RVS_NAME}.${RVS_LIB}.fastq.$EXT ${RAWPATH}${FWD_LIB}.fastq.$EXT ${RAWPATH}${RVS_LIB}.fastq.$EXT > fastq/log.cutadapt.${LIB_NAME}.fr.txt
+		cutadapt -m 8 -a "$PANCH$RVS;e=$RDIFFS;o=$((${#RVS}-2))...$FWD_RC;e=$FDIFFS;o=8" -A "$PANCH$FWD;e=$FDIFFS;o=$((${#FWD}-2))...$RVS_RC;e=$RDIFFS;o=8" --no-indels --trimmed-only -o fastq/${RVS_NAME}.${FWD_LIB}.fastq.$EXT -p fastq/${FWD_NAME}.${RVS_LIB}.fastq.$EXT fastq/${FWD_LIB}.unt.fastq.$EXT fastq/${RVS_LIB}.unt.fastq.$EXT > fastq/log.cutadapt.${LIB_NAME}.rf.txt
 	elif [ $CLIPPING == "5prime" ]
 	then
-		cutadapt -g "$PANCH$FWD;e=$FDIFFS" -G "$PANCH$RVS;e=$RDIFFS" --no-indels --untrimmed-output=fastq/${FWD_LIB}.unt.fastq.$EXT --untrimmed-paired-output=fastq/${RVS_LIB}.unt.fastq.$EXT -o fastq/${FWD_NAME}.${FWD_LIB}.fastq.$EXT -p fastq/${RVS_NAME}.${RVS_LIB}.fastq.$EXT ${RAWPATH}${FWD_LIB}.fastq.$EXT ${RAWPATH}${RVS_LIB}.fastq.$EXT > fastq/log.cutadapt.${LIB_NAME}.fr.txt
-		cutadapt -g "$PANCH$RVS;e=$RDIFFS" -G "$PANCH$FWD;e=$FDIFFS" --no-indels --trimmed-only -o fastq/${RVS_NAME}.${FWD_LIB}.fastq.$EXT -p fastq/${FWD_NAME}.${RVS_LIB}.fastq.$EXT fastq/${FWD_LIB}.unt.fastq.$EXT fastq/${RVS_LIB}.unt.fastq.$EXT > fastq/log.cutadapt.${LIB_NAME}.rf.txt
+		cutadapt -m 8 -g "$PANCH$FWD;e=$FDIFFS" -G "$PANCH$RVS;e=$RDIFFS" --no-indels --untrimmed-output=fastq/${FWD_LIB}.unt.fastq.$EXT --untrimmed-paired-output=fastq/${RVS_LIB}.unt.fastq.$EXT -o fastq/${FWD_NAME}.${FWD_LIB}.fastq.$EXT -p fastq/${RVS_NAME}.${RVS_LIB}.fastq.$EXT ${RAWPATH}${FWD_LIB}.fastq.$EXT ${RAWPATH}${RVS_LIB}.fastq.$EXT > fastq/log.cutadapt.${LIB_NAME}.fr.txt
+		cutadapt -m 8 -g "$PANCH$RVS;e=$RDIFFS" -G "$PANCH$FWD;e=$FDIFFS" --no-indels --trimmed-only -o fastq/${RVS_NAME}.${FWD_LIB}.fastq.$EXT -p fastq/${FWD_NAME}.${RVS_LIB}.fastq.$EXT fastq/${FWD_LIB}.unt.fastq.$EXT fastq/${RVS_LIB}.unt.fastq.$EXT > fastq/log.cutadapt.${LIB_NAME}.rf.txt
 	elif [ $CLIPPING == "3prime" ]
 	then
-		cutadapt -a "$RVS_RC;e=$RDIFFS" -A "$FWD_RC;e=$FDIFFS" --no-indels --untrimmed-output=fastq/${FWD_LIB}.unt.fastq.$EXT --untrimmed-paired-output=fastq/${RVS_LIB}.unt.fastq.$EXT -o fastq/${FWD_NAME}.${FWD_LIB}.fastq.$EXT -p fastq/${RVS_NAME}.${RVS_LIB}.fastq.$EXT ${RAWPATH}${FWD_LIB}.fastq.$EXT ${RAWPATH}${RVS_LIB}.fastq.$EXT > fastq/log.cutadapt.${LIB_NAME}.fr.txt
-		cutadapt -a "$FWD_RC;e=$FDIFFS" -A "$RVS_RC;e=$RDIFFS" --no-indels --trimmed-only -o fastq/${RVS_NAME}.${FWD_LIB}.fastq.$EXT -p fastq/${FWD_NAME}.${RVS_LIB}.fastq.$EXT fastq/${FWD_LIB}.unt.fastq.$EXT fastq/${RVS_LIB}.unt.fastq.$EXT > fastq/log.cutadapt.${LIB_NAME}.rf.txt
+		cutadapt -m 8 -a "$RVS_RC;e=$RDIFFS" -A "$FWD_RC;e=$FDIFFS" --no-indels --untrimmed-output=fastq/${FWD_LIB}.unt.fastq.$EXT --untrimmed-paired-output=fastq/${RVS_LIB}.unt.fastq.$EXT -o fastq/${FWD_NAME}.${FWD_LIB}.fastq.$EXT -p fastq/${RVS_NAME}.${RVS_LIB}.fastq.$EXT ${RAWPATH}${FWD_LIB}.fastq.$EXT ${RAWPATH}${RVS_LIB}.fastq.$EXT > fastq/log.cutadapt.${LIB_NAME}.fr.txt
+		cutadapt -m 8 -a "$FWD_RC;e=$FDIFFS" -A "$RVS_RC;e=$RDIFFS" --no-indels --trimmed-only -o fastq/${RVS_NAME}.${FWD_LIB}.fastq.$EXT -p fastq/${FWD_NAME}.${RVS_LIB}.fastq.$EXT fastq/${FWD_LIB}.unt.fastq.$EXT fastq/${RVS_LIB}.unt.fastq.$EXT > fastq/log.cutadapt.${LIB_NAME}.rf.txt
 	fi
 	rm -f fastq/${FWD_LIB}.unt.fastq.$EXT fastq/${RVS_LIB}.unt.fastq.$EXT
 	# primer logo
@@ -87,13 +87,19 @@ done
 # Filter unpaired reads
 if [ $TRUNCLEN != "no" ]
 then
+	if [ $MAXTRUNCLEN != "no" ]
+	then
+		KEEP=$MAXTRUNCLEN
+	else
+		KEEP=$((($MAXLEN + $MIN_OV)/2))
+	fi
 	# Process both direction separately
 	for i in ${FWD_NAME} ${RVS_NAME}
 	do
 		if [ $i == "$FWD_NAME" ] ; then j=${RVS_NAME} ; else j=${FWD_NAME} ; fi
 		if [ -f fastq/$i.${FWD_LIB}.fastq.$EXT ]
 		then
-			vsearch --quiet --threads 1 --fastq_filter fastq/$i.${FWD_LIB}.fastq.$EXT --reverse fastq/$j.${RVS_LIB}.fastq.$EXT --fastq_maxns $MAXAMBIG --fastq_truncee $MAXEE --fastq_trunclen_keep $((($MAXLEN + $MIN_OV)/2)) --fastqout fastq/$i.${FWD_LIB}.trunc.fastq --fastqout_rev fastq/$j.${RVS_LIB}.trunc.fastq
+			vsearch --quiet --threads 1 --fastq_filter fastq/$i.${FWD_LIB}.fastq.$EXT --reverse fastq/$j.${RVS_LIB}.fastq.$EXT --fastq_maxns $MAXAMBIG --fastq_truncee $MAXEE --fastq_trunclen_keep $KEEP --fastqout fastq/$i.${FWD_LIB}.trunc.fastq --fastqout_rev fastq/$j.${RVS_LIB}.trunc.fastq
 			$COMP fastq/$i.${FWD_LIB}.trunc.fastq
 			$COMP fastq/$j.${RVS_LIB}.trunc.fastq
 		fi
