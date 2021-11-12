@@ -85,14 +85,18 @@ cl<-makeCluster(ncores)
 registerDoParallel(cl)
 map_track<-foreach(i=dada_all$fwd,j=derep$fwd,k=dada_all$rvs,l=derep$rvs,m=mergers_all,.packages=c('plyr','dplyr','seqinr'),
                      .final=function(x)setNames(x,names(derep$fwd))) %dopar% {
-                       full_join(data.frame(filtered=1:length(j$map),derep_forward=j$map,derep_reverse=l$map),
+                       tmp<-full_join(data.frame(filtered=1:length(j$map),derep_forward=j$map,derep_reverse=l$map),
                                  data.frame(derep_forward=1:length(i$map),dada_forward=i$map),by="derep_forward") %>%
-                         full_join(data.frame(derep_reverse=1:length(k$map),dada_reverse=k$map),by="derep_reverse") %>%
-                         full_join(data.frame(dada_forward=m$forward,dada_reverse=m$reverse,merged=1:length(m$forward),
+                         full_join(data.frame(derep_reverse=1:length(k$map),dada_reverse=k$map),by="derep_reverse")
+                       if(nrow(m)==0) {
+                         data.frame(tmp,merged=NA,seq=NA)
+                       } else {
+                         full_join(tmp,data.frame(dada_forward=m$forward,dada_reverse=m$reverse,merged=1:length(m$forward),
                                               seq=if(comb=="RF"){
                                                 laply(m$sequence,function(y) c2s(rev(comp(s2c(y),forceToLower=F))))
-                                                } else {m$sequence},
-                                              stringsAsFactors=F),by=c("dada_forward","dada_reverse"))
+                                              } else {m$sequence},
+                                              stringsAsFactors=F),by=c("dada_forward","dada_reverse")) 
+                       }
                      }
 stopCluster(cl)
 map_track_sample<-ldply(map_track,.id="sample") %>%
