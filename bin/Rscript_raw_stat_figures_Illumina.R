@@ -53,7 +53,9 @@ meanqual<-foreach(x=types,.combine=rbind) %do% {
         tmp<-paste0(z,".",w,".",grep(paste0("^",y,"\\."),get(paste0("files_",z)),value=T),x,".meanqual")
       }
       if(file.exists(tmp)) {
-        data.frame(type=x,sample=y,dir=z,quality=0:41,reads=scan(tmp,quiet=T))
+        if(file.info(tmp)$size>0) {
+          data.frame(type=x,sample=y,dir=z,quality=0:41,reads=scan(tmp,quiet=T))
+        }
       }
     }
   }
@@ -68,8 +70,10 @@ meanposqual<-foreach(x=types,.combine=rbind) %do% {
         tmp<-paste0(z,".",w,".",grep(paste0("^",y,"\\."),get(paste0("files_",z)),value=T),x,".meanposqual")
       }
       if(file.exists(tmp)) {
-        data.frame(type=x,sample=y,dir=z,quality=scan(tmp,quiet=T)) %>%
-          rownames_to_column("position") 
+		if(file.info(tmp)$size>0) {
+          data.frame(type=x,sample=y,dir=z,quality=scan(tmp,quiet=T)) %>%
+            rownames_to_column("position")
+        }
       }
     }
   }
@@ -84,7 +88,9 @@ seqlength<-foreach(x=types,.combine=rbind) %do% {
         tmp<-paste0(z,".",w,".",grep(paste0("^",y,"\\."),get(paste0("files_",z)),value=T),x,".length")
       }
       if(file.exists(tmp)) {
-        data.frame(type=x,sample=y,dir=z,read.table(tmp,col.names=c("length","reads"))) 
+        if(file.info(tmp)$size>0) {
+          data.frame(type=x,sample=y,dir=z,read.table(tmp,col.names=c("length","reads")))
+        }
       }
     }
   }
