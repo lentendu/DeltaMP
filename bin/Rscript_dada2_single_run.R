@@ -78,7 +78,7 @@ seqtab_pairs<-makeSequenceTable(mergers_all)
 if(comb=="RF") {
   colnames(seqtab_pairs)<-laply(colnames(seqtab_pairs),function(x) c2s(rev(comp(s2c(x),forceToLower=F))))
 }
-rownames(seqtab_pairs)<-paste(rownames(seqtab_pairs),runname,comb,sep="_")
+rownames(seqtab_pairs)<-paste(rownames(seqtab_pairs),runname,comb,sep="@")
 
 # track all sequences
 cl<-makeCluster(ncores)

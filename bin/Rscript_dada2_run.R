@@ -28,12 +28,13 @@ countbim<-sum(seqtab)-sum(seqtab_clean)
 print(paste0("Found ",countbim," chimera (",round(countbim/sum(seqtab)*100,digits=2)," %) and ",
              sum(seqtab_clean)," (",round(sum(seqtab_clean)/sum(seqtab)*100,digits=2)," %) non-chimera amplicons."))
 
-# merge sequence counts from both sequencing direction
+# merge sequence counts from both sequencing direction (and from multiple runs)
 cl<-makeCluster(ncores)
 registerDoParallel(cl)
 mat_df<-setNames(data.frame(seqtab_clean),laply(colnames(seqtab_clean),sha1)) %>%
   rownames_to_column("sample") %>%
-  mutate(sample=sub("_.*_[FR][FR]$","",sample)) %>%
+  separate(sample,c("sample","run","dir"),sep="@") %>%
+  select(-run,-dir) %>%
   ddply(.(sample),function(x){
     if(is.null(dim(x))) {x} else {colSums(dplyr::select(x,-sample))}
   },.parallel=T)
