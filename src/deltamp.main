@@ -341,7 +341,6 @@ then
 			error_doc "no ITS region was provided to cut the database."
 		else
 			DBCUT=$DB.$ITSX
-			error_cut=", neither the cutted version of the database ($DBCUT.fasta)"
 		fi
 	fi
 	if [ $ASSIGN_FUNCT == "yes" ]
@@ -352,7 +351,6 @@ then
 	fi
 elif [ $TARG == "18S" ] || [ $TARG == "16S" ] || [ $TARG == "28S" ] || [ $TARG == "COI" ] || [ $TARG == "rbcl" ]
 then
-	DBALIGN=$DB.align
 	if [ $CUT_DB == "yes" ]
 	then
 		if [ $TECH == "454" ] && [ $FLIP == "true" ]
@@ -361,9 +359,20 @@ then
 		else
 			DBCUT=$FWD_NAME.$RVS_NAME.$DB
 		fi
-		DBCHOP=$DBCUT.align
-		error_cut=", neither the cutted version of the database ($DBCUT.fasta)"
 	fi
+	if [ -f $DBFOLD/$DB.align ]
+	then
+		DBALIGN=$DB.align
+		if [ $CUT_DB == "yes" ]
+		then
+			DBCHOP=$DBCUT.align
+		fi
+	fi
+fi
+
+if [ ! -f $DBFOLD/$DBCUT.fasta ]
+then
+	error_cut=", neither the cutted version of the database ($DBCUT.fasta)"
 fi
 
 if [ $CLASSIF == "bayesian" ]
@@ -752,7 +761,7 @@ then
 			fi
 			# in which step script(s) of the new SUBPROJECT are the differing variable(s) found first
 			unset MATCH_STEP
-			MATCH_STEP=$(for j in $(awk '$0~"sbatch"{sub(")$","");print $NF}' $SUBPROJECT/config/steps); do TMP=$(grep -o -m 1 $(echo ${TMP_DIF[$i]} | sed 's/#/[^A-Z_]\\\|$/g;s/^/$/;s/$/[^A-Z_]/') $j) ; if [ ! -z $TMP ]; then basename $j | sed 's/\.sh//' && break ; fi ; done)
+			MATCH_STEP=$(for j in $(sed 's/^.* //;s/)$//' $SUBPROJECT/config/steps); do TMP=$(grep -o -m 1 $(echo ${TMP_DIF[$i]} | sed 's/#/[^A-Z_]\\\|$/g;s/^/$/;s/$/[^A-Z_]/') $j) ; if [ ! -z "$TMP" ]; then basename $j | sed 's/\.sh//' && break ; fi ; done)
 			if [ -z $MATCH_STEP ]
 			then
 				if [ ${TMP_DIF[$i]} == "QUAL_ONLY" ]
@@ -762,7 +771,16 @@ then
 					TMP_SCRIPT[$i]=$(sed '1d;s/ QUEUE_HOLD[^ ]*//;s/ /_/g' $SUBPROJECT/config/steps | nl | sort -k 2,2 | join -v 1 -1 2 - <(sed 's/ QUEUE_HOLD[^ ]*//;s/'$i'/'$SUBPROJECT'/g;s/ /_/g' $i/config/steps.final | sort) | sort -k 2,2n | head -1 | sed 's@.*/@@;s@\.sh.*$@@')
 				fi
 			else
-				TMP_SCRIPT[$i]=$MATCH_STEP
+				# exception for db_cut step, search for the second step with difference, which is not necessarilly the trim step
+				if [ $MATCH_STEP == "cut_db" ] && ( [ $ASV == "yes" ] || [ $PRECLUST != "mothur" ] )
+				then
+					ADD_CUT_DB="cut_db and "
+					unset MATCH_STEP
+					MATCH_STEP=$(for j in $(sed 's/^.* //;s/)$//' $SUBPROJECT/config/steps | grep -v "/cut_db\.sh$"); do TMP=$(grep -o -m 1 $(echo ${TMP_DIF[$i]} | sed 's/#/[^A-Z_]\\\|$/g;s/^/$/;s/$/[^A-Z_]/') $j) ; if [ ! -z "$TMP" ]; then basename $j | sed 's/\.sh//' && break ; fi ; done)
+					TMP_SCRIPT[$i]=$MATCH_STEP
+				else
+					TMP_SCRIPT[$i]=$MATCH_STEP
+				fi
 			fi
 			# which was the last step executed before the differing step
 			TMP_PREV[$i]=$(awk '$0!~"^#"{print $NF}' $i/config/steps.final | tac | grep -o -m 1 $(sed '/'"${TMP_SCRIPT[$i]}"'/,$d' $BIN/ref.steps.$TECH | tr "\n" " " | sed 's/ $/\n/;s/ /\\\|/g'))
@@ -774,13 +792,18 @@ then
 			REF_SUBPROJECT=`for i in "${PREV_LIST[@]}"; do if [ ${PREV_EXEC[$i]} == 1 ] ; then sed -n '/'"${TMP_PREV[$i]}"'/=' $BIN/ref.steps.$TECH | paste <(echo $i) <(stat -c "%Y" $i) - ; fi ; done | sort -k 3,3nr -k 2,2nr | cut -f 1 | head -1`
 			FIRST_STEP=${TMP_SCRIPT[$REF_SUBPROJECT]}
 			LAST_REF=${TMP_PREV[$REF_SUBPROJECT]}
-			# the steps to be queued are updated accordingly: start with init, hold on previous subproject last step (avoid if not anymore in the queue), jump till FIRST_STEP and make it dependent on init step completion
-			LAST_REF_JOBID=$(grep ${DELTAMP_VER}.${LAST_REF}.${REF_SUBPROJECT} $EXEC_PATH/$REF_SUBPROJECT/config/jobid | awk '{print $1}')
-			if [ -z "$(deltamp.queue | grep $LAST_REF_JOBID)" ]
+			# the steps to be queued are updated accordingly: start with init, jump till FIRST_STEP (or cut_db) and make it dependent on init step completion
+			if [ -z "$ADD_CUT_DB" ]
 			then
-				awk -v F=$FIRST_STEP 'BEGIN{p=0} {if($NF~F".sh)$"){p=1} ; if(p || NR==1){print} else {print "#"$0}}' $SUBPROJECT/config/steps | awk -v V=$DELTAMP_VER -v S=$SUBPROJECT 'BEGIN{c=0} {if(NR>1 && $0!~"^#" && c==0){sub("QUEUE_HOLD[^ ]* ","QUEUE_HOLD${init_jobid} ");c+=1};print}' > $SUBPROJECT/config/steps.final
+				sed "2,/^${FIRST_STEP}_jobid=/s/^/#/;/^#${FIRST_STEP}_jobid=/s/^#//;/^${FIRST_STEP}_jobid=/s/QUEUE_HOLD[^ ]* /QUEUE_HOLD\${init_jobid} /" $SUBPROJECT/config/steps > $SUBPROJECT/config/steps.final
 			else
-				awk -v F=$FIRST_STEP 'BEGIN{p=0} {if($NF~F".sh)$"){p=1} ; if(p || NR==1){print} else {print "#"$0}}' $SUBPROJECT/config/steps | awk -v V=$DELTAMP_VER -v S=$SUBPROJECT -v L=$LAST_REF_JOBID 'BEGIN{c=0} {if(NR==1){sub(V".init."S" ",V".init."S" QUEUE_HOLD"L" ")} else {if($0!~"^#" && c==0){sub("QUEUE_HOLD[^ ]* ","QUEUE_HOLD${init_jobid} ");c+=1}};print}' > $SUBPROJECT/config/steps.final
+				sed "2,/^${FIRST_STEP}_jobid=/s/^/#/;/^#cut_db_jobid=/{s/^#//;s/ \([^ ]*\)$/ QUEUE_HOLD\${init_jobid} \1/};/^#${FIRST_STEP}_jobid=/{s/^#//;s/QUEUE_HOLD[^ ]* /QUEUE_HOLD\${cut_db_jobid} /}" $SUBPROJECT/config/steps > $SUBPROJECT/config/steps.final
+			fi
+			# hold on previous subproject last step if still in the queue
+			LAST_REF_JOBID=$(grep ${DELTAMP_VER}.${LAST_REF}.${REF_SUBPROJECT} $EXEC_PATH/$REF_SUBPROJECT/config/jobid | awk '{print $1}')
+			if [ ! -z "$(deltamp.queue | grep $LAST_REF_JOBID)" ]
+			then
+				sed "1 s/ \([^ ]*\)$/ QUEUE_HOLD${LAST_REF_JOBID} \1/" $SUBPROJECT/config/steps.final > $SUBPROJECT/config/steps.final.tmp && mv $SUBPROJECT/config/steps.final.tmp $SUBPROJECT/config/steps.final
 			fi
 			# Check archiving of raw reads in previous subproject
 			if [ $DEMULTI == "no" ]
@@ -792,6 +815,7 @@ then
 				sed 's/^\(raw_archiver_jobid\)/#\1/' $SUBPROJECT/config/steps.final > $SUBPROJECT/config/steps.final.tmp && mv $SUBPROJECT/config/steps.final.tmp $SUBPROJECT/config/steps.final
 			fi
 		else
+			# if no previous SUBPROJECT still have their execution directory, the init step is skipped
 			sed '/^init_jobid/s/^/#/;/get.sh)$/s/ QUEUE_HOLD[^ ]* / /' $SUBPROJECT/config/steps > $SUBPROJECT/config/steps.final
 		fi
 	else
@@ -862,7 +886,7 @@ then
 		echo "### ${TITLE[2]}: ###"
 		printf '%'$((${#TITLE[2]}+9))'s\n' |tr " " "#"
 		echo "The initial steps of the pipeline are identical to $REF_SUBPROJECT (until ${LAST_REF} step)."
-		echo "deltamp execution will begin with ${FIRST_STEP} step."
+		echo "deltamp execution will begin with ${ADD_CUT_DB}${FIRST_STEP} step."
 		echo ""
 		echo "The following parameters differ between both SUBPROJECTs:"
 		diff --suppress-common-lines -y <(sort $SUBPROJECT/config/env.txt | grep -v "${SUBPROJECT##*_}\|START\|CITATION\|VERSION\|ARGUMENTS\|CHIMERA[12]") <(sort $REF_SUBPROJECT/config/env.txt | grep -v "${REF_SUBPROJECT##*_}\|START\|CITATION\|VERSION\|ARGUMENTS\|CHIMERA[12]") | awk '{print $1"\t"$2"\t"$5}' | cat <(echo -e "Parameter\tCurrent SUBPROJECT\tPrevious SUBPROJECT") - > $SUBPROJECT/config/prev.diff.txt

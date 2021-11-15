@@ -73,7 +73,7 @@ then
 		get.current()"
 		TAXO=`sed -n '/^taxonomy=/{s/.*=//;s/\.taxonomy//;p}' current_files.summary`
 		CTAXO=$TAXO.cons
-		sort -k 1,1 ${FASTA_OTUS}.taxonomy | join -2 2 - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 2,2nr -k 1,1 | nl -n rz -w ${#NBOTUS} | sort -k 2,2) | sort -k 3,3n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy","repseq"} {print "Otu"$3,$4,$2,$1}' > $CTAXO.taxonomy
+		sort -k 1,1 ${TAXO}.taxonomy | join -2 2 - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 2,2nr -k 1,1 | nl -n rz -w ${#NBOTUS} | sort -k 2,2) | sort -k 3,3n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy","repseq"} {print "Otu"$3,$4,$2,$1}' > $CTAXO.taxonomy
 		rm $TAXO.tax.summary $TAXO.taxonomy
 	fi
 elif [ $CLASSIF == "vsearch" ]

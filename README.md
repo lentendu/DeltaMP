@@ -276,7 +276,7 @@ The default values for the optional parameters could be displayed by using the -
 
 + __ITSx region to extract__: "no", “ITS1” or “ITS2” to skip or to extract either regions from fungal ITS reads using ITSx. The default is “no”.
 
-+ __Pre-clustering__: "no", "cdhit454" or "mothur" to skip or to use [cd-hit-454](http://weizhong-lab.ucsd.edu/public/?q=softwares/cd-hit-454) or [mothur pre.cluster](https://mothur.org/wiki/pre.cluster/) algorithms to pre-cluster reads after trimming and before chimera removal. For the mothur based pre-clustering, and aligned version of a reference database is required (see below at + Database prefix name). The default is "no".
++ __Pre-clustering__: "no", "cdhit454" or "mothur" to skip or to use [cd-hit-454](http://weizhong-lab.ucsd.edu/public/?q=softwares/cd-hit-454) or [mothur pre.cluster](https://mothur.org/wiki/pre.cluster/) algorithms to pre-cluster reads after trimming and before chimera removal. For the mothur based pre-clustering, and aligned version of a reference database is required (see below at __Database prefix name__). The default is "no".
 
 + __Chimera removal__: "before", "after" or "both", to check for chimera before OTU clustering only (in each sample separetedly), after OTU clustering only (among OTU representative sequences), or at both moments. *De-novo* chimera are detected with UCHIME and removed. For dada2 clustering, bimera are always removed using _removeBimera_. The default is "after".
 
