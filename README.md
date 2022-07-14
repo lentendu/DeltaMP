@@ -259,13 +259,13 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Maximum expected error on the trimmed length__: *Illumina specific parameter*, a number between 0.5 and ∞, by step of 0.5. Only consider when the parameter __Type of quality filtering__ is set to "maxee". The default is 2.
 
-+ __Increment for maximum expected error optimiation__: *Illumina specific parameter*, a number between 0.1 and 1, which is a value by which the __Maximum expected error on the trimmed length__ is incremented for the optimization procedure. The default is 0.5.
++ __Increment for maximum expected error optimization__: *Illumina specific parameter*, a number between 0.1 and 1, which is a value by which the __Maximum expected error on the trimmed length__ is incremented for the optimization procedure. The default is 0.5.
 
 + __Minimum length truncation of unpaired reads__: *Illumina specific parameter*, "no" or a number between __Minimum sequence length__ / 2 and ( __Maximum sequence length__ + __Minimum overlap__ ) / 2. When a length is provided, a length truncation is performed before pair-end join, using the length maximizing the length of the read while minimizing the maximum expected error on the truncated length, which allows to keep the read counts fixed by the __Minimum number of trimmed reads per sample__ parameter. The truncation length and the maximum expected error are optimized for all combinations of libraries (R1 and R2) and directions (forward and reverse primers) separately. The default is "no".
 
-+ __Maximum length truncation of unpaired reads__: *Illumina specific parameter*, "no" or a number between __Minimum sequence length__ and __Maximum sequence length__ , and higher than __Minimum length truncation of unpaired reads__ + __Increment for length truncation optimiation__ .
++ __Maximum length truncation of unpaired reads__: *Illumina specific parameter*, "no" or a number between __Minimum sequence length__ and __Maximum sequence length__ , and higher than __Minimum length truncation of unpaired reads__ + __Increment for length truncation optimization__ .
 
-+ __Increment for length truncation optimiation__: *Illumina specific parameter*, a number between 1 and 10, which is the number of nucleotide by which the __Minimum length truncation of unpaired reads__ is incremented for the optimization procedure. The default is 5.
++ __Increment for length truncation optimization__: *Illumina specific parameter*, a number between 1 and 10, which is the number of nucleotide by which the __Minimum length truncation of unpaired reads__ is incremented for the optimization procedure. The default is 5.
 
 
 ### PIPELINE section
