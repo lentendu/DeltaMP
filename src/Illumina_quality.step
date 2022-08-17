@@ -144,7 +144,7 @@ then
 		head -n -4 $SUBPROJECT.sample_counts.tsv | transpose_tab | sed '1,4d;/^[ \t]*$/d' | tac | cat <(head -n -4 $SUBPROJECT.sample_counts.tsv | cut -f 5 | transpose_tab) - | awk -v M=$MIN_DEPTH -v S=$SKIP_SAMP 'BEGIN{FS="\t"} {if(NR==1){for(i=2;i<=NF;i++){ref[i]=$i}} ; C=0 ;for(i=2;i<=NF;i++){if($i<M || $i<ref[i]*0.75){C+=1}};if(C<=S){print $1;exit}}' | sed 's/Trimmed at //;s/ Phred score//;s/ maxEE//' > optimized.quality.txt
 	else
 		# above ratio of pair-end reads
-		head -n -4 $SUBPROJECT.sample_counts.tsv | cut -f 5- | paste - <(head -n -4 $SUBPROJECT.sample_counts.tsv | cut -f 4) | transpose_tab | tac | awk -v M=$MIN_DEPTH -v S=$SKIP_SAMP 'BEGIN{FS="\t"}{if(NR==1){for (i=2;i<=NF;i++){R[i]=$i}} ; C=0 ; for(i=2;i<=NF;i++){if($i<R[i]*M){C+=1}};if(C<=S){print $1;exit}}' | sed 's/Trimmed at //;s/ Phred score//;s/ maxEE//' > optimized.quality.txt
+		head -n -4 $SUBPROJECT.sample_counts.tsv | cut -f 5- | paste <(head -n -4 $SUBPROJECT.sample_counts.tsv | cut -f 4) - | transpose_tab | tac | awk -v M=$MIN_DEPTH -v S=$SKIP_SAMP 'BEGIN{FS="\t"}{if(NR==1){for (i=2;i<=NF;i++){R[i]=$i}} ; C=0 ; for(i=2;i<=NF;i++){if($i<R[i]*M){C+=1}};if(C<=S){print $1;exit}}' | sed 's/Trimmed at //;s/ Phred score//;s/ maxEE//' > optimized.quality.txt
 	fi
 	QUAL=`cat optimized.quality.txt`
 	if [ $QFILT == "average" ]
