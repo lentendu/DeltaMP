@@ -46,7 +46,7 @@ $(modulefiles):
 # rule to build step scripts
 $(steps): bin/%.sh : | %.step
 	SEDSTEP=$$(sed 's/^/s@/;s/\t/@/;s/$$/@g/' lib/$(batch)/option_variables |  tr "\n" ";" | sed 's/^/sed "/;s/;$$/"/'); \
-	eval $$SEDSTEP <(cat $< $|) | sed 's#DeltaMP/DELTAMP_VERSION#$(module)#' | sed 's/log\/NAME/log\/'$*'/' > $@
+	eval $$SEDSTEP $| | sed 's#DeltaMP/DELTAMP_VERSION#$(module)#' | cat $< - | sed 's/log\/NAME/log\/'$*'/' > $@
 
 # header (type of job) specific dependencies
 bin/init.sh bin/454_quality.sh bin/Illumina_quality.sh bin/doc.sh bin/archiver.sh : serial-std.head
@@ -59,7 +59,7 @@ bin/asv.sh : mp-std_array_large.head
 
 # rule to set parameters of job headers
 $(heads): lib/$(batch)/%.head : %.options
-	SEDHEAD=$$(sed '2d;s/^/s@/;s/\t/@/;s/$$/@g/' config.txt |  tr "\n" ";" | sed 's/^/sed "/;s/;$$/"/'); \
+	SEDHEAD=$$(cat config.txt <(grep "^QUEUE_P" lib/$(batch)/option_variables) | sed '2d;s/^/s@/;s/\t/@/;s/$$/@g/' |  tr "\n" ";" | sed 's/^/sed "/;s/;$$/"/'); \
 	eval $$SEDHEAD $< > $@
 
 # rules to build array job headers
