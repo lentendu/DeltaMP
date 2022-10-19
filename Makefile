@@ -8,10 +8,13 @@ module_load := $(shell grep MODULES_TO_BE_LOADED config.txt | cut -f 2)
 deltamp := $(patsubst src/%,bin/%,$(patsubst %.main,%,$(wildcard $(addsuffix *.main,src/))))
 batch_spec := $(addprefix bin/,$(notdir $(shell ls lib/$(batch)/deltamp.*)))
 steps := $(patsubst src/%,bin/%,$(patsubst %.step,%.sh,$(wildcard $(addsuffix *.step,src/))))
-arrays := $(patsubst %.options,%_array.options,$(shell ls lib/$(batch)/*.options | grep -v "_"))
-large_arrays := $(patsubst %.options,%_array_large.options,$(shell ls lib/$(batch)/mp.options | grep -v "_"))
-highmems := $(patsubst %.options,%_highmem.options,$(shell ls lib/$(batch)/*.options | grep -v "_"))
-options := $(arrays) $(large_arrays) $(highmems) $(shell ls lib/$(batch)/*.options | grep -v "_")
+standard := $(patsubst %.options,%-std.options,$(shell ls lib/$(batch)/*.options | grep -v "_\|-"))
+stdval := $(shell grep QUEUE_PARTITION_STANDARD config.txt | cut -f 2)
+highmems := $(patsubst %-std.options,%-highmem.options,$(standard))
+hmval := $(shell grep QUEUE_PARTITION_HIGHMEM config.txt | cut -f 2)
+arrays := $(patsubst %.options,%_array.options,$(standard))
+large_arrays := $(patsubst %.options,%_array_large.options,lib/$(batch)/mp-std.options)
+options := $(arrays) $(large_arrays) $(standard) $(highmems)
 heads := $(patsubst %.options,%.head,$(options))
 test_config := $(patsubst src/%,test/%,$(patsubst %.config,%.tsv,$(wildcard $(addsuffix *.config,src/))))
 
@@ -43,19 +46,19 @@ $(modulefiles):
 # rule to build step scripts
 $(steps): bin/%.sh : | %.step
 	SEDSTEP=$$(sed 's/^/s@/;s/\t/@/;s/$$/@g/' lib/$(batch)/option_variables |  tr "\n" ";" | sed 's/^/sed "/;s/;$$/"/'); \
-	eval $$SEDSTEP $| | sed 's#DeltaMP/DELTAMP_VERSION#$(module)#' | cat $< - | sed 's/log\/NAME/log\/'$*'/' > $@
+	eval $$SEDSTEP <(cat $< $|) | sed 's#DeltaMP/DELTAMP_VERSION#$(module)#' | sed 's/log\/NAME/log\/'$*'/' > $@
 
 # header (type of job) specific dependencies
-bin/init.sh bin/454_quality.sh bin/Illumina_quality.sh bin/doc.sh bin/archiver.sh : serial.head
-bin/Illumina_fastq.sh bin/Illumina_pair_end.sh bin/Illumina_opt.sh : serial_array.head
-bin/end.sh : serial_highmem.head
-bin/get.sh bin/OTU.sh : mp.head
-bin/Illumina_demulti.sh bin/454_demulti.sh bin/454_sff.sh bin/454_opt.sh bin/trim.sh : mp_array.head
-bin/cut_db.sh bin/id.sh : mp_highmem.head
-bin/asv.sh : mp_array_large.head
+bin/init.sh bin/454_quality.sh bin/Illumina_quality.sh bin/doc.sh bin/archiver.sh : serial-std.head
+bin/Illumina_fastq.sh bin/Illumina_pair_end.sh bin/Illumina_opt.sh : serial-std_array.head
+bin/end.sh : serial-highmem.head
+bin/get.sh bin/OTU.sh : mp-std.head
+bin/Illumina_demulti.sh bin/454_demulti.sh bin/454_sff.sh bin/454_opt.sh bin/trim.sh : mp-std_array.head
+bin/cut_db.sh bin/id.sh : mp-highmem.head
+bin/asv.sh : mp-std_array_large.head
 
 # rule to set parameters of job headers
-$(heads): lib/$(batch)/%.head :  %.options
+$(heads): lib/$(batch)/%.head : %.options
 	SEDHEAD=$$(sed '2d;s/^/s@/;s/\t/@/;s/$$/@g/' config.txt |  tr "\n" ";" | sed 's/^/sed "/;s/;$$/"/'); \
 	eval $$SEDHEAD $< > $@
 
@@ -77,10 +80,21 @@ else ifeq ($(batch),Slurm)
 endif
 
 # rules to build high memory job headers
-$(highmems): lib/$(batch)/%_highmem.options : %.options
+$(highmems): lib/$(batch)/%-highmem.options : %.options
 	sed 's/MAX_MEMORY/MAX_HIGH_MEM_MEMORY/;s/MAX_CPU/MAX_HIGH_MEM_CPU/' $< > $@
 ifeq ($(batch),GridEngine)
 	sed '$$s/^$$/#$$ -l highmem\n/' $@ > $@.temp && mv $@.temp $@
+endif
+ifneq ($(strip $(hmval)),)
+	echo QUEUE_PREFIX QUEUE_PARTITION $(strip $(hmval)) >> $@
+endif
+
+# rules to build standard job headers
+$(standard): lib/$(batch)/%-std.options : %.options
+ifneq ($(strip $(stdval)),)
+	echo QUEUE_PREFIX QUEUE_PARTITION $(strip $(stdval)) | cat $< - > $@
+else
+	cp $< $@
 endif
 
 # Copy batch queuing system specific executables to bin
@@ -93,4 +107,4 @@ $(test_config): test/%.tsv : %.config
 
 # clean rule
 clean :
-	rm -r $(deltamp) $(steps) $(heads) $(arrays) $(large_arrays) $(highmems) $(batch_spec) $(test_config)
+	rm -r $(deltamp) $(steps) $(heads) $(arrays) $(large_arrays) $(standard) $(highmems) $(batch_spec) $(test_config)

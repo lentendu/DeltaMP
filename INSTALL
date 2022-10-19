@@ -44,6 +44,10 @@
 	m. MAX_ARRAY_CPU_PER_NODES: the number of CPUs on one standard node for MP parallel array jobs (advised: 25 to 50 % of CPUs from most abundant type of node)
 	
 	n. MAX_HIGH_MEM_CPU_PER_NODES: the number of CPUs on one high-memory node for MP parallel jobs (advised maximum: 16)
+	
+	o. QUEUE_PARTITION_STANDARD: the name of the partition(s) or queue(s) to run standard jobs; comma separated list if more than one; this variable is optional
+	
+	p. QUEUE_PARTITION_HIGHMEM: the name of the partition(s) or queue(s) to run high-memory jobs; comma separated list if more than one; this variable is optional
 
 
 5. to build DeltaMP, a simple make is enough:
