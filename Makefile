@@ -86,7 +86,11 @@ ifeq ($(batch),GridEngine)
 	sed '$$s/^$$/#$$ -l highmem\n/' $@ > $@.temp && mv $@.temp $@
 endif
 ifneq ($(strip $(hmval)),)
-	echo QUEUE_PREFIX QUEUE_PARTITION $(strip $(hmval)) >> $@
+	if [[ "$(<F)" == *"mp"* ]] ; then \
+		echo QUEUE_PREFIX QUEUE_PARTITION $(strip $(hmval)) >> $@ ; \
+	elif [ "$(stdval)" != "" ] ; then \
+		echo QUEUE_PREFIX QUEUE_PARTITION $(strip $(stdval)) | cat $< - > $@ ; \
+	fi
 endif
 
 # rules to build standard job headers
