@@ -102,7 +102,7 @@ for (x in c(fwd,rvs)) {
 	if (length(get(paste0("files_",x))) > 0) {
 	  plot_qual<-ggplot(filter(meanqual,dir==x),aes(quality,reads+1)) +
 	    geom_bar(data=group_by(filter(meanqual,dir==x),type,quality) %>% summarize(reads=sum(reads)),stat="identity",fill="limegreen") +
-	    geom_line(aes(color=sample),size=0.3,stat="identity",show.legend=F) +
+	    geom_line(aes(color=sample),linewidth=0.3,stat="identity",show.legend=F) +
 	    geom_smooth() +
 	    facet_wrap(~type,ncol=1) +
 	    scale_color_manual(values=mycolors) +
@@ -113,7 +113,7 @@ for (x in c(fwd,rvs)) {
 	  
 	  # average quality by position
 	  plot_pos_qual<-ggplot(filter(meanposqual,dir==x),aes(position,quality)) +
-	    geom_line(aes(color=sample),size=0.3,stat="identity",show.legend=F) +
+	    geom_line(aes(color=sample),linewidth=0.3,stat="identity",show.legend=F) +
 	    geom_smooth() +
 	    facet_wrap(~type,ncol=1,scales="free_x") +
 	    scale_color_manual(values=mycolors) +
@@ -124,8 +124,8 @@ for (x in c(fwd,rvs)) {
 	  plot_length<-ggplot(filter(seqlength,dir==x),aes(length,reads)) +
 	    geom_bar(data=group_by(filter(seqlength,dir==x),length,type) %>%
 	               summarize(reads=sum(reads)),stat="identity",fill="limegreen") +
-	    geom_line(aes(color=sample),size=0.3,stat="identity",show.legend=F) +
-	    geom_smooth() +
+	    geom_line(aes(color=sample),linewidth=0.3,stat="identity",show.legend=F) +
+	    geom_smooth(method="loess") +
 	    facet_wrap(~type,ncol=1,scales="free_x") +
 	    scale_color_manual(values=mycolors) +
 	    scale_y_log10() +
