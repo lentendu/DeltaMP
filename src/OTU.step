@@ -26,8 +26,12 @@ while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var
 
 # record newly set variables
 (set -o posix; set > config/OTU.set)
-
-SAMP_NAME=$(cut -f 1 config/lib4.list)
+if [ -f config/*missing ]
+then
+	SAMP_NAME=$(cut -f 1 config/lib4.list | join -v 1 - <(cat config/*missing | sort))
+else
+	SAMP_NAME=$(cut -f 1 config/lib4.list)
+fi
 cd processing
 
 # Merge all sample's fasta and count files (removing gaps if any)
