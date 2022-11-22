@@ -106,10 +106,10 @@ fi
 rm $CTAXO.taxo $CTAXO.otu $CTAXO.json.biom
 
 # Representative sequences
-twofasta $FASTA_OTUS.fasta > $SUBPROJECT.${LABELS[0]}_repseq.fasta
-obigrep --without-progress-bar --uppercase --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[1]}_${SUFF}s.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[1]}_repseq.fasta
-obigrep --without-progress-bar --uppercase --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[2]}_${SUFF}s.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[2]}_repseq.fasta
-obigrep --without-progress-bar --uppercase --id-list=<(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[3]}_${SUFF}s.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta | twofasta > $SUBPROJECT.${LABELS[3]}_repseq.fasta
+seqkit seq -w 0 $FASTA_OTUS.fasta > $SUBPROJECT.${LABELS[0]}_repseq.fasta
+seqkit grep -w 0 -f <(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[1]}_${SUFF}s.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta > $SUBPROJECT.${LABELS[1]}_repseq.fasta
+seqkit grep -w 0 -f <(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[2]}_${SUFF}s.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta > $SUBPROJECT.${LABELS[2]}_repseq.fasta
+seqkit grep -w 0 -f <(awk 'NR>1{print $NF}' $SUBPROJECT.${LABELS[3]}_${SUFF}s.tsv) $SUBPROJECT.${LABELS[0]}_repseq.fasta > $SUBPROJECT.${LABELS[3]}_repseq.fasta
 
 # Sequences stat
 for i in "${LABELS[@]}"
