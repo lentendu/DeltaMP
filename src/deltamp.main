@@ -613,7 +613,7 @@ then
 	# lib3 : samples and demultiplexed library filename prefix (one line per sample per library even if multiple barcodes, a sample could be in multiple libraries, i.e. repeated on multiple lines)
 	if [ $DEMULTI == "no" ]
 	then
-		sed 's/\.'$RAW_EXT'[^\t$]*//g;s/ftp\.sra.*\///' config/barcodes.txt | awk '{print $2"\t"$2"."$3}' | sort -u > config/lib3.list
+		sed 's/\.'$RAW_EXT'[^\t$]*//g;s/ftp\.sra.*\///' config/barcodes.txt | awk '{print $2"\t"$2"."$3}' | sort -u | sort -k 1,1 -t $'\t' > config/lib3.list
 	else
 		if [ $(cut -f 2 config/barcodes.txt | sort -u | wc -l) -gt $(cut -f 3 config/barcodes.txt | sort -u | wc -l) ]
 		then
@@ -621,7 +621,7 @@ then
 			if [ ! "$(ls -A)" ] ; then cd .. && rmdir $PROJECT ; fi
 			error_doc "there is more samples than libraries, it seems that the libraries are not demultiplexed\nSet 'Libraries already demultiplexed' to 'no' in the configuration file to allow deltamp execution."
 		else
-			sed 's/\.'$RAW_EXT'[^\t$]*//;s/ftp\.sra.*\///' config/barcodes.txt | awk '{print $2"\t"$3}' | sort -u > config/lib3.list
+			sed 's/\.'$RAW_EXT'[^\t$]*//;s/ftp\.sra.*\///' config/barcodes.txt | awk '{print $2"\t"$3}' | sort -u | sort -k 1,1 -t $'\t' > config/lib3.list
 		fi
 	fi
 	LIB3_SIZE=`sed -n '$=' config/lib3.list | sed 's/$/:10/'`
@@ -636,7 +636,7 @@ then
 	# lib3 : sample and demultiplexed library full filename for R1 and R2 without $RAW_EXT extension
 	if [ $DEMULTI == "no" ]
 	then
-		sed 's/\.'$RAW_EXT'[^\t$]*//g;s/ftp\.sra[^\t]*\///g' config/barcodes.txt | awk '{print $2"\t"$2"."$3"\t"$2"."$4}' | sort -u > config/lib3.list
+		sed 's/\.'$RAW_EXT'[^\t$]*//g;s/ftp\.sra[^\t]*\///g' config/barcodes.txt | awk '{print $2"\t"$2"."$3"\t"$2"."$4}' | sort -u | sort -k 1,1 -t $'\t' > config/lib3.list
 		# control potential dual indexing
 		if [ $(cut -f 1 config/barcodes.txt | grep -c "^[NATCG]*,[NATCG]*$") -gt 0 ]
 		then
@@ -663,7 +663,7 @@ then
 			if [ ! "$(ls -A)" ] ; then cd .. && rmdir $PROJECT ; fi
 			error_doc "there is more samples than libraries, it seems that the libraries are not demultiplexed\nSet 'Libraries already demultiplexed' to 'no' in the configuration file to allow deltamp execution."
 		else
-			sed 's/\.'$RAW_EXT'[^\t$]*//g;s/ftp\.sra[^\t]*\///g;s/^barcode\t//' config/barcodes.txt | sort -u > config/lib3.list
+			sed 's/\.'$RAW_EXT'[^\t$]*//g;s/ftp\.sra[^\t]*\///g;s/^barcode\t//' config/barcodes.txt | sort -u | sort -k 1,1 -t $'\t' > config/lib3.list
 		fi
 	fi
 	LIB3_SIZE=`sed -n '$=' config/lib3.list`
