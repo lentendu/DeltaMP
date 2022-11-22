@@ -114,11 +114,11 @@ obigrep --without-progress-bar --uppercase --id-list=<(awk 'NR>1{print $NF}' $SU
 # Sequences stat
 for i in "${LABELS[@]}"
 do
-	awk -v L=$FSAMP_SIZE 'NR>1{for(i=2;i<=(L+1);i++){sum[i]+=$i}}END{for(i=2;i<=(L+1);i++){printf "%s\t", sum[i]}}' $SUBPROJECT.${i}_${SUFF}s.tsv | sed 's/\t$/\n/'
-done | cat <(sed -n '1p' $SUBPROJECT.all_${SUFF}s.tsv | cut -f 2-$((FSAMP_SIZE+1))) - | transpose_tab | mimato | cat <(echo ${LABELS[@]} | sed 's/ / '${SUFF}'\t/g;s/$/ '${SUFF}'/;s/_/ /g;s/^/Sample\t/') - > tmp.read_counts.tsv
+	awk -v L=$FSAMP_SIZE -v I=$i '{for(i=2;i<=(L+1);i++){if(NR==1){sam[i]=$i} else {sum[i]+=$i}}}END{for(i=2;i<=(L+1);i++){print I,sam[i],sum[i]}}' $SUBPROJECT.${i}_${SUFF}s.tsv
+done | awk -v H=$(echo ${LABELS[@]} | sed 's/ /#/g') -v S=$(cut -f 1 ../config/lib4.list | awk '{if(NR==1){printf "%s",$1} else printf "#@%s",$1}END{printf "\n"}') 'BEGIN{ls=split(S,sa,"#@"); lh=split(H,he,"#")} {c[$1$2]=$3} END{gsub("#","\t",H); print "Sample\t"H; for(i=1;i<=ls;i++){printf "%s", sa[i]; for(j=1;j<=lh;j++){if(he[j]sa[i] in c){out=c[he[j]sa[i]]} else out=0; printf "\t%s",out}; printf "\n"} }' | mimato -h > tmp.read_counts.tsv
 if [ $CLUST == "dada2" ]
 then
-	sed '1d' $SUBPROJECT.dada2.read_counts.tsv | sort -t $'\t' -k 1,1 | mimato | cat <(HEADER=($(head -1 $SUBPROJECT.dada2.read_counts.tsv)); echo ${HEADER[@]^} | tr " " "\t") - | cut -f 2- | paste <(cut -f 1-4,6 ../quality_check/$SUBPROJECT.summary.stat.tsv) - | nl -n ln | sort -t $'\t' -k 2,2 | join -t $'\t' -a 1 -1 2 - <(sort -k 1,1 tmp.read_counts.tsv) | sort -k 2,2n -t $'\t' | cut -f 1,3- | awk 'BEGIN{FS=OFS="\t"}{if(NF==10){print $0"\t0\t0\t0\t0"} else print $0}' > $SUBPROJECT.read_counts.tsv
+	join -a 1 -1 2 -t $'\t' <(cut -f 1 ../config/lib4.list | cat <(echo sample) - | nl -n ln | sed 's/[ \t][ \t]*/\t/' | sort -k 2,2) <(sort -k 1,1 $SUBPROJECT.dada2.read_counts.tsv) | sort -k 2,2n | cut -f 1,3- |  awk -F'\t' 'NR==1{l=NF};{if(NF==l){print $0} else {printf "%s",$1;for(i=2;i<=l;i++){printf "\t0"};printf "\n"}}' | mimato -h | paste - <(cut -f 2- tmp.read_counts.tsv) | cut -f 2- | paste ../quality_check/$SUBPROJECT.summary.stat.tsv - > $SUBPROJECT.read_counts.tsv
 else
 	nl -n ln ../quality_check/$SUBPROJECT.summary.stat.tsv | sort -t $'\t' -k 2,2 | join -t $'\t' -a 1 -1 2 - <(sort -k 1,1 tmp.read_counts.tsv) | sort -k 2,2n -t $'\t' | cut -f 1,3- | awk 'BEGIN{FS=OFS="\t"}{if(NF==6){print $0"\t0\t0\t0\t0"} else print $0}' > $SUBPROJECT.read_counts.tsv
 fi

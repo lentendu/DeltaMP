@@ -1,14 +1,26 @@
 #!/bin/bash
 
+HEADER=0
+while getopts ":h" opt
+do
+	case $opt in
+		h)	HEADER=1 ;;
+		?)	echo "$0 Invalid option: -${OPTARG}" >&2 && exit 1 ;;
+	esac
+done
+shift "$((OPTIND-1))"
+
 file=$@
 
-awk '{
-	for(N=2; N<=NF; N++)
-	{
-		if(length(MIN[N])==0 || MIN[N]>$N) MIN[N]=$N
-		if(length(MAX[N])==0 || MAX[N]<$N) MAX[N]=$N
-		if(length(TOT[N])==0) {TOT[N]=$N} else {TOT[N]+=$N}
-		if(length(NB[N])==0) {NB[N]=1} else {NB[N]+=1}
+awk -v H=$HEADER '{
+	if(NR>H) {
+		for(N=2; N<=NF; N++)
+		{
+			if(length(MIN[N])==0 || MIN[N]>$N) MIN[N]=$N
+			if(length(MAX[N])==0 || MAX[N]<$N) MAX[N]=$N
+			if(length(TOT[N])==0) {TOT[N]=$N} else {TOT[N]+=$N}
+			if(length(NB[N])==0) {NB[N]=1} else {NB[N]+=1}
+		}
 	}
 }1
 END {
@@ -26,3 +38,4 @@ END {
 		printf("\t%d", TOT[N]);
 	printf("\n");
 }' $file
+
