@@ -57,6 +57,9 @@ do
 		if [ $PALG == "vsearch" ]
 		then
 			RAW_COUNT=$(awk '$2=="Pairs"{print $1;exit}' libraries/fastq/log.pairend.${FWD_NAME}.$lib.txt)
+		elif [ $PALG == "ngmerge" ]
+		then
+			RAW_COUNT=$(sed -n '/analyzed:/s/.*: //p' libraries/fastq/log.pairend.${FWD_NAME}.$lib.txt)
 		else
 			RAW_COUNT=$(tac libraries/fastq/log.pairend.${FWD_NAME}.$lib.txt | grep -m 1 -P "STAT\tREADS" | cut -f 4)
 		fi
@@ -70,19 +73,41 @@ do
 		then
 			if [ $TRUNCLEN == "no" ]
 			then
-				if [ $PALG == "vsearch" ]
+				if [ $TRUNCLEN == "no" ]
 				then
-					paste <(awk '$2=="Pairs"{print $1;exit}' libraries/fastq/log.pairend.$i.$lib.txt) <(awk '$2=="Merged"{print $1;exit}' libraries/fastq/log.pairend.$i.$lib.txt) quality_check/$i.$j.$lib.stat
+					if [ $TRUNCBE == "yes" ]
+					then
+						if [ $PALG == "vsearch" ]
+						then
+							paste <(awk '$2=="Pairs" || $2=="Merged"{print $1}' libraries/fastq/log.pairend.$i.$lib.txt | tr "\n" "\t") <(cut -d " " -f 3 quality_check/$i.$j.$lib.pairend.eestat | tr "\n" "\t")
+						elif [ $PALG == "ngmerge" ]
+						then
+							paste <(sed '1d;s/.*: //' libraries/fastq/log.pairend.$i.$lib.txt | tr "\n" "\t") <(cut -d " " -f 3 quality_check/$i.$j.$lib.pairend.eestat | tr "\n" "\t")
+						else
+							paste <(tac libraries/fastq/log.pairend.$i.$lib.txt | grep -m 1 -P "STAT\tREADS" | cut -f 4) <(tac libraries/fastq/log.pairend.$i.$lib.txt | grep -m 1 -P "STAT\tOK\t" | cut -f 4) <(cut -d " " -f 3 quality_check/$i.$j.$lib.pairend.eestat | tr "\n" "\t")
+						fi
+					else
+						if [ $PALG == "vsearch" ]
+						then
+							paste <(awk '$2=="Pairs" || $2=="Merged"{print $1}' libraries/fastq/log.pairend.$i.$lib.txt | tr "\n" "\t") quality_check/$i.$j.$lib.stat
+						elif [ $PALG == "ngmerge" ]
+						then
+							paste <(sed '1d;s/.*: //' libraries/fastq/log.pairend.$i.$lib.txt | tr "\n" "\t") quality_check/$i.$j.$lib.stat
+						else
+							paste <(tac libraries/fastq/log.pairend.$i.$lib.txt | grep -m 1 -P "STAT\tREADS" | cut -f 4) <(tac libraries/fastq/log.pairend.$i.$lib.txt | grep -m 1 -P "STAT\tOK\t" | cut -f 4) quality_check/$i.$j.$lib.stat
+						fi
+					fi
 				else
-					paste <(tac libraries/fastq/log.pairend.$i.$lib.txt | grep -m 1 -P "STAT\tREADS" | cut -f 4) <(tac libraries/fastq/log.pairend.$i.$lib.txt | grep -m 1 -P "STAT\tOK\t" | cut -f 4) quality_check/$i.$j.$lib.stat
-				fi
-			else
-				PRIMER_COUNT=$(awk '{sum+=$2}END{print sum}' libraries/raw_stat/$i.$lib.fwd.length)
-				if [ $PALG == "vsearch" ]
-				then
-					paste <(echo -e "$PRIMER_COUNT") <(awk '$2=="Pairs"{print $1;exit}' libraries/fastq/log.pairend.$i.$lib.txt) <(awk '$2=="Merged"{print $1;exit}' libraries/fastq/log.pairend.$i.$lib.txt)
-				else
-					paste <(echo -e "$PRIMER_COUNT") <(tac libraries/fastq/log.pairend.$i.$lib.txt | grep -m 1 -P "STAT\tREADS" | cut -f 4) <(tac libraries/fastq/log.pairend.$i.$lib.txt | grep -m 1 -P "STAT\tOK\t" | cut -f 4)
+					PRIMER_COUNT=$(awk '{sum+=$2}END{print sum}' libraries/raw_stat/$i.$lib.fwd.length)
+					if [ $PALG == "vsearch" ]
+					then
+						paste <(echo -e "$PRIMER_COUNT") <(awk '$2=="Pairs" || $2=="Merged"{print $1}' libraries/fastq/log.pairend.$i.$lib.txt | tr "\n" "\t")
+					elif [ $PALG == "ngmerge" ]
+					then
+						paste <(echo -e "$PRIMER_COUNT") <(sed '1d;s/.*: //' libraries/fastq/log.pairend.$i.$lib.txt | tr "\n" "\t")
+					else
+						paste <(echo -e "$PRIMER_COUNT") <(tac libraries/fastq/log.pairend.$i.$lib.txt | grep -m 1 -P "STAT\tREADS" | cut -f 4) <(tac libraries/fastq/log.pairend.$i.$lib.txt | grep -m 1 -P "STAT\tOK\t" | cut -f 4)
+					fi
 				fi
 			fi
 		fi

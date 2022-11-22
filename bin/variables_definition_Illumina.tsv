@@ -1,4 +1,4 @@
-PALG	simple_bayesian	Pair-end algorithm	vsearch simple_bayesian ea_util flash pear rdp_mle stitch uparse
+PALG	simple_bayesian	Pair-end algorithm	vsearch ngmerge simple_bayesian ea_util flash pear rdp_mle stitch uparse
 PTRESH	0.6	PandaSeq threshold	^[0-9]+(.[0-9]+)?$
 MIN_OV	10	Minimum overlap	^[0-9]+$
 BINDBP	no	Bind barcode to primer for demultiplexing	no yes

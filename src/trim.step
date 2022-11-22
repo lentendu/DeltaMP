@@ -206,6 +206,9 @@ do
 							ASCII=$(vsearch --fastq_chars $x.$i.fwd.filtered.fastq 2>&1 | grep -m 1 "^Guess" | sed 's/.* //')
 							PCTTRESH=$(awk -v P=$PTRESH 'BEGIN{print (1-P)*100}')
 							vsearch --quiet --threads $NCPUS --fastq_mergepairs $x.$i.fwd.filtered.fastq --reverse $y.$i.rvs.filtered.fastq --fastq_ascii $ASCII --fastq_minovlen $MIN_OV --fastq_maxdiffpct $PCTTRESH --fastq_allowmergestagger --fastqout $x.$y.$i.pairend.fastq 2> log.pairend.$x.$i.txt
+						elif [ $PALG == "ngmerge" ]
+						then
+							NGmerge -1 $x.$i.fwd.filtered.fastq -2 $y.$i.rvs.filtered.fastq -m $MIN_OV -p $(echo 1 - $PTRESH | bc) -v -y -o $x.$y.$i.pairend.fastq 2> log.pairend.$x.$i.txt
 						else
 							pandaseq -f $x.$i.fwd.filtered.fastq -r $y.$i.rvs.filtered.fastq -g log.pairend.$x.$i.txt -F -A $PALG -o $MIN_OV -O $((MAXLEN+MIN_OV-MINLEN)) -t $PTRESH -T $NCPUS > $x.$y.$i.pairend.fastq
 						fi

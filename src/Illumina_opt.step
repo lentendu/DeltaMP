@@ -72,10 +72,34 @@ do
 			then
 				KEEP=$MAXTRUNCLEN
 			else
-				KEEP="*"
-			fi	
-			vsearch --quiet --fastq_eestats2 fastq/$i.${FWD_LIB}.fastq.$EXT --length_cutoffs $TRUNCLEN,"$KEEP",$LENSTEP --ee_cutoffs $(seq 0.5 $EESTEP $MAXEE | tr "\n" "," | sed 's/,$//') --output - | sed '1,/^---/d;s/^  *//;s/  */\t/g;s/\([0-9]*\)(\t*\([0-9\.]*\)%)/\1 \2/g' > ../quality_check/$i.${FWD_LIB}.eestat
-			vsearch --quiet --fastq_eestats2 fastq/$j.${RVS_LIB}.fastq.$EXT --length_cutoffs $TRUNCLEN,"$KEEP",$LENSTEP --ee_cutoffs $(seq 0.5 $EESTEP $MAXEE | tr "\n" "," | sed 's/,$//') --output - | sed '1,/^---/d;s/^  *//;s/  */\t/g;s/\([0-9]*\)(\t*\([0-9\.]*\)%)/\1 \2/g' > ../quality_check/$j.${RVS_LIB}.eestat
+				ASCII=$(vsearch --fastq_chars fastq/$i.$FWD_LIB.fastq.$EXT 2>&1 | grep -m 1 "^Guess" | sed 's/.* //')
+				PCTTRESH=$(awk -v P=$PTRESH 'BEGIN{print (1-P)*100}')
+				for k in $(seq $MINEE $EESTEP $MAXEE)
+				do
+					vsearch --quiet --fastq_filter fastq/$i.${FWD_LIB}.fastq.$EXT --fastq_truncee $k --fastqout $i.${FWD_LIB}.$k.fastq
+					vsearch --quiet --fastq_filter fastq/$j.${RVS_LIB}.fastq.$EXT --fastq_truncee $k --fastqout $j.${RVS_LIB}.$k.fastq
+				done
+				for k in $(seq $MINEE $EESTEP $MAXEE)
+				do
+					for l in $(seq $MINEE $EESTEP $MAXEE)
+					do
+						TMP_MERGE=$(mktemp)
+						if [ $PALG == "vsearch" ]
+						then
+							vsearch --quiet --threads 1 --fastq_mergepairs $i.${FWD_LIB}.$k.fastq --reverse $j.${RVS_LIB}.$l.fastq --fastq_ascii $ASCII --fastq_minovlen $MIN_OV --fastq_maxdiffpct $PCTTRESH --fastq_allowmergestagger --fastqout - 2> fastq/log.pairend.$i.$LIB_NAME.txt | vsearch --quiet --fastq_filter - --fastq_maxns $MAXAMBIG --fastqout $TMP_MERGE
+						elif [ $PALG == "ngmerge" ]
+						then
+							NGmerge -1 $i.${FWD_LIB}.$k.fastq -2 $j.${RVS_LIB}.$l.fastq -m $MIN_OV -p $(echo 1 - $PTRESH | bc) -y -o - > $TMP_MERGE
+						else
+							pandaseq -f $i.${FWD_LIB}.$k.fastq -r $j.${RVS_LIB}.$l.fastq -F -A $PALG -o $MIN_OV -O $((MAXLEN+MIN_OV-MINLEN)) -t $PTRESH -T 1 2> /dev/null > $TMP_MERGE
+						fi
+						vsearch --quiet --fastq_filter $TMP_MERGE --fastq_maxns $MAXAMBIG --fastq_maxlen $MAXLEN --fastq_minlen $MINLEN --fastqout - | seqkit stats | sed '1d;s/^-/'$k' '$l'/'
+						rm $TMP_MERGE
+					done
+				done | sed 's/  */ /g;s/,//g' | cut -d " " -f 1-2,5,7-9 > ../quality_check/$i.$j.$LIB_NAME.pairend.eestat
+				for k in $(seq $MINEE $EESTEP $MAXEE); do rm $i.${FWD_LIB}.$k.fastq $j.${RVS_LIB}.$k.fastq ; done
+			fi
+			
 		fi
 	fi
 done
