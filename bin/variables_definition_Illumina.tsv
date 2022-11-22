@@ -8,3 +8,4 @@ EESTEP	0.5	Increment for maximum expected error optimization	^[0-9]+(.[0-9]+)?$
 TRUNCLEN	no	Minimum length truncation of unpaired reads	no ^[0-9]+$
 MAXTRUNCLEN	no	Maximum length truncation of unpaired reads	no ^[0-9]+$
 LENSTEP	5	Increment for length truncation optimization	^[0-9]+$
+MEANLEN	auto	Expected mean length of amplified barcode gene	auto ^[0-9]+$

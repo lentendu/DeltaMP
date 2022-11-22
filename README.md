@@ -268,6 +268,8 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Increment for length truncation optimization__: *Illumina specific parameter*, a number between 1 and 10, which is the number of nucleotide by which the __Minimum length truncation of unpaired reads__ is incremented for the optimization procedure. The default is 5.
 
++ __Expected mean length of amplified barcode gene__: *Illumina specific parameter*, "no" or a read length between __Minimum sequence length__ and __Maximum sequence length__ use to optimize truncation length and maxEE parameters, so that assembled pair-end reads reach at least this length
+
 
 ### PIPELINE section
 

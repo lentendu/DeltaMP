@@ -184,51 +184,148 @@ then
 	cut -f 1-4,$QUALPOS $SUBPROJECT.sample_counts.tsv > $SUBPROJECT.summary.stat.tsv
 	ln -s $PWD/$SUBPROJECT.summary.stat.tsv $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.read_counts.tsv
 else
+	if [ $TRUNCLEN != "no" ] && ( [ $MEANLEN == "auto" ] || ( [ $MEANLEN != "auto" ] && [ $CLIPPING == "both" ] ) )
+	then
+		MEANLEN=$(cat ../libraries/raw_stat/*pairend.length | awk '{m+=$1*$2;s+=$2}END{x=m/s; print int(x)+(x>int(x))}')
+		echo "Mean expected length of pair-end reads computed and fixed at $MEANLEN"
+		if [ $MEANLEN -lt $MINLEN ]
+		then
+			MEANLEN=$MINLEN
+		elif [ $MEANLEN -gt $MAXLEN ]
+		then
+			MEANLEN=$MAXLEN
+		fi
+	fi
 	for i in ${FWD_NAME} ${RVS_NAME}
 	do
 		if [ $i == "$FWD_NAME" ] ; then j=${RVS_NAME} ; else j=${FWD_NAME} ; fi
 		if [ ! -z "$(find ../libraries/fastq -name $i.$j.*.pairend.fastq.$EXT)" ]
 		then
-			# initialize
-			MAXLF=$(for x in ../libraries/raw_stat/$i.*.fwd.length ; do awk 'END{print $1}' $x ; done | sort -n | head -1)
-			MAXLR=$(for x in ../libraries/raw_stat/$j.*.rvs.length ; do awk 'END{print $1}' $x ; done | sort -n | head -1)
-			if [ $MAXTRUNCLEN != "no" ]
+			if [ $TRUNCLEN == "no" ]
 			then
-				if [ $MAXTRUNCLEN -lt $MAXLF ] ; then MAXLF=$MAXTRUNCLEN ; fi
-				if [ $MAXTRUNCLEN -lt $MAXLR ] ; then MAXLR=$MAXTRUNCLEN ; fi
-			fi
-			parallel -k echo ::: $(seq $TRUNCLEN $LENSTEP $MAXLF) ::: $(seq 0.5 $EESTEP $MAXEE) | awk -v EE=$MAXEE -v ES=$EESTEP -v L=$TRUNCLEN -v LS=$LENSTEP '{print $1,$2,($1-L+LS)/LS*((EE-$2+ES)/ES)^2}' > $i.fwd.stat
-			parallel -k echo ::: $(seq $TRUNCLEN $LENSTEP $MAXLR) ::: $(seq 0.5 $EESTEP $MAXEE) | awk -v EE=$MAXEE -v ES=$EESTEP -v L=$TRUNCLEN -v LS=$LENSTEP '{print $1,$2,($1-L+LS)/LS*((EE-$2+ES)/ES)^2}' > $j.rvs.stat
-			# optimize combination of length and maxEE
-			while read samp fwd rvs
-			do
-				sort -k 1,1 $i.$fwd.eestat | join -t $'\t' -a 2 - <(seq $TRUNCLEN $LENSTEP $MAXLF | sort) | sort -k 1,1n | awk -v EE=$MAXEE -v ES=$EESTEP 'BEGIN{L=EE/ES;FS="\t"}{for(i=2;i<=L+1;i++){if(NF==1){print "0 0"}else{print $i}}}' | paste $i.fwd.stat - > $i.fwd.temp && mv $i.fwd.temp $i.fwd.stat
-				sort -k 1,1 $j.$rvs.eestat | join -t $'\t' -a 2 - <(seq $TRUNCLEN $LENSTEP $MAXLR | sort) | sort -k 1,1n | awk -v EE=$MAXEE -v ES=$EESTEP 'BEGIN{L=EE/ES;FS="\t"}{for(i=2;i<=L+1;i++){if(NF==1){print "0 0"}else{print $i}}}' | paste $j.rvs.stat - > $j.rvs.temp && mv $j.rvs.temp $j.rvs.stat
-			done < ../config/lib3.list
-			# initial count for this direction and total count for each sample
-			parallel --colsep "\t" -k "lib=\$(echo {2} {3} | sed 's/\(.*\)[^ ]* \1.*\$/\1/') ; awk '{sum+=\$2}END{print sum}' ../libraries/raw_stat/$i.\$lib.fwd.length" :::: ../config/lib3.list | paste -d " " - <(head -n -4 $SUBPROJECT.sample_counts.tsv | sed '1d' | cut -f 3) | tr "\n" "\t" | sed 's/^/primer removed\t/;s/\t$/\n/' > $i.$j.ref_count
-			# First on reverse reads, then, for the same maxEE, length optimzation for forward reads
-			sort -k 3,3nr -k 2,2n $j.rvs.stat | cat $i.$j.ref_count - | awk -v M=$MIN_DEPTH -v S=$SKIP_SAMP 'BEGIN{FS="\t"}{if(NR==1){for(i=2;i<=NF;i++){split($i,a," ");if(M<=1){R[i]=M*a[1]} else{R[i]=M*(a[1]/a[2])}}} else {C=0;for(i=2;i<=NF;i++){split($i,s," ");if(s[1]<R[i]){C+=1}};if(C<=S){split($1,a," ");print a[1],a[2];exit}}}' > $j.rvs.optimized.quality.txt
-			awk -v EE=$(cut -d " " -f 2 $j.rvs.optimized.quality.txt) '$2==EE{print}' $i.fwd.stat | sort -k 1,1nr | cat $i.$j.ref_count - | awk -v M=$MIN_DEPTH -v S=$SKIP_SAMP 'BEGIN{FS="\t"}{if(NR==1){for(i=2;i<=NF;i++){split($i,a," ");if(M<=1){R[i]=M*a[1]} else{R[i]=M*(a[1]/a[2])}}} else {C=0;for(i=2;i<=NF;i++){split($i,s," ");if(s[1]<R[i]){C+=1}};if(C<=S){split($1,a," ");print a[1],a[2];exit}}}' > $i.fwd.optimized.quality.txt
-			# the otherway around if it does not work
-			if [ ! -s $i.fwd.optimized.quality.txt ]
-			then
-				sort -k 3,3nr -k 2,2n $i.fwd.stat | cat $i.$j.ref_count - | awk -v M=$MIN_DEPTH -v S=$SKIP_SAMP 'BEGIN{FS="\t"}{if(NR==1){for(i=2;i<=NF;i++){split($i,a," ");if(M<=1){R[i]=M*a[1]} else{R[i]=M*(a[1]/a[2])}}} else {C=0;for(i=2;i<=NF;i++){split($i,s," ");if(s[1]<R[i]){C+=1}};if(C<=S){split($1,a," ");print a[1],a[2];exit}}}' > $i.fwd.optimized.quality.txt
-				awk -v EE=$(cut -d " " -f 2 $i.fwd.optimized.quality.txt) '$2==EE{print}' $j.rvs.stat | cat $i.$j.ref_count - | sort -k 1,1nr | awk -v M=$MIN_DEPTH -v S=$SKIP_SAMP 'BEGIN{FS="\t"}{if(NR==1){for(i=2;i<=NF;i++){split($i,a," ");if(M<=1){R[i]=M*a[1]} else{R[i]=M*(a[1]/a[2])}}} else {C=0;for(i=2;i<=NF;i++){split($i,s," ");if(s[1]<R[i]){C+=1}};if(C<=S){split($1,a," ");print a[1],a[2];exit}}}' > $j.rvs.optimized.quality.txt
-				# with different maxEE if it is still not working
-				if [ ! -s $j.rvs.optimized.quality.txt ]
+				if [ $SKIP_TRESH -eq 100 ]
 				then
-					sort -k 3,3nr -k 2,2n $j.rvs.stat | cat $i.$j.ref_count - | awk -v M=$MIN_DEPTH -v S=$SKIP_SAMP 'BEGIN{FS="\t"}{if(NR==1){for(i=2;i<=NF;i++){split($i,a," ");if(M<=1){R[i]=M*a[1]} else{R[i]=M*(a[1]/a[2])}}} else {C=0;for(i=2;i<=NF;i++){split($i,s," ");if(s[1]<R[i]){C+=1}};if(C<=S){split($1,a," ");print a[1],a[2];exit}}}' > $j.rvs.optimized.quality.txt
+					echo $MAXEE > $i.fwd.optimized.quality.txt && echo $MAXEE > $j.rvs.optimized.quality.txt
+				else
+					# keep pair of maxEE meeting threshold criteria and with highest number of paired reads
+					while read sam fwd rvs
+					do
+						lib=$(echo $fwd $rvs | sed -r 's/^(.*)[^ ]* \1.*/\1/')
+						if [ $sam == $(awk 'NR==1{print $1}' libgood.list) ]
+						then
+							cut -f 1-2 -d " " $i.$j.$lib.pairend.eestat | sed 's/ /-/' | transpose | sed 's/^/raw /'
+						fi
+						raw=$(if [ $PALG == "vsearch" ] ; then awk '$2=="Pairs"{print $1;exit}' ../libraries/fastq/log.pairend.$i.$lib.txt ; elif [ $PALG == "ngmerge" ] ; then sed -n '/analyzed:/s/.*: //p' ../libraries/fastq/log.pairend.$i.$lib.txt ; else tac ../libraries/fastq/log.pairend.$i.$lib.txt | grep -m 1 -P "STAT\tREADS" | cut -f 4 ; fi)
+						cut -f 3 -d " " $i.$j.$lib.pairend.eestat | cat <(echo $raw) - | transpose
+					done < libgood.list | transpose > $i.$j.eestat
+					awk -v M=${MINTRESH[$((${#MINTRESH[@]}-1))]} -v S=$SKIP_SAMP '{if(NR==1){L=NF;for(i=2;i<=L;i++){R[i]=$i*M}} else {split($1,a,"-");T=0;C=0;for(i=2;i<=L;i++){T+=$i;if($i>=R[i]){C+=1}};if(C>=L-1-S){print a[1],a[2],a[1]+a[2],C"/"L-1,int(T/10^(length(T)-3))}}}' $i.$j.eestat | sort -k 5,5nr -k 3,3n -k 1,1n | awk -v I=$i -v J=$j 'NR==1{print $1 > I".fwd.optimized.quality.txt" ; print $2 > J".rvs.optimized.quality.txt"}'
+					if [ ! -s $i.fwd.optimized.quality.txt ] || [ ! -s $j.rvs.optimized.quality.txt ]
+					then
+						echo "No combination of maxEE ranging from $MINEE to $MAXEE used to truncate reads before pair-end asssembly allows to keep at least ${MINTRESH[$((${#MINTRESH[@]}-1))]} x the number of raw reads with primers in at least $(($(sed -n '$=' libgood.list)-SKIP_SAMP)) samples after pair-end assembly."
+						echo "Aborting"
+						(. $BIN/list_step_files.sh)
+						exit 100
+					fi
+					awk -v E=$(paste -d"-" $i.fwd.optimized.quality.txt $j.rvs.optimized.quality.txt) '$1==E{print $0}' $i.$j.eestat | transpose | sed '1d' > $i.$j.trunc.nb
+					rm $i.$j.eestat
+				fi
+			else
+				MAXLF=$(while read lib ; do awk 'END{print $1}' ../libraries/raw_stat/$i.$lib.fwd.length ; done < <(cut -f 2-3 libgood.list | sed 's/\(.*\)[^\t]*\t\1.*$/\1/') | sort -n | awk -v l=$LENSTEP 'NR==1{print int($1/l)*l}')
+				MAXLR=$(while read lib ; do awk 'END{print $1}' ../libraries/raw_stat/$j.$lib.rvs.length ; done < <(cut -f 2-3 libgood.list | sed 's/\(.*\)[^\t]*\t\1.*$/\1/') | sort -n | awk -v l=$LENSTEP 'NR==1{print int($1/l)*l}')
+				if [ $SKIP_TRESH -eq 100 ]
+				then
+					while read samp fwd rvs
+					do
+						for x in $(seq $TRUNCLEN $LENSTEP $MAXLF)
+						do
+							for y in $(seq $TRUNCLEN $LENSTEP $MAXLR)
+							do
+								if [ $((x+y-MIN_OV)) -eq $MAXLEN ]
+								then
+									paste <(awk -v X=$x '$1==X{print X,$(NF-1)}' $i.$fwd.eestat) <(awk -v Y=$y '$1==Y{print Y,$(NF-1)}' $j.$rvs.eestat)
+								fi
+							done
+						done | awk -v S=$samp '{if($2>$4){m=$4} else {m=$2}; print S,$1,$3,m}'
+					done < libgood.list > $i.maxlen.stat
+					read LENFWD LENRVS LENTOP < <(sort -k 2,2 -k 3,3 $i.maxlen.stat | awk '{if(NR==1){p2=$2;p3=$3;s=$4} else {if($2==p2 && $3==p3){s+=$4} else {print p2,p3,s;p2=$2;p3=$3;s=$4}}}END{print p2,p3,s}' | sort -k 3,3nr | head -1)
+					echo $LENFWD $MAXEE > $i.fwd.optimized.quality.txt
+					echo $LENRVS $MAXEE > $j.rvs.optimized.quality.txt
+					awk -v F=$LENFWD -v R=$LENRVS '$2==F && $3==R{print $4}' $i.maxlen.stat > $i.$j.trunc.nb
+					rm $i.maxlen.stat
+				else
+					# initialize
+					if [ $MAXTRUNCLEN != "no" ]
+					then
+						if [ $MAXTRUNCLEN -lt $MAXLF ] ; then MAXLF=$MAXTRUNCLEN ; fi
+						if [ $MAXTRUNCLEN -lt $MAXLR ] ; then MAXLR=$MAXTRUNCLEN ; fi
+					fi
+					parallel -k echo ::: $(seq $TRUNCLEN $LENSTEP $MAXLF) ::: $(seq $MINEE $EESTEP $MAXEE) | awk -v EE=$MAXEE -v ME=$MINEE '{print $1,$2,$1*sqrt(0.5-($2-ME+0.05)/(EE-ME)/2+0.5)}' > $i.fwd.stat
+					parallel -k echo ::: $(seq $TRUNCLEN $LENSTEP $MAXLR) ::: $(seq $MINEE $EESTEP $MAXEE) | awk -v EE=$MAXEE -v ME=$MINEE '{print $1,$2,$1*sqrt(0.5-($2-ME+0.05)/(EE-ME)/2+0.5)}' > $j.rvs.stat
+					# optimize combination of length and maxEE
+					while read samp fwd rvs
+					do
+						if [ -f $i.$fwd.eestat ]
+						then
+							sort -k 1,1 $i.$fwd.eestat | join -t $'\t' -a 2 - <(seq $TRUNCLEN $LENSTEP $MAXLF | sort) | sort -k 1,1n | awk -v EE=$MAXEE -v ES=$EESTEP 'BEGIN{L=EE/ES;FS="\t"}{for(i=2;i<=L+1;i++){if(NF==1){print "0 0"}else{print $i}}}' | paste $i.fwd.stat - > $i.fwd.temp && mv $i.fwd.temp $i.fwd.stat
+							sort -k 1,1 $j.$rvs.eestat | join -t $'\t' -a 2 - <(seq $TRUNCLEN $LENSTEP $MAXLR | sort) | sort -k 1,1n | awk -v EE=$MAXEE -v ES=$EESTEP 'BEGIN{L=EE/ES;FS="\t"}{for(i=2;i<=L+1;i++){if(NF==1){print "0 0"}else{print $i}}}' | paste $j.rvs.stat - > $j.rvs.temp && mv $j.rvs.temp $j.rvs.stat
+						else
+							awk -v N=$(sed -n '$=' $i.fwd.stat) 'BEGIN{for(i=1;i<=N;i++){print 0,0.0}}' | paste $i.fwd.stat - > $i.fwd.temp && mv $i.fwd.temp $i.fwd.stat
+							awk -v N=$(sed -n '$=' $i.rvs.stat) 'BEGIN{for(i=1;i<=N;i++){print 0,0.0}}' | paste $i.rvs.stat - > $i.rvs.temp && mv $i.rvs.temp $i.rvs.stat
+						fi
+					done < libgood.list
+					# initial count for this direction and total count for each sample
+					parallel --colsep "\t" -k "lib=\$(echo {2} {3} | sed 's/\(.*\)[^ ]* \1.*\$/\1/') ; awk '{sum+=\$2}END{print sum}' ../libraries/raw_stat/$i.\$lib.fwd.length" :::: libgood.list | paste -d " " - <(head -n -4 $SUBPROJECT.sample_counts.tsv | sed '1d' | join - libgood.list | cut -d " " -f 3) | tr "\n" "\t" | sed 's/^/primer removed\t/;s/\t$/\n/' > $i.$j.ref_count
+					# First on reverse reads
+					sort -k 3,3nr -k 1,1nr $j.rvs.stat | cat $i.$j.ref_count - | awk -v M=${MINTRESH[$((${#MINTRESH[@]}-1))]} -v S=$SKIP_SAMP 'BEGIN{FS="\t"}{if(NR==1){for(i=2;i<=NF;i++){split($i,a," ");if(M<=1){R[i]=M*a[1]} else{R[i]=M*(a[1]/a[2])}}} else {C=0;for(i=2;i<=NF;i++){split($i,s," ");if(s[1]<R[i]){C+=1}};if(C<=S){split($1,a," ");print a[1],a[2];exit}}}' > $j.rvs.optimized.quality.txt
+					# then, for the same maxEE, length optimzation for forward reads if mean expected length of paired reads can be reached
+					MINOPTL=$(awk -v m=$((MEANLEN+MIN_OV)) '{print m-$1}END{if(NR==0){print m}}' $j.rvs.optimized.quality.txt)
+					if [ -s $j.rvs.optimized.quality.txt ] && [ $MINOPTL -le $MAXLR ]
+					then
+						awk -v EE=$(cut -d " " -f 2 $j.rvs.optimized.quality.txt) -v m=$MINOPTL '$1>=m && $2==EE{print}' $i.fwd.stat | sort -k 1,1nr | cat $i.$j.ref_count - | awk -v M=${MINTRESH[$((${#MINTRESH[@]}-1))]} -v S=$SKIP_SAMP 'BEGIN{FS="\t"}{if(NR==1){for(i=2;i<=NF;i++){split($i,a," ");if(M<=1){R[i]=M*a[1]} else{R[i]=M*(a[1]/a[2])}}} else {C=0;for(i=2;i<=NF;i++){split($i,s," ");if(s[1]<R[i]){C+=1}};if(C<=S){split($1,a," ");print a[1],a[2];exit}}}' > $i.fwd.optimized.quality.txt
+						# with different maxEE if no good solution
+						if [ ! -s $i.fwd.optimized.quality.txt ]
+						then
+							awk -v m=$MINOPTL '$1>=m{print}' $i.fwd.stat | sort -k 3,3nr -k 1,1nr | cat $i.$j.ref_count - | awk -v M=${MINTRESH[$((${#MINTRESH[@]}-1))]} -v S=$SKIP_SAMP 'BEGIN{FS="\t"}{if(NR==1){for(i=2;i<=NF;i++){split($i,a," ");if(M<=1){R[i]=M*a[1]} else{R[i]=M*(a[1]/a[2])}}} else {C=0;for(i=2;i<=NF;i++){split($i,s," ");if(s[1]<R[i]){C+=1}};if(C<=S){split($1,a," ");print a[1],a[2];exit}}}' > $i.fwd.optimized.quality.txt
+						fi
+					fi
+					# the otherway around if it does not work or if not long enough
+					if [ ! -s $j.rvs.optimized.quality.txt ] || [ $(paste $i.fwd.optimized.quality.txt $j.rvs.optimized.quality.txt | awk '{print $1+$3}') -lt $((MEANLEN+MIN_OV)) ]
+					then
+						sort -k 3,3nr -k 2,2n $i.fwd.stat | cat $i.$j.ref_count - | awk -v M=${MINTRESH[$((${#MINTRESH[@]}-1))]} -v S=$SKIP_SAMP 'BEGIN{FS="\t"}{if(NR==1){for(i=2;i<=NF;i++){split($i,a," ");if(M<=1){R[i]=M*a[1]} else{R[i]=M*(a[1]/a[2])}}} else {C=0;for(i=2;i<=NF;i++){split($i,s," ");if(s[1]<R[i]){C+=1}};if(C<=S){split($1,a," ");print a[1],a[2];exit}}}' > $i.fwd.optimized.quality.txt
+						awk -v EE=$(cut -d " " -f 2 $i.fwd.optimized.quality.txt) '$2==EE{print}' $j.rvs.stat | sort -k 1,1nr | cat $i.$j.ref_count - | awk -v M=${MINTRESH[$((${#MINTRESH[@]}-1))]} -v S=$SKIP_SAMP 'BEGIN{FS="\t"}{if(NR==1){for(i=2;i<=NF;i++){split($i,a," ");if(M<=1){R[i]=M*a[1]} else{R[i]=M*(a[1]/a[2])}}} else {C=0;for(i=2;i<=NF;i++){split($i,s," ");if(s[1]<R[i]){C+=1}};if(C<=S){split($1,a," ");print a[1],a[2];exit}}}' > $j.rvs.optimized.quality.txt
+						# with different maxEE if it is still not working
+						if [ ! -s $j.rvs.optimized.quality.txt ]
+						then
+							sort -k 3,3nr -k 2,2n $j.rvs.stat | cat $i.$j.ref_count - | awk -v M=${MINTRESH[$((${#MINTRESH[@]}-1))]} -v S=$SKIP_SAMP 'BEGIN{FS="\t"}{if(NR==1){for(i=2;i<=NF;i++){split($i,a," ");if(M<=1){R[i]=M*a[1]} else{R[i]=M*(a[1]/a[2])}}} else {C=0;for(i=2;i<=NF;i++){split($i,s," ");if(s[1]<R[i]){C+=1}};if(C<=S){split($1,a," ");print a[1],a[2];exit}}}' > $j.rvs.optimized.quality.txt
+						fi
+					fi
+					if [ ! -s $i.fwd.optimized.quality.txt ] || [ ! -s $j.rvs.optimized.quality.txt ]
+					then
+						if [ ! -z "$MINPAIR" ] ; then MINPAIRECHO=" and the 'Minimum number of pair-end reads per sample'" ; fi
+						echo "There is no truncation parameters which can satisfy the trimming parameters, the mean expected length of paired reads and the minimum number of reads kept."
+						echo "Relax the quality filtration parameter (e.g. increase maxEE), increase the 'Samples percentage allowed below the read count threshold', decrease the 'Minimum number of trimmed reads per sample'$MINPAIRECHO, or set an appropriate value to the 'Expected mean length of amplified barcode gene'"
+						echo "Aborting"
+						(. $BIN/list_step_files.sh)
+						exit 100
+					fi
+					cat <(grep "$(cat $i.fwd.optimized.quality.txt)" $i.fwd.stat) <(grep "$(cat $j.rvs.optimized.quality.txt)" $j.rvs.stat) | cut -f 2- | sed 's/ [0-9\.]*//g' | transpose_tab | awk '{if($1>$2){print $2} else print $1}' > $i.$j.trunc.nb
+					rm $i.fwd.stat $j.rvs.stat $i.$j.ref_count
+					echo "Truncation length and maximum expected error for $i orientated forward reads to $(cat $i.fwd.optimized.quality.txt | sed 's/ / and /')"
+					echo "Truncation length and maximum expected error for $j orientated reverse reads to $(cat $j.rvs.optimized.quality.txt | sed 's/ / and /')"
+					# control that the mean expected length can be reached
+					if [ $(paste $i.fwd.optimized.quality.txt $j.rvs.optimized.quality.txt | awk '{print $1+$3}') -lt $((MEANLEN+MIN_OV)) ]
+					then
+						echo "These truncation parameters do not allow to reach the mean expected length $MEANLEN after pair-end assembly."
+						echo "Relax the quality filtration parameter, increase the 'Samples percentage allowed below the read count threshold', or set an appropriate value to the 'Expected mean length of amplified barcode gene'"
+						echo "Aborting"
+						(. $BIN/list_step_files.sh)
+						exit 100
+					fi
 				fi
 			fi
-			cat <(grep "$(cat $i.fwd.optimized.quality.txt)" $i.fwd.stat) <(grep "$(cat $j.rvs.optimized.quality.txt)" $j.rvs.stat) | cut -f 2- | sed 's/ [0-9\.]*//g' | transpose_tab | awk '{if($1>$2){print $2} else print $1}' > $i.$j.trunc.nb
-			rm $i.fwd.stat $j.rvs.stat $i.$j.ref_count
-			echo "Truncation length and maximum expected error for $i orientated forward reads to $(cat $i.fwd.optimized.quality.txt | sed 's/ / and /')"
-			echo "Truncation length and maximum expected error for $j orientated reverse reads to $(cat $j.rvs.optimized.quality.txt | sed 's/ / and /')"
 		fi
 	done
-	paste *trunc.nb | awk '{s=$1;if(NF==2){s+=$2};print NR,s}' | mimato | awk 'BEGIN{print "Optimized truncation estimates"}{print $2}' | paste $SUBPROJECT.sample_counts.tsv - > $SUBPROJECT.summary.stat.tsv
-	ln -s $PWD/$SUBPROJECT.summary.stat.tsv $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.read_counts.tsv
+	paste <(cut -f 1 libgood.list) *trunc.nb | awk '{s=$2;if(NF==3){s+=$3};print $1"\t"s}' | awk '{if(NR==1){p=$1;s=$2} else {if($1==p){s+=$2} else {print p"\t"s;p=$1;s=$2}}}END{print p"\t"s}' | mimato | cat <(echo -e "Sample\tOptimized_truncation_estimates") - | sort -k 1,1 | join -a 1 -1 2 <(cut -f 1-$((${#TRIMSTEPS[@]}+1)) $SUBPROJECT.sample_counts.tsv | nl | sort -k 2,2) - | sort -k 2,2n | cut -f 1,3- -d " " | awk -v l=${#TRIMSTEPS[@]} '{if(NF<l+2){print $0,"NA"} else print $0}' | sed 's/ /\t/g;1 s/_/ /g' > $SUBPROJECT.summary.stat.tsv
 	rm *trunc.nb
 fi
 ln -s $PWD/$SUBPROJECT.summary.stat.tsv $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.read_counts.tsv
