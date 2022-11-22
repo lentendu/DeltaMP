@@ -41,8 +41,7 @@ do
 				vsearch --quiet --threads 1 --fastq_filter fastq/$i.$j.$LIB_NAME.pairend.fastq.$EXT --eeout --fastq_maxlen $MAXLEN --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastqout fasta/$i.$j.$LIB_NAME.pairend.trim.fastq
 				vsearch --quiet --fastq_eestats2 fasta/$i.$j.$LIB_NAME.pairend.trim.fastq --ee_cutoffs $(seq $MAXEE -$EESTEP 0.5 | tr "\n" "," | sed 's/,$//') --length_cutoffs $MINLEN,*,$LENSTEP --output - | sed -n '/^----/{n;s/^  *[0-9]*  *//;s/  */\t/g;s/(\t*\([0-9\.]*\)%)//g;p}' > ../quality_check/$i.$j.$LIB_NAME.stat
 			else
-				if [ $EXT == "bz2" ]; then DECOMP="bunzip2 -ck" ; else DECOMP="unpigz -ck" ; fi
-				$DECOMP fastq/$i.$j.$LIB_NAME.pairend.fastq.$EXT > fastq/$i.$j.$LIB_NAME.pairend.fastq
+				eval $DECOMP fastq/$i.$j.$LIB_NAME.pairend.fastq.$EXT > fastq/$i.$j.$LIB_NAME.pairend.fastq
 				mothur "#set.dir(input=$EXEC/libraries/fastq, output=$EXEC/libraries/fasta);
 				set.logfile(name=mothur.$LIB_NAME.logfile, append=T);
 				fastq.info(fastq=$i.$j.$LIB_NAME.pairend.fastq);

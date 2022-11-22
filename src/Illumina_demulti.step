@@ -119,7 +119,7 @@ else
 	NBRB=$(grep -c "^>" fastq/oligos.R.$LIB_NAME)
 	NBS=$(sed -n '$=' fastq/oligo_pairs.${LIB_NAME}.txt)
 	OKS=($(ls fastq/*.${FWD_LIB}.fastq | join - <(cut -d " " -f 1 fastq/oligo_pairs.${LIB_NAME}.txt | sed "s@^@fastq/@;s@\$@\.${FWD_LIB}\.fastq@" | sort)))
-	READALL=$($DECOMP ${FWD_LIB}.fastq.$EXT | echo $((`wc -l`/4)))
+	READALL=$(eval $DECOMP ${FWD_LIB}.fastq.$EXT | echo $((`wc -l`/4)))
 	READOKS=$(for i in ${OKS[@]} ; do sed -n '1~4p' $i | sed -n '$=' ; done | awk -v A=$READALL '{s+=$1}END{printf "%.2f", s/A*100}')
 	UNP=($(ls fastq/*.${FWD_LIB}.fastq | join -v 1 - <(cut -d " " -f 1 fastq/oligo_pairs.${LIB_NAME}.txt | sed "s@^@fastq/@;s@\$@\.${FWD_LIB}\.fastq@" | sort)))
 	cat << EOF > fastq/demultiplexing_info.$LIB_NAME.txt
@@ -137,7 +137,7 @@ EOF
 fi
 
 # compress all fastq files
-ls fastq/*${LIB_NAME}*.fastq | parallel -j $NCPUS $COMP
+ls fastq/*${LIB_NAME}*.fastq | parallel -j $NCPUS ${COMP/ -p \$NCPUS/}
 
 # list files and directories
 (. $BIN/list_step_files.sh)

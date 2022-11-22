@@ -148,24 +148,24 @@ do
 		# trim
 		if [ $TRUNCLEN == "no" ]
 		then
-			if [ $EXT == "bz2" ]; then DECOMP=bunzip2 ; COMP=bzip2 ; else DECOMP=unpigz ; COMP="pigz -p 1 -b 1024" ; fi
 			# Concatenate reads in both direction
 			if [ -f $EXEC/libraries/fastq/$FWD_NAME.$RVS_NAME.$i.pairend.fastq.$EXT ]
 			then
 				if [ -f $EXEC/libraries/fastq/$RVS_NAME.$FWD_NAME.$i.pairend.fastq.$EXT ]
 				then
-					vsearch --quiet --fastx_revcomp $EXEC/libraries/fastq/$RVS_NAME.$FWD_NAME.$i.pairend.fastq.$EXT --fastqout - | cat <($DECOMP -ck $EXEC/libraries/fastq/$FWD_NAME.$RVS_NAME.$i.pairend.fastq.$EXT) - | $COMP > $i.pairend.fastq.$EXT
+					vsearch --quiet --fastx_revcomp $EXEC/libraries/fastq/$RVS_NAME.$FWD_NAME.$i.pairend.fastq.$EXT --fastqout - | cat <(eval $DECOMP $EXEC/libraries/fastq/$FWD_NAME.$RVS_NAME.$i.pairend.fastq.$EXT) - | eval $COMP > $i.pairend.fastq.$EXT
 				else
 					ln -s $EXEC/libraries/fastq/$FWD_NAME.$RVS_NAME.$i.pairend.fastq.$EXT $PWD/$i.pairend.fastq.$EXT
 				fi
 			elif [ -f $EXEC/libraries/fastq/$RVS_NAME.$FWD_NAME.$i.pairend.fastq.$EXT ]
 			then
-				vsearch --quiet --fastx_revcomp $EXEC/libraries/fastq/$RVS_NAME.$FWD_NAME.$i.pairend.fastq.$EXT --fastqout - | $COMP > $i.pairend.fastq.$EXT
+				vsearch --quiet --fastx_revcomp $EXEC/libraries/fastq/$RVS_NAME.$FWD_NAME.$i.pairend.fastq.$EXT --fastqout - | eval $COMP > $i.pairend.fastq.$EXT
 			fi
+			# Quality filtering
 			QUAL=`cat $EXEC/quality_check/optimized.quality.txt`
 			if [ $QFILT == "average" ]
 			then
-				$DECOMP -ck $i.pairend.fastq.$EXT > $i.pairend.fastq
+				eval $DECOMP $i.pairend.fastq.$EXT > $i.pairend.fastq
 				mothur "#set.logfile(name=$LOG, append=T);
 				fastq.info(fastq=$i.pairend.fastq);
 				trim.seqs(fasta=$i.pairend.fasta, qfile=$i.pairend.qual, qaverage=$QUAL, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$MINLEN, maxlength=$MAXLEN, processors=$NCPUS)"
