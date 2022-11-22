@@ -22,7 +22,6 @@ module load DeltaMP/DELTAMP_VERSION
 # Define Variables
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
 . $BIN/check_previous_step
-if [ $EXT == "bz2" ]; then COMP="bzip2 -1 -c" ; else COMP="pigz -p 1 -c -b 1024" ; fi
 
 # Library to analyse
 read SAMP_NAME FWD_LIB RVS_LIB <<<`sed -n ${ARRAY_TASK}'p' config/lib3.list`
