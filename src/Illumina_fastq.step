@@ -76,27 +76,33 @@ else
 	ln -s $PWD/${RVS_LIB}.fastq.$EXT $PWD/fastq/${RVS_NAME}.${RVS_LIB}.fastq.$EXT
 fi
 
-# raw reads stat
-if [ $EXT == "bz2" ]; then DECOMP="bunzip2 -ck" ; COMP=bzip2 ; else DECOMP="unpigz -ck" ; COMP="pigz -p 1 -b 1024" ; fi
-for i in ${FWD_LIB} ${RVS_LIB}
-do
-	for j in ${FWD_NAME} ${RVS_NAME}
+# check for no read
+if [ -z "$(i=fastq/${FWD_NAME}.${FWD_LIB}.fastq.$EXT ; if [ -f $i ]; then eval $DECOMP $i | head -c1 ; fi)" ] && [ -z "$(i=fastq/${RVS_NAME}.${FWD_LIB}.fastq.$EXT ; if [ -f $i ]; then eval $DECOMP $i | head -c1 ; fi)" ]
+then
+	MY_TMP_NAME=`echo $JOBNAME | sed "s/$DELTAMP_VER\.//;s/\.$SUBPROJECT//"`
+	echo $SAMP_NAME > ${MY_TMP_NAME}.${SAMP_NAME}.missing
+else	
+	# raw reads stat
+	for i in ${FWD_LIB} ${RVS_LIB}
 	do
-		if [ $i == ${FWD_LIB} ] ; then k=$LIB_NAME.fwd ; else k=$LIB_NAME.rvs ; fi
-		if [ -f fastq/$j.$i.fastq.$EXT ]
-		then
-			if [ $($DECOMP fastq/$j.$i.fastq.$EXT | wc -c) -gt 0 ]
+		for j in ${FWD_NAME} ${RVS_NAME}
+		do
+			if [ $i == ${FWD_LIB} ] ; then k=$LIB_NAME.fwd ; else k=$LIB_NAME.rvs ; fi
+			if [ -f fastq/$j.$i.fastq.$EXT ]
 			then
-				vsearch --quiet --fastq_stats fastq/$j.$i.fastq.$EXT --log fastq/$j.$k.stats
-				sed -n '/^Read length distribution/,/^$/{s/>=//;p}' fastq/$j.$k.stats | awk '$3~"%"{print $1,$2}' | sort -k1,1n > raw_stat/$j.$k.length
-				sed -n '/^Q score distribution/,/^$/p' fastq/$j.$k.stats | awk '$5~"%"{print $2,$4}' | sort -k 1,1 | join -a 1 -o 0,2.2 -e "0" <(seq 0 41 | sort -k 1,1) - | sort -k 1,1n | cut -d " " -f 2 > raw_stat/$j.$k.meanqual
-				sed -n '/RatePct/,/^$/p' fastq/$j.$k.stats | sed '1,2d;$d' | awk '{print $3}' > raw_stat/$j.$k.meanposqual
-				rm fastq/$j.$k.stats
-			else
-				# delete if empty
-				rm fastq/$j.$i.fastq.$EXT
+				if [ $(eval $DECOMP fastq/$j.$i.fastq.$EXT | wc -c) -gt 0 ]
+				then
+					vsearch --quiet --fastq_stats fastq/$j.$i.fastq.$EXT --log fastq/$j.$k.stats
+					sed -n '/^Read length distribution/,/^$/{s/>=//;p}' fastq/$j.$k.stats | awk '$3~"%"{print $1,$2}' | sort -k1,1n > raw_stat/$j.$k.length
+					sed -n '/^Q score distribution/,/^$/p' fastq/$j.$k.stats | awk '$5~"%"{print $2,$4}' | sort -k 1,1 | join -a 1 -o 0,2.2 -e "0" <(seq 0 41 | sort -k 1,1) - | sort -k 1,1n | cut -d " " -f 2 > raw_stat/$j.$k.meanqual
+					sed -n '/RatePct/,/^$/p' fastq/$j.$k.stats | sed '1,2d;$d' | awk '{print $3}' > raw_stat/$j.$k.meanposqual
+					rm fastq/$j.$k.stats
+				else
+					# delete if empty
+					rm fastq/$j.$i.fastq.$EXT
+				fi
 			fi
-		fi
+		done
 	done
 done
 
@@ -119,7 +125,13 @@ then
 			$COMP fastq/$i.${FWD_LIB}.trunc.fastq
 			$COMP fastq/$j.${RVS_LIB}.trunc.fastq
 		fi
-	done
+		# check for no read
+		if [ -z "$(eval $DECOMP fastq/${FWD_NAME}.${FWD_LIB}.trunc.fastq.$EXT | head -c 1)" ] && [ -z "$(eval $DECOMP fastq/${RVS_NAME}.${FWD_LIB}.trunc.fastq.$EXT | head -c 1)" ]
+		then
+			MY_TMP_NAME=`echo $JOBNAME | sed "s/$DELTAMP_VER\.//;s/\.$SUBPROJECT//"`
+			echo $SAMP_NAME >> $EXEC/config/${MY_TMP_NAME}.missing
+		fi
+	fi
 fi
 
 # list files and directories
