@@ -26,6 +26,13 @@ if [ $EXT == "bz2" ]; then COMP="bzip2 -1 -c" ; else COMP="pigz -p 1 -c -b 1024"
 
 # Library to analyse
 read SAMP_NAME FWD_LIB RVS_LIB <<<`sed -n ${ARRAY_TASK}'p' config/lib3.list`
+if [ ! -z "$(grep $SAMP_NAME config/*.missing 2> /dev/null)" ]
+then
+	echo -e "The sample $SAMP_NAME had no read at the end of the step $(grep -H $SAMP_NAME config/*.missing | sed 's@.*/@@;s@\.missing.*@@').\nSkip"
+	(. $BIN/list_step_files.sh)
+	echo END
+	exit 0
+fi
 LIB_NAME=$(echo $FWD_LIB $RVS_LIB | sed 's/\(.*\)[^ ]* \1.*$/\1/')
 if [ $TRUNCLEN != "no" ]
 then
@@ -61,6 +68,12 @@ do
 	fi
 done
 
+# check for no read
+if [ ! -f fastq/${FWD_NAME}.${RVS_NAME}.$LIB_NAME.pairend.fastq.$EXT ] && [ ! -f fastq/${RVS_NAME}.${FWD_NAME}.$LIB_NAME.pairend.fastq.$EXT ]
+then
+	MY_TMP_NAME=`echo $JOBNAME | sed "s/$DELTAMP_VER\.//;s/\.$SUBPROJECT//"`
+	echo $SAMP_NAME >> $EXEC/config/${MY_TMP_NAME}.missing
+fi
 
 # list files and directories
 (. $BIN/list_step_files.sh)

@@ -18,6 +18,7 @@
 
 #!/bin/bash
 
+# execute only once for array job, so only for the last task; wait for all other tasks to complete
 if [ ! -z "$ARRAY_TASK" ]
 then
 	if [ $ARRAY_TASK -eq $ARRAY_MAX_TASK ]
@@ -31,6 +32,23 @@ then
 	fi
 fi
 
+# list all files and directories in the execution directory
 MY_TMP_NAME=`echo $JOBNAME | sed "s/$DELTAMP_VER\.//;s/\.$SUBPROJECT//"`
 find $EXEC/* -type d | sort > $EXEC/config/${MY_TMP_NAME}.dir
 find $EXEC ! -type d | cat - <(echo $EXEC/config/${MY_TMP_NAME}.files) | sort > $EXEC/config/${MY_TMP_NAME}.files
+
+# check for eventual samples without any reads
+if [ $MY_TMP_NAME == "Illumina_demulti" ] || [ $MY_TMP_NAME == "454_demulti" ]
+then
+	MISSING=$(find $EXEC/ -type f -name "${MY_TMP_NAME}.*.missing" -exec cat {} \;)
+	if [ ! -z "${MISSING}" ]
+	then
+		# A sample can be present in multiple raw libraries, so need to check for that for demultiplexing step
+		SMISS=$(echo $MISSING | tr " " "\n" | sort | uniq -c | join -1 2 -2 2 - <(cut -d " " -f 1 fastq/oligo_pairs.* | sort | uniq -c) | awk '$3-$2==0{print $1}')
+		if [ ! -z "$SMISS" ]
+		then
+			echo $SMISS | tr " " "\n" > $EXEC/config/${MY_TMP_NAME}.missing
+		fi
+	fi
+	find $EXEC/ -type f -name "${MY_TMP_NAME}.*.missing" -exec rm {} \;
+fi

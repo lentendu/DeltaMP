@@ -26,6 +26,15 @@ while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var
 # Choose a sample
 LIB=(`sed -n "$ARRAY_TASK"'p' config/lib4.list`)
 SAMP=${LIB[0]}
+if [ ! -z "$(grep $SAMP config/*.missing 2> /dev/null)" ]
+then
+	MISSING=$(grep -H $SAMP config/*.missing | sed 's@.*/@@;s@\.missing.*@@')
+	echo $MISSING > missing
+	echo -e "The sample $SAMP had no read at the end of the step $MISSING.\nSkip"
+	(. $BIN/list_step_files.sh)
+	echo END
+	exit 0
+fi
 LIB_NAME=(`echo ${LIB[@]} | cut -d " " -f 2-`)
 LOG=mothur.${TECH}_trim.$SAMP.logfile
 cd processing && mkdir $SAMP

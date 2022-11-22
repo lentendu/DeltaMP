@@ -25,6 +25,13 @@ while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var
 
 # Library to analyse
 read SAMP_NAME FWD_LIB RVS_LIB <<<`sed -n ${ARRAY_TASK}'p' config/lib3.list`
+if [ ! -z "$(grep $SAMP_NAME config/*.missing 2> /dev/null)" ]
+then
+	echo -e "The sample $SAMP_NAME had no read at the end of the step $(grep -H $SAMP_NAME config/*.missing | sed 's@.*/@@;s@\.missing.*@@').\nSkip"
+	(. $BIN/list_step_files.sh)
+	echo END
+	exit 0
+fi
 LIB_NAME=$(echo $FWD_LIB $RVS_LIB | sed 's/\(.*\)[^ ]* \1.*$/\1/')
 if [ $DEMULTI == "no" ]; then RAWPATH="fastq/" ; fi
 cd libraries

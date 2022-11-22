@@ -206,6 +206,15 @@ else
 	ln -s $PWD/$SUBPROJECT.summary.stat.tsv $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.read_counts.tsv
 	rm *trunc.nb
 fi
+ln -s $PWD/$SUBPROJECT.summary.stat.tsv $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.read_counts.tsv
+
+# check for no read
+QMISS=$(head -n -4 $SUBPROJECT.summary.stat.tsv | awk 'NR>1 && $(NF-1)>0 && ($NF==0 || $NF=="NA"){print $1}')
+if [ ! -z "$QMISS" ]
+then
+	MY_TMP_NAME=`echo $JOBNAME | sed "s/$DELTAMP_VER\.//;s/\.$SUBPROJECT//"`
+	echo $QMISS | tr " " "\n" > $EXEC/config/${MY_TMP_NAME}.missing
+fi
 
 # Merge raw stat statistics
 cd $EXEC/libraries/raw_stat

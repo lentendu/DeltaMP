@@ -24,7 +24,14 @@ while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var
 . $BIN/check_previous_step
 
 # Library to analyse
-read SAMPLE FWD_LIB RVS_LIB <<<`sed -n ${ARRAY_TASK}'{s/\.fastq//g;p}' config/lib3.list`
+read SAMP_NAME FWD_LIB RVS_LIB <<<`sed -n ${ARRAY_TASK}'{s/\.fastq//g;p}' config/lib3.list`
+if [ ! -z "$(grep $SAMP_NAME config/*.missing 2> /dev/null)" ]
+then
+	echo -e "The sample $SAMP_NAME had no read at the end of the step $(grep -H $SAMP_NAME config/*.missing | sed 's@.*/@@;s@\.missing.*@@').\nSkip"
+	(. $BIN/list_step_files.sh)
+	echo END
+	exit 0
+fi
 LIB_NAME=`printf "%s\n%s\n" $FWD_LIB $RVS_LIB | sed -e 'N;s/^\(.*\).*\n\1.*$/\1/'`
 cd libraries
 
