@@ -37,18 +37,27 @@ fi
 # Raw, primer detected [, filter], pair-end [, trim] read counts per library
 if [ $TRUNCLEN == "no" ]
 then
-	TRIMSTEPS=(raw raw_with_primer pairend trim)
 	if [ $QFILT == "average" ]
 	then
-		HEADER=$(echo "Sample\tLibrary\tRaw\tPrimer detected\tPair-end\t$(seq -s "#" $MINQUAL 30 | sed 's/\([0-9\.]*\)/Trimmed at \1 Phred score/g')" | sed 's/#/\\t/g')
+		TRIMSTEPS=(raw raw_with_primer pairend trim)
+		HEADER=($(echo "Sample Library Raw Primer_detected Pair-end $(seq -s " " $MINQUAL 30 | sed 's/\([0-9\.]*\)/Trimmed_at_\1_Phred_score/g')"))
 	elif [ $QFILT == "maxee" ]
 	then
-		HEADER=$(echo "Sample\tLibrary\tRaw\tPrimer detected\tPair-end\t$(seq -s "#" $MAXEE -$EESTEP 0.5 | sed 's/\([0-9\.]*\)/Trimmed at \1 maxEE/g')" | sed 's/#/\\t/g')
+		if [ $TRUNCBE == "yes" ]
+		then
+			TRIMSTEPS=(raw raw_with_primer)
+			EESEQ=$(seq -s " " $MINEE $EESTEP $MAXEE)
+			HEADER=($(echo "Sample Library Raw Primer_detected Pair-end $(parallel -k echo {1}-{2} ::: $EESEQ ::: $EESEQ | sed 's/^/Pair-end_/;s/$/_maxEE/' | tr "\n" " ")"))
+		else
+			TRIMSTEPS=(raw raw_with_primer pairend trim)
+			HEADER=($(echo "Sample Library Raw Primer_detected Pair-end $(seq -s " " $MAXEE -$EESTEP $MINEE | sed 's/\([0-9\.]*\)/Trimmed_at_\1_maxEE/g')"))
+		fi
 	fi
 else
 	TRIMSTEPS=(raw raw_with_primer truncated pairend)
-	HEADER="Sample\tLibrary\tRaw\tPrimer detected\tMinimal length and quality truncation\tPair-end"
+	HEADER=(Sample Library Raw Primer_detected Minimal_length_and_quality_truncation Pair-end)
 fi
+
 while read samp fwd rvs
 do
 	lib=$(echo $fwd $rvs | sed 's/\(.*\)[^ ]* \1.*$/\1/')
@@ -66,12 +75,14 @@ do
 	else
 		RAW_COUNT=$(grep -m 1 "^Total read pairs processed" libraries/fastq/log.cutadapt.$lib.fr.txt | awk '{print $NF}' | sed 's/,//g')
 	fi
-	for i in ${FWD_NAME} ${RVS_NAME}
-	do
-		if [ $i == "$FWD_NAME" ] ; then j=${RVS_NAME} ; else j=${FWD_NAME} ; fi
-		if [ -f libraries/fastq/$i.$j.$lib.pairend.fastq.$EXT ]
-		then
-			if [ $TRUNCLEN == "no" ]
+	if [ -z "$RAW_COUNT" ]
+	then
+		seq -s $'\t' 1 $((${#HEADER[@]}-2)) | sed "s/\([^\t]*\)/0/g;s/^/$samp\t$lib\t/"
+	else
+		for i in ${FWD_NAME} ${RVS_NAME}
+		do
+			if [ $i == "$FWD_NAME" ] ; then j=${RVS_NAME} ; else j=${FWD_NAME} ; fi
+			if [ -f libraries/fastq/$i.$j.$lib.pairend.fastq.$EXT ]
 			then
 				if [ $TRUNCLEN == "no" ]
 				then
@@ -110,31 +121,38 @@ do
 					fi
 				fi
 			fi
-		fi
-	done | awk '{for(i=1;i<=NF;i++){s[i]+=$i}}END{for(i=1;i<=NF;i++){printf "\t%s", s[i]}}' | sed "s/^/$samp\t$lib\t${RAW_COUNT}/;s/$/\n/"
-done < config/lib3.list | cat <(echo -e $HEADER) - > quality_check/$SUBPROJECT.lib_counts.tsv
+		done | awk -v L=${#HEADER} '{for(i=1;i<=NF;i++){s[i]+=$i;if(NF>m){m=NF}}}END{for(i=1;i<=m;i++){printf "\t%s", s[i]}; if(m<(L-3)){for(i=m+1;i<=(L-3);i++){printf "\t0"}}}' | sed "s/^/$samp\t$lib\t${RAW_COUNT}/;s/$/\n/"
+	fi
+done < config/lib3.list | cat <(echo ${HEADER[@]} | tr " " "\t") - > quality_check/$SUBPROJECT.lib_counts.tsv
 cd quality_check
 
 # per sample
-sed '1d' $SUBPROJECT.lib_counts.tsv | sort -k 1,1 | awk 'BEGIN{FS="\t"}{if(NR==1){S=$1;for(i=3;i<=NF;i++){a[i]=$i};printf "%s",S} else {if($1==S){for(i=3;i<=NF;i++){a[i]+=$i}} else {S=$1;for(i=3;i<=NF;i++){printf "\t%s",a[i];a[i]=$i};printf "\n%s",S}}}END{for(i=3;i<=NF;i++){printf "\t%s",a[i]};printf "\n"}' | mimato | cat <(head -1 $SUBPROJECT.lib_counts.tsv | sed 's/\tLibrary\t/\t/') - > $SUBPROJECT.sample_counts.tsv
+sed '1d' $SUBPROJECT.lib_counts.tsv | sort -k 1,1 -t $'\t' | awk 'BEGIN{FS="\t"}{if(NR==1){S=$1;L=NF;for(i=3;i<=L;i++){a[i]=$i}} else {if($1==S){if(NF>L){L=NF};for(i=3;i<=L;i++){a[i]+=$i}} else {printf "%s",S;for(i=3;i<=L;i++){printf "\t%s",a[i]};printf "\n";S=$1;L=NF;for(i=3;i<=L;i++){a[i]=$i}}}}END{printf "%s",S;for(i=3;i<=L;i++){printf "\t%s",a[i]};printf "\n"}' | mimato | cat <(head -1 $SUBPROJECT.lib_counts.tsv | sed 's/\tLibrary\t/\t/') - > $SUBPROJECT.sample_counts.tsv
 
 # Count check
-for i in {2..4}
+declare -a MINTRESH MIN_DEPTH_ECHO
+for i in $(seq 1 $((${#TRIMSTEPS[@]}-1)))
 do
-	head -n -4 $SUBPROJECT.sample_counts.tsv | awk -v I=$i -v M=$MIN_DEPTH 'NR>1{if(M<=1){if($(I+1)<M*$I) print $1,$(I+1),$(I+1)/$I} else if(M>1){if($(I+1)<M)print $1,$(I+1)}}' > min_depth.${TRIMSTEPS[$((i-1))]}.test
+	if [ "${TRIMSTEPS[$i]}" == "pairend" ] && [ ! -z "$MINPAIR" ]
+	then
+		MINTRESH[$i]=$MINPAIR
+	else
+		MINTRESH[$i]=$MIN_DEPTH
+	fi
+	if (( $(echo "${MINTRESH[$i]} > 1" |bc -l) ))
+	then
+		MIN_DEPTH_ECHO[$i]=${MINTRESH[$i]}
+	else
+		MIN_DEPTH_ECHO[$i]="${MINTRESH[$i]} times the amount of \${TRIMSTEPS[\$((i-1))]}"
+	fi
+	head -n -4 $SUBPROJECT.sample_counts.tsv | awk -v I=$i -v M=${MINTRESH[$i]} 'NR>1{if(M<=1){if($(I+1)<M*$I) print $1,$(I+1),$(I+1)/$I} else if(M>1){if($(I+1)<M)print $1,$(I+1)}}' > min_depth.${TRIMSTEPS[$((i-1))]}.test
 done
-if (( $(echo "$MIN_DEPTH > 1" |bc -l) ))
-then
-	MIN_DEPTH_ECHO=$MIN_DEPTH
-else
-	MIN_DEPTH_ECHO="$MIN_DEPTH times the amount of \${TRIMSTEPS[\$((i-1))]}"
-fi
 SKIP_SAMP=$(awk -v S=$(sed -n '$=' $SUBPROJECT.sample_counts.tsv) -v T=$SKIP_TRESH 'BEGIN{M=(S-5)*T/100; printf "%.0f", int(M) }')
 for i in $(seq 1 $((${#TRIMSTEPS[@]}-1)))
 do
 	if [ -s min_depth.${TRIMSTEPS[$i]}.test ]
 	then
-		echo "The following sample(s) do not have the requested minimum amount of ${TRIMSTEPS[$i]} reads fixed at "$(eval echo $MIN_DEPTH_ECHO)" reads:"
+		echo "The following sample(s) do not have the requested minimum amount of ${TRIMSTEPS[$i]} reads fixed at "$(eval echo ${MIN_DEPTH_ECHO[$i]})" reads:"
 		echo "Sample Reads"
 		cat min_depth.${TRIMSTEPS[$i]}.test
 		echo ""
@@ -146,30 +164,32 @@ do
 		else
 			if [ $SKIP_TRESH -gt 0 ]; then echo "This is more than the allowed amount of samples to be below the minimum threshold fixed at $SKIP_SAMP :"; fi
 			echo "Aborting"
-			awk 'BEGIN{FS=OFS="\t"};{print $1,$2,$3,$4,$5}' $SUBPROJECT.sample_counts.tsv > $SUBPROJECT.summary.stat.tsv
+			awk -F'\t' -v L=${#TRIMSTEPS[@]} '{printf "%s",$1;for(i=2;i<=L+1;i++){printf "\t%s",$i};printf "\n"}' $SUBPROJECT.sample_counts.tsv > $SUBPROJECT.summary.stat.tsv
 			ln -s $PWD/$SUBPROJECT.summary.stat.tsv $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.read_counts.tsv
 			(. $BIN/list_step_files.sh)
 			exit 100
 		fi
 	else
-		eval echo "All samples have at least the minimum amount of ${TRIMSTEPS[$i]} reads fixed at $MIN_DEPTH_ECHO reads."
+		eval echo "All samples have at least the minimum amount of ${TRIMSTEPS[$i]} reads fixed at ${MIN_DEPTH_ECHO[$i]} reads."
 		echo ""
 	fi
 done
 
 # Optimize quality
-if [ $TRUNCLEN == "no" ]
+# only with samples which have more than 10 reads
+head -n -4 $SUBPROJECT.sample_counts.tsv | awk -v T=${#TRIMSTEPS[@]} 'NR>1 && $(T+1)>10{print $1}' | join -t $'\t' - ../config/lib3.list > libgood.list
+if [ $TRUNCBE == "no" ]
 then
 	if [ $SKIP_TRESH -eq 100 ]
 	then
 		if [ $QFILT == "average" ] ; then echo $MINQUAL > optimized.quality.txt ; else echo $MAXEE > optimized.quality.txt ; fi
-	elif (( $(echo "$MIN_DEPTH > 1" |bc -l) ))
+	elif (( $(echo "${MINTRESH[$((${#MINTRESH[@]}-1))]} > 1" |bc -l) ))
 	then
 		# above integer threshold and more than 75% of raw reads
-		head -n -4 $SUBPROJECT.sample_counts.tsv | transpose_tab | sed '1,4d;/^[ \t]*$/d' | tac | cat <(head -n -4 $SUBPROJECT.sample_counts.tsv | cut -f 5 | transpose_tab) - | awk -v M=$MIN_DEPTH -v S=$SKIP_SAMP 'BEGIN{FS="\t"} {if(NR==1){for(i=2;i<=NF;i++){ref[i]=$i}} ; C=0 ;for(i=2;i<=NF;i++){if($i<M || $i<ref[i]*0.75){C+=1}};if(C<=S){print $1;exit}}' | sed 's/Trimmed at //;s/ Phred score//;s/ maxEE//' > optimized.quality.txt
+		head -n -4 $SUBPROJECT.sample_counts.tsv | transpose_tab | sed '1,4d;/^[ \t]*$/d' | tac | cat <(head -n -4 $SUBPROJECT.sample_counts.tsv | cut -f 5 | transpose_tab) - | awk -v M=${MINTRESH[$((${#MINTRESH[@]}-1))]} -v S=$SKIP_SAMP 'BEGIN{FS="\t"} {if(NR==1){for(i=2;i<=NF;i++){ref[i]=$i}} ; C=0 ;for(i=2;i<=NF;i++){if($i<M || $i<ref[i]*0.75){C+=1}};if(C<=S){print $1;exit}}' | sed 's/Trimmed at //;s/ Phred score//;s/ maxEE//' > optimized.quality.txt
 	else
 		# above ratio of pair-end reads
-		head -n -4 $SUBPROJECT.sample_counts.tsv | cut -f 5- | paste - <(head -n -4 $SUBPROJECT.sample_counts.tsv | cut -f 4) | transpose_tab | tac | awk -v M=$MIN_DEPTH -v S=$SKIP_SAMP 'BEGIN{FS="\t"}{if(NR==1){for (i=2;i<=NF;i++){R[i]=$i}} else {C=0 ; for(i=2;i<=NF;i++){if($i<R[i]*M){C+=1}};if(C<=S){print $1;exit}}}' | sed 's/Trimmed at //;s/ Phred score//;s/ maxEE//' > optimized.quality.txt
+		head -n -4 $SUBPROJECT.sample_counts.tsv | cut -f 5- | paste - <(head -n -4 $SUBPROJECT.sample_counts.tsv | cut -f 4) | transpose_tab | tac | awk -v M=${MINTRESH[$((${#MINTRESH[@]}-1))]} -v S=$SKIP_SAMP 'BEGIN{FS="\t"}{if(NR==1){for (i=2;i<=NF;i++){R[i]=$i}} else {C=0 ; for(i=2;i<=NF;i++){if($i<R[i]*M){C+=1}};if(C<=S){print $1;exit}}}' | sed 's/Trimmed at //;s/ Phred score//;s/ maxEE//' > optimized.quality.txt
 	fi
 	QUAL=`cat optimized.quality.txt`
 	if [ $QFILT == "average" ]

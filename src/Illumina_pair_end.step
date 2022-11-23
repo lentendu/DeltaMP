@@ -33,7 +33,7 @@ then
 	exit 0
 fi
 LIB_NAME=$(echo $FWD_LIB $RVS_LIB | sed 's/\(.*\)[^ ]* \1.*$/\1/')
-if [ $TRUNCLEN != "no" ]
+if [ $TRUNCBE == "yes" ]
 then
 	FWD_LIB=${FWD_LIB}.trunc
 	RVS_LIB=${RVS_LIB}.trunc
@@ -56,7 +56,7 @@ do
 		then
 			NGmerge -1 fastq/$i.${FWD_LIB}.fastq.$EXT -2 fastq/$j.${RVS_LIB}.fastq.$EXT -m $MIN_OV -p $(echo 1 - $PTRESH | bc) -l raw_stat/tmp.$i.$j.$LIB_NAME.overlap.txt -v -y -o - 2> fastq/log.pairend.$i.$LIB_NAME.txt | vsearch --fastq_filter - --fastq_maxns $MAXAMBIG --fastq_maxlen $MAXLEN --fastq_minlen $MINLEN --fastqout - | eval $COMP > fastq/$i.$j.$LIB_NAME.pairend.fastq.$EXT
 		else
-			pandaseq -f fastq/$i.${FWD_LIB}.fastq.$EXT -r fastq/$j.${RVS_LIB}.fastq.$EXT -g fastq/log.pairend.$i.$LIB_NAME.txt -F -A $PALG -o $MIN_OV -O $((MAXLEN+MIN_OV-MINLEN)) -t $PTRESH -T 1 | $COMP > fastq/$i.$j.$LIB_NAME.pairend.fastq.$EXT
+			pandaseq -f fastq/$i.${FWD_LIB}.fastq.$EXT -r fastq/$j.${RVS_LIB}.fastq.$EXT -g fastq/log.pairend.$i.$LIB_NAME.txt -F -A $PALG -o $MIN_OV -O $((MAXLEN+MIN_OV-MINLEN)) -t $PTRESH -T 1 | vsearch --fastq_filter - --fastq_maxns $MAXAMBIG --fastq_maxlen $MAXLEN --fastq_minlen $MINLEN --fastqout - | eval $COMP > fastq/$i.$j.$LIB_NAME.pairend.fastq.$EXT
 		fi
 		if [ ! -z "$(eval $DECOMP fastq/$i.$j.$LIB_NAME.pairend.fastq.$EXT | head -c 1)" ]
 		then

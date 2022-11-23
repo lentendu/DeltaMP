@@ -104,27 +104,34 @@ else
 			fi
 		done
 	done
-done
-
-# Filter unpaired reads
-if [ $TRUNCLEN != "no" ]
-then
-	if [ $MAXTRUNCLEN != "no" ]
+	
+	# Filter reads with minimum truncation values before pair-end
+	if [ $TRUNCBE == "yes" ]
 	then
-		KEEP=$MAXTRUNCLEN
-	else
-		KEEP=$((($MAXLEN + $MIN_OV)/2))
-	fi
-	# Process both direction separately
-	for i in ${FWD_NAME} ${RVS_NAME}
-	do
-		if [ $i == "$FWD_NAME" ] ; then j=${RVS_NAME} ; else j=${FWD_NAME} ; fi
-		if [ -f fastq/$i.${FWD_LIB}.fastq.$EXT ]
+		if [ $TRUNCLEN != "no" ]
 		then
-			vsearch --quiet --threads 1 --fastq_filter fastq/$i.${FWD_LIB}.fastq.$EXT --reverse fastq/$j.${RVS_LIB}.fastq.$EXT --fastq_maxns $MAXAMBIG --fastq_truncee $MAXEE --fastq_trunclen_keep $KEEP --fastqout fastq/$i.${FWD_LIB}.trunc.fastq --fastqout_rev fastq/$j.${RVS_LIB}.trunc.fastq
-			$COMP fastq/$i.${FWD_LIB}.trunc.fastq
-			$COMP fastq/$j.${RVS_LIB}.trunc.fastq
+			MINKEEP=" --fastq_minlen $TRUNCLEN"
 		fi
+		if [ $MAXTRUNCLEN != "no" ]
+		then
+			KEEP=" --fastq_trunclen_keep $MAXTRUNCLEN"
+		fi
+		# Process both direction separately
+		for i in ${FWD_NAME} ${RVS_NAME}
+		do
+			if [ $i == "$FWD_NAME" ] ; then j=${RVS_NAME} ; else j=${FWD_NAME} ; fi
+			if [ -f fastq/$i.${FWD_LIB}.fastq.$EXT ]
+			then
+				vsearch --fastq_filter fastq/$i.${FWD_LIB}.fastq.$EXT --reverse fastq/$j.${RVS_LIB}.fastq.$EXT --fastq_truncee $MAXEE$MINKEEP$KEEP --fastqout fastq/$i.${FWD_LIB}.trunc.fastq --fastqout_rev fastq/$j.${RVS_LIB}.trunc.fastq
+				# remove empty files
+				if [ ! -s fastq/$i.${FWD_LIB}.trunc.fastq ]
+				then
+					rm fastq/$i.${FWD_LIB}.trunc.fastq fastq/$j.${RVS_LIB}.trunc.fastq
+				else
+					eval $COMP fastq/$i.${FWD_LIB}.trunc.fastq fastq/$j.${RVS_LIB}.trunc.fastq
+				fi
+			fi
+		done
 		# check for no read
 		if [ -z "$(eval $DECOMP fastq/${FWD_NAME}.${FWD_LIB}.trunc.fastq.$EXT | head -c 1)" ] && [ -z "$(eval $DECOMP fastq/${RVS_NAME}.${FWD_LIB}.trunc.fastq.$EXT | head -c 1)" ]
 		then

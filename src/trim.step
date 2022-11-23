@@ -155,7 +155,7 @@ do
 	elif [ $TECH == "Illumina" ]
 	then
 		# trim
-		if [ $TRUNCLEN == "no" ]
+		if [ $TRUNCBE == "no" ]
 		then
 			# Concatenate reads in both direction
 			if [ -f $EXEC/libraries/fastq/$FWD_NAME.$RVS_NAME.$i.pairend.fastq.$EXT ]
@@ -192,9 +192,16 @@ do
 				if [ $x == "$FWD_NAME" ] ; then y=${RVS_NAME} ; else y=${FWD_NAME} ; fi
 				if [ -f $EXEC/libraries/fastq/$x.$y.$i.pairend.fastq.$EXT ]
 				then
-					read FTLEN FEE RTLEN REE < <(paste $EXEC/quality_check/$x.fwd.optimized.quality.txt $EXEC/quality_check/$y.rvs.optimized.quality.txt)
-			        vsearch --quiet --fastq_filter $EXEC/libraries/fastq/$x.${FWD_LIB}.fastq.$EXT --fastq_maxee $FEE --fastq_trunclen $FTLEN --fastq_maxns $MAXAMBIG --fastqout $x.${FWD_LIB}.trunc.fastq
-			        vsearch --quiet --fastq_filter $EXEC/libraries/fastq/$y.${RVS_LIB}.fastq.$EXT --fastq_maxee $REE --fastq_trunclen $RTLEN --fastq_maxns $MAXAMBIG --fastqout $y.${RVS_LIB}.trunc.fastq
+					if [ $TRUNCLEN == "no" ]
+					then
+						read FEE REE < <(paste $EXEC/quality_check/$x.fwd.optimized.quality.txt $EXEC/quality_check/$y.rvs.optimized.quality.txt)
+					else
+						read FTLEN FEE RTLEN REE < <(paste $EXEC/quality_check/$x.fwd.optimized.quality.txt $EXEC/quality_check/$y.rvs.optimized.quality.txt)
+						TRUNCEEF=" --fastq_trunclen $FTLEN"
+						TRUNCEER=" --fastq_trunclen $RTLEN"
+					fi
+			        vsearch --quiet --fastq_filter $EXEC/libraries/fastq/$x.${FWD_LIB}.fastq.$EXT --fastq_maxns $MAXAMBIG --fastq_truncee $FEE$TRUNCEEF --fastqout $x.${FWD_LIB}.trunc.fastq
+			        vsearch --quiet --fastq_filter $EXEC/libraries/fastq/$y.${RVS_LIB}.fastq.$EXT --fastq_maxns $MAXAMBIG --fastq_truncee $REE$TRUNCEER --fastqout $y.${RVS_LIB}.trunc.fastq
 					join <(sed -n '1~4{s/[\t ].*$//;p}' $x.${FWD_LIB}.trunc.fastq | sort) <(sed -n '1~4{s/[\t ].*$//;p}' $y.${RVS_LIB}.trunc.fastq | sort) | sed 's/^@//' > $x.$y.$i.trunc.accnos
 					seqkit grep -f $x.$y.$i.trunc.accnos $x.${FWD_LIB}.trunc.fastq > $x.$i.fwd.filtered.fastq
 					seqkit grep -f $x.$y.$i.trunc.accnos $y.${RVS_LIB}.trunc.fastq > $y.$i.rvs.filtered.fastq
@@ -213,7 +220,6 @@ do
 							pandaseq -f $x.$i.fwd.filtered.fastq -r $y.$i.rvs.filtered.fastq -g log.pairend.$x.$i.txt -F -A $PALG -o $MIN_OV -O $((MAXLEN+MIN_OV-MINLEN)) -t $PTRESH -T $NCPUS > $x.$y.$i.pairend.fastq
 						fi
 					fi
-					rm $x.${FWD_LIB}.trunc.fastq $y.${RVS_LIB}.trunc.fastq $x.$y.$i.trunc.accnos
 				fi
 			done
 			# Concatenate both direction or start pseudo-pooling approach for dada2
@@ -223,15 +229,15 @@ do
 				then
 					if [ -s $RVS_NAME.$FWD_NAME.$i.pairend.fastq ]
 					then
-						vsearch --fastx_revcomp $RVS_NAME.$FWD_NAME.$i.pairend.fastq --fastqout - | cat $FWD_NAME.$RVS_NAME.$i.pairend.fastq - | vsearch --quiet --fastq_filter - --fastq_maxlen $MAXLEN --fastq_minlen $MINLEN --fastaout - | twofasta | awk '{if($1~"^>"){gsub(":","_",$1)};print $1}' > $i.pairend.trim.fasta
+						vsearch --fastx_revcomp $RVS_NAME.$FWD_NAME.$i.pairend.fastq --fastqout - | cat $FWD_NAME.$RVS_NAME.$i.pairend.fastq - | vsearch --quiet --fastq_filter - --fastq_maxns $MAXAMBIG --fastq_maxlen $MAXLEN --fastq_minlen $MINLEN --fastaout - | twofasta | sed '/>/{s/:/_/;s/[ \t].*$//;}' > $i.pairend.trim.fasta
 						rm $RVS_NAME.$FWD_NAME.$i.pairend.fastq $FWD_NAME.$RVS_NAME.$i.pairend.fastq
 					else
-						vsearch --quiet --fastq_filter $FWD_NAME.$RVS_NAME.$i.pairend.fastq --fastq_maxlen $MAXLEN --fastq_minlen $MINLEN --fastaout - | twofasta | awk '{if($1~"^>"){gsub(":","_",$1)};print $1}' > $i.pairend.trim.fasta
+						vsearch --quiet --fastq_filter $FWD_NAME.$RVS_NAME.$i.pairend.fastq --fastq_maxns $MAXAMBIG --fastq_maxlen $MAXLEN --fastq_minlen $MINLEN --fastaout - | twofasta | sed '/>/{s/:/_/;s/[ \t].*$//;}' > $i.pairend.trim.fasta
 						rm $FWD_NAME.$RVS_NAME.$i.pairend.fastq
 					fi
 				elif [ -s $RVS_NAME.$FWD_NAME.$i.pairend.fastq ]
 				then
-					vsearch --fastx_revcomp $RVS_NAME.$FWD_NAME.$i.pairend.fastq --fastqout - | vsearch --quiet --fastq_filter - --fastq_maxlen $MAXLEN --fastq_minlen $MINLEN --fastaout - | twofasta | awk '{if($1~"^>"){gsub(":","_",$1)};print $1}' > $i.pairend.trim.fasta
+					vsearch --fastx_revcomp $RVS_NAME.$FWD_NAME.$i.pairend.fastq --fastqout - | vsearch --quiet --fastq_filter - --fastq_maxns $MAXAMBIG --fastq_maxlen $MAXLEN --fastq_minlen $MINLEN --fastaout - | twofasta | awk '{if($1~"^>"){gsub(":","_",$1)};print $1}' > $i.pairend.trim.fasta
 					rm $RVS_NAME.$FWD_NAME.$i.pairend.fastq
 				fi
 			else

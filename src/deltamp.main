@@ -322,7 +322,11 @@ then
 	fi
 	if [ $QFILT == "average" ] && [ $TRUNCLEN != "no" ]
 	then
-		error_doc "length of unpaired reads cannot be truncated when using the average quality filtering method, use maxee instead"
+		error_doc "length of unpaired reads cannot be truncated when using the average quality filtering method, use maxee instead or set 'Minimum length truncation of unpaired reads' to no "
+	fi
+	if [ $TRUNCLEN != "no" ] && [ $TRUNCBE == "no" ]
+	then
+		error_doc "a 'Minimum length truncation of unpaired reads' can only be used if 'Truncation before pair-end' is set to yes "
 	fi
 	if [ $TRUNCLEN == "no" ] && [ $MAXTRUNCLEN != "no" ]
 	then
