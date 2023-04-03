@@ -52,6 +52,30 @@ else
 	IDDEF=1 # no end gap allowed
 fi
 
+# incorporate additional sequences if provided
+if [ $DBADD != "no" ]
+then
+	# check files presence
+	if [ ! -f $DBADD.taxonomy ] | [ ! -f $DBADD.fasta ]
+	then
+		echo -e "Error: additionnal database file(s) is/are missing\nCheck directory $(dirname $DBADD) for files $(basename $DBADD).taxonomy and $(basename $DBADD).fasta\nAborting"
+		exit 100
+	fi
+	# control absence of duplicate identifiers : not for the moment
+	# control primer presence in new sequences : not for the moment
+	# merge fasta and taxonomy
+	cat $DBADD.fasta $DBFOLD/$TEMPLATE.fasta > ${OUT%/*}/$(basename $DBADD)_plus_$TEMPLATE.fasta
+	cat $DBADD.taxonomy $DBFOLD/$TEMPLATE.taxonomy > ${OUT%/*}/$(basename $DBADD)_plus_$TEMPLATE.taxonomy
+	DBFOLD=${OUT%/*}
+	TEMPLATE=$(basename $DBADD)_plus_$TEMPLATE
+	if [ $CLASSIF == "vsearch" ]
+	then
+		sed '$!N;/>/s/\n/ /;s/>//' $DBFOLD/$TEMPLATE.fasta | sort -k 1,1 | join - <(sort -k 1,1 $DBFOLD/$TEMPLATE.taxonomy) | sed 's/;$//;s/;/,/g' | awk '{print ">"$1";tax="$3";\n"$2}' > $DBFOLD/vsearch.$TEMPLATE.fasta
+		vsearch --makeudb_usearch $DBFOLD/vsearch.$TEMPLATE.fasta --output $DBFOLD/$TEMPLATE.udb
+		rm $DBFOLD/vsearch.$TEMPLATE.fasta
+	fi
+fi
+
 # taxonomic assignment
 if [ $CLASSIF == "bayesian" ]
 then

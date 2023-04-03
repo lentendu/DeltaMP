@@ -315,6 +315,8 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Assign all reads__: the accepted values are “yes” or “no”. Activating this option will assign all dereplicated or pre-clustered reads to a taxonomy. A consensus assignment is then determined for each OTU at a threshold of 60 %. If set to “no”, only the most abundant read per OTU will be assigned to taxonomy. The default is “no”.
 
++ __Full path to additional database prefix name__: the full path to the filename prefix of additional reference sequences to add to the reference database (useful to integrate yet unpublished sequences). The fasta and taxonomy formats need to match with the main database. dub format for vsearch will be generated automatically if needed. The default is "no".
+
 + __Assign putative function__: "yes" or "no" to assign putative function to Fungi using the FUNGuild database (Nguyen et al., 2016).
 
 + __Minimum number of sample for abundant OTUs__: a number between 0 and ∞ (see [Outputs](#outputs)). The default is 1.

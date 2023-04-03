@@ -41,6 +41,7 @@ DB	pr2_4.10.0	Database prefix name	^.+$
 CUT_DB	no	Reduce database to amplified fragment	no yes
 CONS	60	Consensus assignment threshold	^[0-9]+$
 ASSIGN_ALL	no	Assign all reads	no yes
+DBADD	no	Full path to additional database prefix name	^.+$
 ASSIGN_FUNCT	no	Assign putative function	no yes
 MIN_SAMP	1	Minimum number of sample for abundant OTUs	^[0-9]+$
 MIN_DOM	4	Minimum number of reads for abundant OTUs	^[0-9]+$
