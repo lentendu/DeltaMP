@@ -99,15 +99,15 @@ then
 	cd $DBCUT.temp
 	FWD_E=$(awk -v P=$PDIFFS -v F=${#FWD} 'BEGIN{printf "%.2f",P/F+0.005}')
 	RVS_E=$(awk -v P=$PDIFFS -v F=${#RVS} 'BEGIN{printf "%.2f",P/F+0.005}')
-	twofasta $DBFOLD/$DB.fasta | cutadapt -g ${FWD} -e ${FWD_E} -O ${#FWD} --no-indels --trimmed-only - | cutadapt -a ${PRIMER[$RVS_NAME.rc]} -e ${RVS_E} -O ${#RVS} --no-indels --trimmed-only - > $DBCUT.cut.fasta
+	cutadapt -j $NCPUS -g "${FWD};e=${FWD_E};o=$((${#FWD}-2))...${PRIMER[$RVS_NAME.rc]};e=${RVS_E};o=$((${#RVS}-2))" --no-indels --trimmed-only $DBFOLD/$DB.fasta > $DBCUT.cut.fasta 2> ../log.cutadapt.$DBCUT.txt
 	
-	# clean (remove sequences with n's, longer than 800 nt, with a taxonomic path with less than 3 ranks and containing the primer sequence internaly) and annotate for obitools (at genus level for 16S)
-	PRIMER_REG=$(for i in ${PRIMER[@]}; do TMP=$i ; while read A B; do TMP=`echo $TMP | sed "s/$A/$B/g"` ; done < $BIN/IUPAC.txt ; echo $TMP ; done)
-	paste - - < $DBCUT.cut.fasta | sort -k 1,1 | join <(sort -k 1,1 $DBFOLD/$DB.taxonomy | sed 's/^/>/;s/;$//;s/;/|/g') - | awk '{rank=split($2,a,"|");print $1,"ranks="rank"; taxo="$2";\n"$3}' | obigrep --without-progress-bar -p 'ranks>2' -L 800 -s '^[atcg]*$' | obigrep -v -s $(echo $PRIMER_REG | sed 's/ /|/g') | twofasta > $DBCUT.taxo.fasta
+	# clean (remove sequences with n's, longer than 800 nt, with a taxonomic path with less than 3 ranks and containing the primer sequence internaly) 
+	paste - - < $DBCUT.cut.fasta | sort -k 1,1 | join <(sort -k 1,1 $DBFOLD/$DB.taxonomy | sed 's/^/>/;s/;$//;s/;/|/g') - | awk '{l=split($2,a,"|");if(l>2){print $1" "$2"\n"$3}}' | seqkit seq -m $MINLEN -M 800 | seqkit grep -sr -p "^[ATCG]*$" | seqkit grep -w 0 -vsd -p $FWD -p ${PRIMER[$RVS_NAME.rc]} > $DBCUT.taxo.fasta
 	
 	# dereplicate with prefix option and find LCA for unique reads from different taxonomic paths; remove if LCA have less than 3 taxonomic ranks
-	obiuniq --without-progress-bar -p -m taxo $DBCUT.taxo.fasta > $DBCUT.uniq.fasta
-	grep "^>" $DBCUT.uniq.fasta | sed "s/^\(>[^ ]*\) .*taxo={\([^}]*\)}.*$/\1 \2/;s/'//g;s/: *[0-9][0-9]*//g;s/,* /\n/g" > taxo.list
+	paste - - < $DBCUT.taxo.fasta | sort --parallel=$NCPUS -h -k 3,3 -k 2,2 -k 1,1 | awk '{if(NR==1){p=$1;t=$2;s=$3} else {l=match(s,$3);if(l==1){t=t";"$2} else {print p,t"\n"s;p=$1;t=$2;s=$3}}}END{print p,t"\n"s}' > $DBCUT.uniq.fasta
+	#  | seqkit grep -nr -p ";"
+	grep "^>" $DBCUT.uniq.fasta | sed "s/'//g;s/: *[0-9][0-9]*//g;s/;/\n/g" > taxo.list
 	
 	declare -A MAX_RANKS
 	while read taxo rank
@@ -151,28 +151,24 @@ then
 	sed 's/^.*\(cksum=[0-9]*;\).*$/\1/' taxo.ck.list | sort | uniq -c | awk '{print $2" size="$1";"}' | sort -k 1,1 | join -2 4 - <(sort -k 4,4 taxo.ck.list) | sort -k 3,3 | join -1 3 - <(awk '{if($1~"^>"){printf "%s", $1} else printf " %s\n", $1}' $DBCUT.taxo.fasta | sort -k 1,1) | awk '{print $1,$2,$3,$4,$5,$6"\n"$7}' > $DBCUT.uniq_ck.fasta
 	
 	# split based on sequences sharing same taxonomic path (full path if less than 7 ranks and less than x ranks, x being the maximum number of ranks inside a phylum, else last rank (~ species level) removed from full path)
-	mkdir $DBCUT.preclust
-	cd  $DBCUT.preclust
-	obigrep --without-progress-bar -p 'size>1' ../$DBCUT.uniq_ck.fasta | obiannotate --length | obisplit -t cksum
-	cd ..
-	obigrep --without-progress-bar -p 'size==1' $DBCUT.uniq_ck.fasta > $DBCUT.end.fasta
+	seqkit split -j $NCPUS --quiet -O $DBCUT.preclust --by-id --id-regexp "cksum=([0-9]+);" $DBCUT.uniq_ck.fasta
+	
+	# no preclustering for taxonomic path with only one sequence
+	seqkit stat -j $NCPUS $DBCUT.preclust/$DBCUT.uniq_ck.part_*.fasta > $DBCUT.stat
+	cat $(awk 'NR>1 && $4==1{print $1}' $DBCUT.stat) > $DBCUT.end.fasta && rm $(awk 'NR>1 && $4==1{print $1}' $DBCUT.stat)
 	
 	# precluster sequences with same taxonomic path (99 % similarity, longest read as reference)
 	get_preclust() {
 		file=$1
-		obisort --without-progress-bar -r -k seq_length $file > ${file%.*}.sort
-		DIFFS=$(tac ${file%.*}.sort | grep -m 1 "^>" | sed -n 's/^.*seq_length=\([0-9]*\);.*$/\1/p' | awk '{print int($1/100)}')
-		awk '$1~"^>"{sub(">","",$1);print $1"\t"$1}' ${file%.*}.sort > ${file%.*}.names
-		mothur "#set.logfile(name=${file%.*}.log);	pre.cluster(fasta=${file%.*}.sort, name=${file%.*}.names, diffs=$DIFFS)" > /dev/null 2>&1
-		rm ${file%.*}.[snl]* ${file%.*}.precluster.map
+		seqkit seq -i $file | seqkit sort --quiet -l | sumaclust -t 0.99 -f -O ${file%.*}.names 2> /dev/null
 	}
 	export -f get_preclust
-	parallel -j $NCPUS get_preclust {} ::: $DBCUT.preclust/[0-9]*.fasta
+	awk 'NR>1 && $4>1{print $1}' $DBCUT.stat | parallel -j $NCPUS get_preclust
 	
 	# compute LCA for preclustered reads when needed
-	awk '{len=split($2,a,",");if(len>1){for(i in a){print $1,">"a[i]}}}' $DBCUT.preclust/[0-9]*.precluster.names | sort -k 2,2 | join -1 2 - <(sort -k 1,1 taxo.ck.list) | sed 's/>[^ ]* \([^ ]*\) .*taxo=\([^;]*\);.*$/>\1 \2/' | sort -k1,1 | awk '{if(NR==1){prev=$1;print $1"\n"$2} else {if($1==prev){print $2} else {prev=$1;print $1"\n"$2}}}' > preclust.list
-	cat preclust.list | parallel -j $NCPUS --block 100k --recstart '>' --pipe -k lca_ck {} | sed 's/$/ preclust=yes;/' > preclust.ck.list 
-	cat <(cat $DBCUT.preclust/[0-9]*.precluster.sort | obigrep --without-progress-bar --id-list=<(cat preclust/[0-9]*.precluster.names | awk '{len=split($2,a,",");if(len==1) print $1}') | obiannotate --without-progress-bar -S preclust:no) <(cat $DBCUT.preclust/[0-9]*.precluster.sort | obigrep --without-progress-bar --id-list=<(awk '{sub(">","",$1);print $1}' preclust.ck.list) | awk '{if(NR==1){printf "%s ",$1} else {if($1~"^>"){printf "\n%s ",$1} else printf "%s",$1}}END{printf "\n"}' | sort -k 1,1 | paste - preclust.ck.list | awk '{printf "%s",$1;for(i=4;i<=NF;i++){printf " %s",$i};printf "\n%s\n",$2}') >> $DBCUT.end.fasta
+	awk -F"\t" 'NF>2{for(i=2;i<=NF;i++){print $1,">"$2}}' $DBCUT.preclust/*.names | sort -k 2,2 | join -1 2 - <(sort -k 1,1 taxo.ck.list) | sed 's/>[^ ]* \([^ ]*\) .*taxo=\([^;]*\);.*$/>\1 \2/' | sort -k1,1 | awk '{if(NR==1){prev=$1;print $1"\n"$2} else {if($1==prev){print $2} else {prev=$1;print $1"\n"$2}}}' > preclust.list
+	cat preclust.list | parallel -j $NCPUS --block 100k --recstart '>' --pipe -k lca_ck {} | sed 's/$/ preclust=yes;/' > preclust.ck.list
+	cat $DBCUT.preclust/*fasta | seqkit grep -f <(awk -F'\t' 'NF==2{print $1}' $DBCUT.preclust/*names) | sed '/^>/s/$/ preclust:no;/' | cat - <(cat $DBCUT.preclust/*fasta | seqkit grep -f <(awk '{sub(">","",$1);print $1}' preclust.ck.list) | awk '{if(NR==1){printf "%s ",$1} else {if($1~"^>"){printf "\n%s ",$1} else printf "%s",$1}}END{printf "\n"}' | sort -k 1,1 | paste - preclust.ck.list | awk '{printf "%s",$1;for(i=4;i<=NF;i++){printf " %s",$i};printf "\n%s\n",$2}') >> $DBCUT.end.fasta
 	rm -r $DBCUT.preclust
 	
 	# final DB
@@ -183,13 +179,9 @@ then
 	# Cut align database
 	if [ -f $DBFOLD/$DBALIGN.fasta ]
 	then
-		CUT_POS=(`obigrep --without-progress-bar --uppercase --only=100 -s ${PRIMER_I[$FWD_NAME]}.*${PRIMER_I[$RVS_NAME.rc]} $DBFOLD/$DBALIGN.fasta | twofasta | awk -v F=${PRIMER_I[$FWD_NAME]} -v R=${PRIMER_I[$RVS_NAME.rc]} '$0!~"^>"{match($1,F);if(length(RSTART)>0){printf "%s ", RSTART+RLENGTH; match($1,R); printf "%s\n", RSTART-1}}' | sort | uniq -c | sort -n -k 1,1 | awk '{print $2,$3}'`)
-		seqkit grep -f <(cut -f 1 $DBFOLD/$DBCUT.taxonomy) $DBFOLD/$DBALIGN.fasta > $DBCHOP.pick.fasta
-		mothur "#set.logfile(name=mothur.dbalign.logfile);
-		pcr.seqs(fasta=$DBCHOP.pick.fasta, start=${CUT_POS[0]}, end=${CUT_POS[1]}, processors=$NCPUS);
-		filter.seqs(processors=$NCPUS)"
-		mv $DBCHOP.pick.pcr.filter.fasta $DBFOLD/$DBCHOP.fasta
-		rm $DBCHOP.pick.*
+		CUT_POS_F=$(seqkit grep -sr -p "${PRIMER_I[$FWD_NAME]}.*${PRIMER_I[$RVS_NAME.rc]}" silva_lsu_138.1.gb.align.fasta | seqkit head -n 50 | seqkit locate -rP -p ${PRIMER_I[$FWD_NAME]} | sed '1d' | cut -f 6 | sort | uniq -c | sort -k 1,1nr | awk '{print $2+1}')
+		CUT_POS_R=$(seqkit grep -sr -p "${PRIMER_I[$FWD_NAME]}.*${PRIMER_I[$RVS_NAME.rc]}" silva_lsu_138.1.gb.align.fasta | seqkit head -n 50 | seqkit locate -rP -p ${PRIMER_I[$RVS_NAME.rc]} | sed '1d' | cut -f 5 | sort | uniq -c | sort -k 1,1nr | awk '{print $2-1}')
+		seqkit grep -f <(cut -f 1 $DBFOLD/$DBCUT.taxonomy) $DBFOLD/$DBALIGN.fasta | seqkit subseq -r ${CUT_POS_F}:${CUT_POS_R} | goalign clean sites -c 1 -i - > $DBFOLD/$DBCHOP.fasta
 	else
 		echo "The align version of the database $DB was not found (expected directory: $DBFOLD , expected file name: $DBALIGN.fasta)."
 	fi
@@ -211,8 +203,8 @@ else
 	}
 	export -f clust
 	cat $DBCUT.taxo.fasth | parallel -j $NCPUS --block 1M --recstart "#" --pipe clust {#} {}
-	cat seed.* | sed 's/;.*$//' | twofasta | awk '{if($1~"^>"){print} else print toupper($1)}' > ../$DBCUT.fasta
-	grep ">" ../$DBCUT.fasta | sed 's/^>//' | nl | sort -k 2,2 | join -1 2 - <(sort -k 1,1 ../$DB.taxonomy) | sort -k 2,2n | cut -d " " -f 1,3 | tr " " "\t" > ../$DBCUT.taxonomy
+	seqkit seq -w 0 seed.* | sed '/>/s/;.*$//' > ../$DBCUT.fasta
+	grep ">" ../$DBCUT.fasta | sed 's/^>//' | nl | sort -k 2,2 | join -1 2 - <(sort -k 1,1 ../$DB.taxonomy | sed 's/ /_/g') | sort -k 2,2n | cut -d " " -f 1,3 | tr " " "\t" > ../$DBCUT.taxonomy
 	cd .. && rm -r $DBCUT.temp
 fi
 

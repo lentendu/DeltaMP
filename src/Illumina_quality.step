@@ -394,8 +394,8 @@ then
 		if [ -f ../quality_check/$i.fwd.optimized.quality.txt ]
 		then
 			OQUAL=($(cat ../quality_check/$i.fwd.optimized.quality.txt))
-			obicut --without-progress-bar --uppercase -b 1 -e ${OQUAL[0]} ${PREV_SUB}.outputs/${PREV_ASV}.fasta | twofasta | sed '/>/s/_SUB.*$//' > ${PREV_SUB}.$i.fwd.fasta
-			vsearch --quiet --fastx_revcomp ${PREV_SUB}.outputs/${PREV_ASV}.fasta --fastaout - | obicut --without-progress-bar --uppercase -b 1 -e ${OQUAL[0]} | twofasta | sed '/>/s/_SUB.*$//'  > ${PREV_SUB}.$j.rvs.fasta
+			seqkit subseq -w 0 -r 1:${OQUAL[0]} ${PREV_SUB}.outputs/${PREV_ASV}.fasta > ${PREV_SUB}.$i.fwd.fasta
+			vsearch --quiet --fastx_revcomp ${PREV_SUB}.outputs/${PREV_ASV}.fasta --fastaout - | seqkit subseq -w 0 -r 1:${OQUAL[0]} > ${PREV_SUB}.$j.rvs.fasta
 			unset OQUAL
 		fi
 	done

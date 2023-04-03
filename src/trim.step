@@ -174,11 +174,7 @@ do
 			QUAL=`cat $EXEC/quality_check/optimized.quality.txt`
 			if [ $QFILT == "average" ]
 			then
-				eval $DECOMP $i.pairend.fastq.$EXT > $i.pairend.fastq
-				mothur "#set.logfile(name=$LOG, append=T);
-				fastq.info(fastq=$i.pairend.fastq);
-				trim.seqs(fasta=$i.pairend.fasta, qfile=$i.pairend.qual, qaverage=$QUAL, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, minlength=$MINLEN, maxlength=$MAXLEN, processors=$NCPUS)"
-				rm $i.pairend.fastq $i.pairend.fasta $i.pairend.scrap.fasta $i.pairend.*qual
+				seqkit seq -j $NCPUS -Q $QUAL -m $MINLEN -M $MAXLEN $i.pairend.fastq | seqkit fq2fa | seqkit grep -sr -p "\"N{0,$MAXAMBIG}\"" | seqkit grep -w 0 -srv -p "\"A{$MAXHOMOP,}\",\"C{$MAXHOMOP,}\"" | awk '{if($1~"^>"){gsub(":","_",$1)};print $1}' > $i.pairend.trim.fasta
 			elif [ $QFILT == "maxee" ]
 			then
 				vsearch --quiet --fastq_filter $i.pairend.fastq.$EXT --fastq_maxee $QUAL --fastq_maxlen $MAXLEN --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastaout - | twofasta | awk '{if($1~"^>"){gsub(":","_",$1)};print $1}' > $i.pairend.trim.fasta
@@ -326,7 +322,7 @@ then
 		cdhit4542mothur () {
 			bak=$1 ; fasta=$2 ; count=$3
 			nl $bak | sed 's/>//;s/\.\.\.//' | awk '{print $4,$1,$2}' | sort -k 1,1 | join - <(sed '1d' $count | sort -k 1,1) | sort -k 3,3n -k 4,4nr | awk '{if(NR==1){nb=$3;printf "%s\t%s", $1,$2;sum=$4} else {if($3==nb){sum+=$4} else {nb=$3;printf "\t%s\n%s\t%s",sum,$1,$2;sum=$4}}}END{printf "\t%s\n",sum}' | sort -k 2,2n -t $'\t' | cut -f 1,3 | cat <(head -1 $count) - > ${count%.*}.precl.count_table
-			obigrep --without-progress-bar --uppercase --id-list=<(sed '1d' ${count%.*}.precl.count_table | cut -f 1) $fasta | twofasta > ${fasta%.*}.precl.fasta
+			seqkit grep -w 0 -f <(sed '1d' ${count%.*}.precl.count_table | cut -f 1) $fasta > ${fasta%.*}.precl.fasta
 		}
 		cd-hit-454 -T $NCPUS -B 1 -g 1 -M 6000 -c 0.99 -bak 1 -i $FASTA.fasta -o $FASTA.precl.fasta.temp
 		cdhit4542mothur $FASTA.precl.fasta.temp.bak.clstr $FASTA.fasta $COUNT.count_table

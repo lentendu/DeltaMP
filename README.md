@@ -63,8 +63,9 @@ DeltaMP is intend to be used on a HPC with a job scheduler (i.e. batch-queuing s
 
 ### compulsory softwares:
 
++ [vsearch v2](https://github.com/torognes/vsearch) (Rognes et al., 2016)
 + [MOTHUR v1.44+](http://www.mothur.org) (Schloss et al., 2009)
-+ [OBITools v1.2+](https://git.metabarcoding.org/obitools/obitools) (Boyer et al., 2016)
++ [SeqKit v0.15.0+](https://github.com/shenwei356/seqkit)
 + [cutadapt v1.10+](https://cutadapt.readthedocs.io/en/stable/) (Martin, 2011)
 + [PANDAseq v2.10+](https://github.com/neufeld/pandaseq) (Masella et al., 2012)
 + [biom-format](http://biom-format.org) (McDonald et al., 2012)
@@ -82,7 +83,6 @@ DeltaMP is intend to be used on a HPC with a job scheduler (i.e. batch-queuing s
 + [dada2](https://github.com/benjjneb/dada2) R package for error model based correction of Illumina reads (Callahan et al., 2016)
 + [NGmerge](https://github.com/harvardinformatics/NGmerge) for paired-end merging of Illumina reads via novel empirically-derived models of sequencing errors (Gaspar, 2018)
 + [swarm v2](https://github.com/torognes/swarm) (Mahé et al., 2015)
-+ [vsearch v2](https://github.com/torognes/vsearch) (Rognes et al., 2016)
 + [sumatra](https://git.metabarcoding.org/obitools/sumatra) and [sumaclust](https://git.metabarcoding.org/obitools/sumaclust) (Mercier et al., 2013)
 + [MCL](http://micans.org/mcl) (van Dongen, 2000)
 + [CD-HIT & cd-hit-454](http://weizhongli-lab.org/cd-hit/) for (pre-)clustering (Fu et al., 2012)
@@ -484,7 +484,6 @@ For unsolved issues, send an email to guillaume.lentendu@unine.ch, including the
 
 ## References
 + Bengtsson‐Palme, J., Ryberg, M., Hartmann, M., Branco, S., Wang, Z., Godhe, A., Wit, P., Sánchez‐García, M., Ebersberger, I., Sousa, F., Amend, A., Jumpponen, A., Unterseher, M., Kristiansson, E., Abarenkov, K., Bertrand, Y. J. K., Sanli, K., Eriksson, K. M., Vik, U., Veldre, V., Nilsson, R. H., Bunce, M., 2013. Improved software detection and extraction of ITS1 and ITS2 from ribosomal ITS sequences of fungi and other eukaryotes for analysis of environmental sequencing data. Methods in Ecology and Evolution 4, 914–919. doi:[10.1111/2041-210X.12073](http://doi.org/10.1111/2041-210X.12073)
-+ Boyer, F., Mercier, C., Bonin, A., Le Bras, Y., Taberlet, P., Coissac, E., 2016. obitools: a unix-inspired software package for DNA metabarcoding. Molecular Ecology Resources 16, 176–182. doi:[10.1111/1755-0998.12428](http://doi.org/10.1111/1755-0998.12428)
 + Callahan, B.J., McMurdie, P.J., Rosen, M.J., Han, A.W., Johnson, A.J.A., Holmes, S.P., 2016. DADA2: High-resolution sample inference from Illumina amplicon data. Nature Methods 13, 581–583. doi:[10.1038/nmeth.3869](http://doi.org/10.1038/nmeth.3869)
 + Edgar, R.C., 2010. Search and clustering orders of magnitude faster than BLAST. Bioinformatics 26, 2460–2461. doi:[10.1093/bioinformatics/btq461](http://doi.org/10.1093/bioinformatics/btq461)
 + Fu, L., Niu, B., Zhu, Z., Wu, S., Li, W., 2012. CD-HIT: accelerated for clustering the next-generation sequencing data. Bioinformatics 28, 3150–3152. doi:[10.1093/bioinformatics/bts565](http://doi.org/10.1093/bioinformatics/bts565)
