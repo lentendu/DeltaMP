@@ -45,7 +45,7 @@ do
 		then
 			if [ $QFILT == "maxee" ]
 			then
-				vsearch --quiet --threads 1 --fastq_filter fastq/$i.$j.$LIB_NAME.pairend.fastq.$EXT --eeout --fastq_maxlen $MAXLEN --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastqout fasta/$i.$j.$LIB_NAME.pairend.trim.fastq
+				vsearch --quiet --threads 1 --fastq_filter fastq/$i.$j.$LIB_NAME.pairend.fastq.$EXT --eeout --fastq_maxlen $MAXLEN --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastqout - | seqkit grep -w 0 -srv -p "\"A{$MAXHOMOP,}\",\"C{$MAXHOMOP,}\"" > fasta/$i.$j.$LIB_NAME.pairend.trim.fastq
 				vsearch --quiet --fastq_eestats2 fasta/$i.$j.$LIB_NAME.pairend.trim.fastq --ee_cutoffs $(seq $MAXEE -$EESTEP $MINEE | tr "\n" "," | sed 's/,$//') --length_cutoffs $MINLEN,*,$LENSTEP --output - | sed -n '/^----/{n;s/^  *[0-9]*  *//;s/  */\t/g;s/(\t*\([0-9\.]*\)%)//g;p}' > ../quality_check/$i.$j.$LIB_NAME.stat
 			else
 				eval $DECOMP fastq/$i.$j.$LIB_NAME.pairend.fastq.$EXT > fastq/$i.$j.$LIB_NAME.pairend.fastq
@@ -93,14 +93,14 @@ do
 						TMP_MERGE=$(mktemp)
 						if [ $PALG == "vsearch" ]
 						then
-							vsearch --quiet --threads 1 --fastq_mergepairs $i.${FWD_LIB}.$k.fastq --reverse $j.${RVS_LIB}.$l.fastq --fastq_ascii $ASCII --fastq_minovlen $MIN_OV --fastq_maxdiffpct $PCTTRESH --fastq_allowmergestagger --fastqout - 2> fastq/log.pairend.$i.$LIB_NAME.txt | vsearch --quiet --fastq_filter - --fastq_maxns $MAXAMBIG --fastqout $TMP_MERGE
+							vsearch --quiet --threads 1 --fastq_mergepairs $i.${FWD_LIB}.$k.fastq --reverse $j.${RVS_LIB}.$l.fastq --fastq_ascii $ASCII --fastq_minovlen $MIN_OV --fastq_maxdiffpct $PCTTRESH --fastq_allowmergestagger --fastqout $TMP_MERGE 2> fastq/log.pairend.$i.$LIB_NAME.txt
 						elif [ $PALG == "ngmerge" ]
 						then
 							NGmerge -1 $i.${FWD_LIB}.$k.fastq -2 $j.${RVS_LIB}.$l.fastq -m $MIN_OV -p $(echo 1 - $PTRESH | bc) -y -o - > $TMP_MERGE
 						else
 							pandaseq -f $i.${FWD_LIB}.$k.fastq -r $j.${RVS_LIB}.$l.fastq -F -A $PALG -o $MIN_OV -O $((MAXLEN+MIN_OV-MINLEN)) -t $PTRESH -T 1 2> /dev/null > $TMP_MERGE
 						fi
-						vsearch --quiet --fastq_filter $TMP_MERGE --fastq_maxns $MAXAMBIG --fastq_maxlen $MAXLEN --fastq_minlen $MINLEN --fastqout - | seqkit stats | sed '1d;s/^-/'$k' '$l'/'
+						vsearch --quiet --fastq_filter $TMP_MERGE --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastq_maxlen $MAXLEN --fastqout - | seqkit grep -srv -p "\"A{$MAXHOMOP,}\",\"C{$MAXHOMOP,}\"" | seqkit stats | sed '1d;s/^-/'$k' '$l'/'
 						rm $TMP_MERGE
 					done
 				done | sed 's/  */ /g;s/,//g' | cut -d " " -f 1-2,5,7-9 > ../quality_check/$i.$j.$LIB_NAME.pairend.eestat
