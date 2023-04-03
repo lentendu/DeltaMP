@@ -43,7 +43,7 @@ then
 	RVS_RC=$(echo -e ">rvs\n$RVS" | seqkit seq -p -t dna -v | tail -1)
 	FDIFFS=$(awk -v P=$PDIFFS -v F=${#FWD} 'BEGIN{print (int(P/F*100)+1)/100}')
 	RDIFFS=$(awk -v P=$PDIFFS -v R=${#RVS} 'BEGIN{print (int(P/R*100)+1)/100}')
-	if [ $PRIM_ANCH == "yes" ] ; then PANCH="^" ; else PANCH="" ; fi
+	if [ $PRIM_ANCH == "yes" ] ; then PANCH="X" ; else PANCH="" ; fi
 	# cutadapt
 	if [ $CLIPPING == "both" ]
 	then
