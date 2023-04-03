@@ -177,9 +177,9 @@ do
 				seqkit seq -j $NCPUS -Q $QUAL -m $MINLEN -M $MAXLEN $i.pairend.fastq | seqkit fq2fa | seqkit grep -sr -p "\"N{0,$MAXAMBIG}\"" | seqkit grep -w 0 -srv -p "\"A{$MAXHOMOP,}\",\"C{$MAXHOMOP,}\"" | awk '{if($1~"^>"){gsub(":","_",$1)};print $1}' > $i.pairend.trim.fasta
 			elif [ $QFILT == "maxee" ]
 			then
-				vsearch --quiet --fastq_filter $i.pairend.fastq.$EXT --fastq_maxee $QUAL --fastq_maxlen $MAXLEN --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastaout - | twofasta | awk '{if($1~"^>"){gsub(":","_",$1)};print $1}' > $i.pairend.trim.fasta
-				rm $i.pairend.fastq.$EXT
+				vsearch --quiet --fastq_filter $i.pairend.fastq.$EXT --fastq_maxee $QUAL --fastq_maxlen $MAXLEN --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastaout - | seqkit grep -w 0 -srv -p "\"A{$MAXHOMOP,}\",\"C{$MAXHOMOP,}\"" | awk '{if($1~"^>"){gsub(":","_",$1)};print $1}' > $i.pairend.trim.fasta
 			fi
+			rm $i.pairend.fastq
 		else
 			# Truncate and pair-end merge
 			read FWD_LIB RVS_LIB < <(grep $i $EXEC/config/lib3.list | cut -f 2-3)
@@ -196,8 +196,8 @@ do
 						TRUNCEEF=" --fastq_trunclen $FTLEN"
 						TRUNCEER=" --fastq_trunclen $RTLEN"
 					fi
-			        vsearch --quiet --fastq_filter $EXEC/libraries/fastq/$x.${FWD_LIB}.fastq.$EXT --fastq_maxns $MAXAMBIG --fastq_truncee $FEE$TRUNCEEF --fastqout $x.${FWD_LIB}.trunc.fastq
-			        vsearch --quiet --fastq_filter $EXEC/libraries/fastq/$y.${RVS_LIB}.fastq.$EXT --fastq_maxns $MAXAMBIG --fastq_truncee $REE$TRUNCEER --fastqout $y.${RVS_LIB}.trunc.fastq
+			        vsearch --quiet --fastq_filter $EXEC/libraries/fastq/$x.${FWD_LIB}.fastq.$EXT --fastq_truncee $FEE$TRUNCEEF --fastqout $x.${FWD_LIB}.trunc.fastq # --fastq_maxns $MAXAMBIG
+			        vsearch --quiet --fastq_filter $EXEC/libraries/fastq/$y.${RVS_LIB}.fastq.$EXT --fastq_truncee $REE$TRUNCEER --fastqout $y.${RVS_LIB}.trunc.fastq #  --fastq_maxns $MAXAMBIG
 					join <(sed -n '1~4{s/[\t ].*$//;p}' $x.${FWD_LIB}.trunc.fastq | sort) <(sed -n '1~4{s/[\t ].*$//;p}' $y.${RVS_LIB}.trunc.fastq | sort) | sed 's/^@//' > $x.$y.$i.trunc.accnos
 					seqkit grep -f $x.$y.$i.trunc.accnos $x.${FWD_LIB}.trunc.fastq > $x.$i.fwd.filtered.fastq
 					seqkit grep -f $x.$y.$i.trunc.accnos $y.${RVS_LIB}.trunc.fastq > $y.$i.rvs.filtered.fastq

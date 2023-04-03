@@ -74,8 +74,8 @@ then
 	fi
 	PRIMER[$FWD_NAME]=${FWD^^}
 	PRIMER[$RVS_NAME]=${RVS^^}
-	PRIMER[$FWD_NAME.rc]=`echo -e ">a\n${PRIMER[$FWD_NAME]}" | seqkit seq -p -t dna -v | tail -1`
-	PRIMER[$RVS_NAME.rc]=`echo -e ">a\n${PRIMER[$RVS_NAME]}" | seqkit seq -p -t dna -v | tail -1`
+	PRIMER[$FWD_NAME.rc]=`echo -e ">a\n${PRIMER[$FWD_NAME]}" | seqkit seq -rp -t dna -v | tail -1`
+	PRIMER[$RVS_NAME.rc]=`echo -e ">a\n${PRIMER[$RVS_NAME]}" | seqkit seq -rp -t dna -v | tail -1`
 	echo "Used primers are:"
 	cat <(echo ${!PRIMER[@]}) <(echo ${PRIMER[@]}) | column -t
 	
@@ -186,15 +186,15 @@ then
 		echo "The align version of the database $DB was not found (expected directory: $DBFOLD , expected file name: $DBALIGN.fasta)."
 	fi
 else
-	RVS_RC=$(echo -e ">a\n$RVS" | seqkit seq -p -t dna -v | tail -1)
+	RVS_RC=$(echo -e ">a\n$RVS" | seqkit seq -prv -t dna | tail -1)
 	mkdir $DBCUT.temp && cd $DBCUT.temp
 	FWD_E=$(awk -v P=$PDIFFS -v F=${#FWD} 'BEGIN{printf "%.2f",P/F+0.005}')
 	RVS_E=$(awk -v P=$PDIFFS -v F=${#RVS} 'BEGIN{printf "%.2f",P/F+0.005}')
-	# cut and avoid sequences with n's, longer than 800 nt or smaller than MINLEN,
-	cutadapt -j $NCPUS -a "${FWD};e=${FWD_E};o=${#FWD}...${RVS_RC};e=${RVS_E};o=${#RVS_RC}" --no-indels --trimmed-only -m $MINLEN -M 800 --max-n 0 ../$DB.fasta > $DBCUT.cut.fasta 2> ../log.cutadapt.$DBCUT.txt
+	# cut and avoid sequences with n's
+	cutadapt -j $NCPUS -g "${FWD};e=${FWD_E};o=$((${#FWD}-2))...${RVS_RC};e=${RVS_E};o=$((${#RVS}-2))" --no-indels --trimmed-only --max-n 0 -m $MINLEN -M 800 ../$DB.fasta > $DBCUT.cut.fasta 2> ../log.cutadapt.$DBCUT.txt
 	# clean: remove sequences with a taxonomic path with less than 3 ranks and containing the primer sequence internaly
 	PRIMER_REG=$(for i in $FWD $RVS_RC; do TMP=$(awk -v I=$i 'BEGIN{print I}') ; while read A B; do TMP=`echo $TMP | sed "s/$A/$B/g"` ; done < $BIN/IUPAC.txt ; echo $TMP ; done)
-	seqkit fx2tab $DBCUT.cut.fasta | sort -k 1,1 | join <(sort -k 1,1 $DBFOLD/$DB.taxonomy | sed 's/;$//') - | awk -F"\t" '{rank=split($2,a,";"); if(rank>=3){print ">"$1"\t"$2"\n"$3}}' | seqkit grep -svr -w 0 -p $(echo $PRIMER_REG | sed 's/ /,/g') | seqkit fx2tab | sort -k 2,2 -t $'\t' | awk '{if($2==prev){print ">"$1"\n"$3} else {print "#>"$1"\n"$3;prev=$2}}' > $DBCUT.taxo.fasth
+	seqkit fx2tab $DBCUT.cut.fasta | sort -k 1,1 | join <(sort -k 1,1 $DBFOLD/$DB.taxonomy | sed 's/;$//;s/ /_/g') - | awk '{rank=split($2,a,";"); if(rank>=3){print ">"$1"\t"$2"\n"$3}}' | seqkit grep -svr -w 0 -p $(echo $PRIMER_REG | sed 's/ /,/g') | seqkit fx2tab | sort -k 2,2 -t $'\t' | awk '{if($2==prev){print ">"$1"\n"$3} else {print "#>"$1"\n"$3;prev=$2}}' > $DBCUT.taxo.fasth
 	# For each taxonomic path with more than a sequence, dereplicate and keep only the seed
 	clust() {
 		cat /dev/stdin | parallel --recstart "#" --remove-rec-sep --pipe -N1 "cat | vsearch --derep_fulllength - --sizeout --quiet --output seed.$1.{#}" 
