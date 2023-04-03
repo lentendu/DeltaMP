@@ -37,8 +37,9 @@ cd processing
 # Merge all sample's fasta and count files (removing gaps if any)
 if [ $ASV == "no" ]
 then
-	parallel -j $NCPUS -k 'FASTA=$(sed -n "/^fasta=/{s/.*=//;p}" {}/current_files.summary); sed "/>/!s/[-\.]//g" {}/$FASTA' ::: $SAMP_NAME > $SUBPROJECT.fasta
-	parallel -j $NCPUS -k 'COUNT=$(sed -n "/^count=/{s/.*=//;p}" {}/current_files.summary); sed "1d;s/$/\t{}/" {}/$COUNT' ::: $SAMP_NAME > $SUBPROJECT.groups
+	export EXT DECOMP SAMP_NAME BIN
+	parallel -j $NCPUS -k 'FASTA=$(sed -n "/^fasta=/{s/.*=//;p}" {}/current_files.summary); eval $DECOMP {}/$FASTA.$EXT | sed "/>/!s/[-\.]//g"' ::: $SAMP_NAME > $SUBPROJECT.fasta
+	parallel -j $NCPUS -k 'COUNT=$(sed -n "/^count=/{s/.*=//;p}" {}/current_files.summary); eval $DECOMP {}/$COUNT.$EXT | sed "1d;s/$/\t{}/"' ::: $SAMP_NAME > $SUBPROJECT.groups
 	
 	# If denoised 454 reads, no ITSx extraction and reverse primer not removed, chop to the same length
 	if [ "$DENOISE" == "yes" ] && [ $ITSX == "no" ] && [ $CLIPPING != "both" ]
@@ -172,6 +173,7 @@ then
 	then
 		# pseudo-pool approach
 		Rscript --vanilla $BIN/Rscript_dada2_all_libraries.R $NCPUS $SUBPROJECT $FWD_NAME $RVS_NAME $MIN_OV $PTRESH $MINLEN
+		find ./ -type f -name "*.index" | parallel eval $COMP
 	elif [ $PERRUN == "yes" ]
 	then
 		# finalise pooled approach
@@ -185,11 +187,11 @@ then
 		i=$1
 		for j in $i/*fwd.filtered.derep
 		do
-			sed -n '1~4{s/^@//;s/ .*//;p}' ${j%.*}.fastq | nl -n ln | sort -k 1,1 | join -o 2.2,1.2 - <(sort -k 2,2 ${j%.*}.asv.index | join -1 2 -o 1.1,0 - <(grep "^>" $FASTA_OTUS.fasta | sed 's/>//' | sort) | sort -k 1,1)
+			eval $DECOMP ${j%.*}.fastq | sed -n '1~4{s/^@//;s/ .*//;p}' | nl -n ln | sort -k 1,1 | join -o 2.2,1.2 - <(eval $DECOMP ${j%.*}.asv.index.$EXT | sort -k 2,2 | join -1 2 -o 1.1,0 - <(grep "^>" $FASTA_OTUS.fasta | sed 's/>//' | sort) | sort -k 1,1)
 		done
 	}
 	export -f match_index
-	export FASTA_OTUS
+	export FASTA_OTUS DECOMP EXT
 	parallel -j $NCPUS match_index ::: $SAMP_NAME | sort --parallel=$NCPUS -k 1,1 | awk '{if(NR==1){p=$1;print p"\t"$2} else {if($1==p){print ","$2} else {p=$1;print p"\t"$2}}}' | perl -0pe 's/\n,/,/g' > ${NAMES_OTUS}.names
 fi
 

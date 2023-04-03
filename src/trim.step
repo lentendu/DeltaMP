@@ -162,13 +162,13 @@ do
 			then
 				if [ -f $EXEC/libraries/fastq/$RVS_NAME.$FWD_NAME.$i.pairend.fastq.$EXT ]
 				then
-					vsearch --quiet --fastx_revcomp $EXEC/libraries/fastq/$RVS_NAME.$FWD_NAME.$i.pairend.fastq.$EXT --fastqout - | cat <(eval $DECOMP $EXEC/libraries/fastq/$FWD_NAME.$RVS_NAME.$i.pairend.fastq.$EXT) - | eval $COMP > $i.pairend.fastq.$EXT
+					vsearch --quiet --fastx_revcomp $EXEC/libraries/fastq/$RVS_NAME.$FWD_NAME.$i.pairend.fastq.$EXT --fastqout - | cat <(eval $DECOMP $EXEC/libraries/fastq/$FWD_NAME.$RVS_NAME.$i.pairend.fastq.$EXT) - > $i.pairend.fastq
 				else
-					ln -s $EXEC/libraries/fastq/$FWD_NAME.$RVS_NAME.$i.pairend.fastq.$EXT $PWD/$i.pairend.fastq.$EXT
+					eval $DECOMP $EXEC/libraries/fastq/$FWD_NAME.$RVS_NAME.$i.pairend.fastq.$EXT > $i.pairend.fastq
 				fi
 			elif [ -f $EXEC/libraries/fastq/$RVS_NAME.$FWD_NAME.$i.pairend.fastq.$EXT ]
 			then
-				vsearch --quiet --fastx_revcomp $EXEC/libraries/fastq/$RVS_NAME.$FWD_NAME.$i.pairend.fastq.$EXT --fastqout - | eval $COMP > $i.pairend.fastq.$EXT
+				vsearch --quiet --fastx_revcomp $EXEC/libraries/fastq/$RVS_NAME.$FWD_NAME.$i.pairend.fastq.$EXT --fastqout - > $i.pairend.fastq
 			fi
 			# Quality filtering
 			QUAL=`cat $EXEC/quality_check/optimized.quality.txt`
@@ -236,8 +236,16 @@ do
 					vsearch --fastx_revcomp $RVS_NAME.$FWD_NAME.$i.pairend.fastq --fastqout - | vsearch --quiet --fastq_filter - --fastq_maxns $MAXAMBIG --fastq_maxlen $MAXLEN --fastq_minlen $MINLEN --fastaout - | twofasta | awk '{if($1~"^>"){gsub(":","_",$1)};print $1}' > $i.pairend.trim.fasta
 					rm $RVS_NAME.$FWD_NAME.$i.pairend.fastq
 				fi
+				# clean filtered
+				rm *.$i.*.filtered.fastq
 			else
 				Rscript --vanilla $BIN/Rscript_dada2_library.R $NCPUS $i $PERRUN
+				if [ $PERRUN == "no" ]
+				then
+					eval $COMP *.$i.*.asv.fasta
+				fi
+				# compress filtered
+				eval $COMP *.$i.*.filtered.fastq
 			fi
 		fi
 	fi
@@ -361,6 +369,11 @@ then
 		COUNT=$COUNT.ok
 		echo -e "fasta=$FASTA.fasta\ncount=$COUNT.count_table" > current_files.summary
 	fi
+	# clean intermediate files and compress
+	eval $COMP $FASTA.fasta
+	eval $COMP $COUNT.count_table
+	rm $(ls *fasta | grep -v $FASTA.fasta)
+	rm $(ls *count_table | grep -v $COUNT.count_table)
 fi
 
 # list files and directories

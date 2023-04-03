@@ -600,11 +600,11 @@ fi
 if [ $EXT == "gz" ]
 then
 	DECOMP="unpigz -p \$NCPUS -b 1024 -ck"
-	COMP="pigz -p \$NCPUS -b 1024"
+	COMP="pigz -p \$NCPUS -b 1024 -f"
 elif [ $EXT == "bz2" ]
 then
 	DECOMP="bunzip2 -ck"
-	COMP=bzip2
+	COMP="bzip2 -f"
 fi
 
 # Libraries and samples lists

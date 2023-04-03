@@ -39,6 +39,9 @@ do
 	fi
 done
 
+# compress outputs
+find ./ -type f -name "*.index" | parallel eval $COMP
+
 # list files and directories
 (. $BIN/list_step_files.sh)
 
