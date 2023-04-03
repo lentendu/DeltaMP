@@ -32,7 +32,7 @@ cd processing
 for i in ${FWD_NAME} ${RVS_NAME}
 do
 	if [ $i == "$FWD_NAME" ] ; then j=${RVS_NAME} ; comb=FR ; else j=${FWD_NAME} ; comb=RF ; fi
-	if [ ! -z "$(find ./ -type f -name $i.*.$LIBNAME.fwd.filtered.fastq)" ]
+	if [ ! -z "$(find ./ -type f -name $i.*.$LIBNAME.fwd.filtered.derep)" ]
 	then
 		echo "Orientation: $i in R1 and $j in R2"
 		Rscript --vanilla $BIN/Rscript_dada2_single_run.R $NCPUS $LIBNAME $i $j $comb $MIN_OV $PTRESH ${PREV_PATH##*/}

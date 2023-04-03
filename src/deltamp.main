@@ -314,11 +314,15 @@ then
 		fi
 		if [ $TRUNCLEN == "no" ]
 		then
-			error_doc "dada2 require length truncation, provide a length to the parameter: Minimum length truncation of unpaired reads "
+			error_doc "dada2 require length truncation, provide a length to the parameter: 'Minimum length truncation of unpaired reads' "
 		elif [ $ASSIGN_ALL == "yes" ]
 		then
-			error_doc "cannot assign all reads with dada2, only ASV are available for assignment, turn the Assign all reads option to no or change clustering algorithm "
+			error_doc "cannot assign all reads with dada2, only ASV are available for assignment, turn the 'Assign all reads' option to no or change clustering algorithm "
 		fi
+	fi
+	if ([ $CLUST == "dada2" ] || [ $CLUST == "swarm" ]) && [ $MAXAMBIG -gt 0 ]
+	then
+		error_doc "$CLUST cannot process reads with ambiguous bases, so set 'Maximum number of ambiguities allowed in the sequence' to 0 "
 	fi
 	if [ $QFILT == "average" ] && [ $TRUNCLEN != "no" ]
 	then
@@ -330,7 +334,7 @@ then
 	fi
 	if [ $TRUNCLEN == "no" ] && [ $MAXTRUNCLEN != "no" ]
 	then
-		error_doc "first set a Minimum length truncation of unpaired reads to be able to use the Maximum length truncation of unpaired reads option"
+		error_doc "first set a 'Minimum length truncation of unpaired reads' to be able to use the 'Maximum length truncation of unpaired reads' option "
 	fi
 fi
 

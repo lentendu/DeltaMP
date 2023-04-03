@@ -54,6 +54,6 @@ do
 	fi
 done < <(sort $REF_SUBPROJECT/config/$LAST_REF.files | uniq)
 
-ln -s $EXEC_PATH/$SUBPROJECT/config/configuration.$SUBPROJECT.tsv $EXEC_PATH/$SUBPROJECT/archives/$SUBPROJECT.outputs
+ln -fs $EXEC_PATH/$SUBPROJECT/config/configuration.$SUBPROJECT.tsv $EXEC_PATH/$SUBPROJECT/archives/$SUBPROJECT.outputs
 
 echo END
