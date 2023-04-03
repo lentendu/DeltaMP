@@ -86,7 +86,7 @@ if (length(seqtab_pairs)>1) {
 seqtab_ok<-seqtab[,nchar(colnames(seqtab))>=minlen]
 
 # Remove chimeras
-seqtab_clean<-removeBimeraDenovo(seqtab_ok, method="pooled", multithread=ncores)
+seqtab_clean<-removeBimeraDenovo(seqtab_ok, method="consensus", multithread=ncores)
 
 # percent of ASV and reads removed
 nbbim<-ncol(seqtab)-ncol(seqtab_clean)
