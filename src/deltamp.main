@@ -744,7 +744,7 @@ if [ $CHECKP == "yes" ]
 then
 	if [ $REF_SUBPROJECT == "no" ]
 	then
-		PREV_LIST=(`ls -dtr $PROJECT\_$TECH\_$TARG\_* | grep -v $SUBPROJECT`) # oldest first
+		PREV_LIST=(`ls -dtr $PROJECT\_$TECH\_$TARG\_*/config | grep -v $SUBPROJECT | sed 's@/.*@@'`) # oldest first
 	else
 		PREV_LIST=$REF_SUBPROJECT
 	fi
@@ -763,7 +763,7 @@ then
 				PREV_EXEC[$i]=0
 			fi
 			# which environmental variable(s) differ between the two SUBPROJECTs
-			TMP_DIF[$i]=$(comm -13 <(sort $i/config/env.txt) <(sort $SUBPROJECT/config/env.txt) | grep -v "$HASH\|TIME\|CLEAN\|REF_SUBPROJECT\|CITATION\|VERSION\|ARGUMENTS\|DRY\|CHIMERA " | awk '{print $1}' | tr "\n" "#" |  sed 's/#$//')
+			TMP_DIF[$i]=$(join -t $'\t' -a 1 -a 2 <(sort -k 1,1 $i/config/env.txt | sed 's/ /\t/') <(sort -k 1,1 $SUBPROJECT/config/env.txt | sed 's/ /\t/') | grep -v "$HASH\|TIME\|CLEAN\|REF_SUBPROJECT\|CITATION\|VERSION\|ARGUMENTS\|DRY\|CHIMERA\|NBRUN " | awk -F'\t' '$2!=$3{printf "%s#",$1}' | sed 's/#$//')
 			BAR_DIF[$i]=$(comm -3 <(sort $i/config/barcodes.txt) <(sort $SUBPROJECT/config/barcodes.txt) | head -1 | tr "\t" "#")
 			if [ -z "${TMP_DIF[$i]}" ] && [ -z "${BAR_DIF[$i]}" ]
 			then
@@ -776,7 +776,7 @@ then
 			fi
 			# in which step script(s) of the new SUBPROJECT are the differing variable(s) found first
 			unset MATCH_STEP
-			MATCH_STEP=$(for j in $(sed 's/^.* //;s/)$//' $SUBPROJECT/config/steps); do TMP=$(grep -o -m 1 $(echo ${TMP_DIF[$i]} | sed 's/#/[^A-Z_]\\\|$/g;s/^/$/;s/$/[^A-Z_]/') $j) ; if [ ! -z "$TMP" ]; then basename $j | sed 's/\.sh//' && break ; fi ; done)
+			MATCH_STEP=$(for j in $(sed 's/^.* //;s/)$//' $SUBPROJECT/config/steps); do TMP=$(for VAR in $(echo ${TMP_DIF[$i]} | tr "#" " "); do REG="\\\$$VAR\$\\|\\\$$VAR[^A-Z_]" ; grep -m 1 -o "$REG" $j ; done) ; if [ ! -z "$TMP" ]; then basename $j | sed 's/\.sh//' && break ; fi ; done)
 			if [ -z $MATCH_STEP ]
 			then
 				if [ ${TMP_DIF[$i]} == "QUAL_ONLY" ]
@@ -810,9 +810,9 @@ then
 			# the steps to be queued are updated accordingly: start with init, jump till FIRST_STEP (or cut_db) and make it dependent on init step completion
 			if [ -z "$ADD_CUT_DB" ]
 			then
-				sed "2,/^${FIRST_STEP}_jobid=/s/^/#/;/^#${FIRST_STEP}_jobid=/s/^#//;/^${FIRST_STEP}_jobid=/s/QUEUE_HOLD[^ ]* /QUEUE_HOLD\${init_jobid} /" $SUBPROJECT/config/steps > $SUBPROJECT/config/steps.final
+				sed "2,/${FIRST_STEP}\.sh)$/s/^/#/;/${FIRST_STEP}\.sh)$/s/^#//;/${FIRST_STEP}\.sh)$/s/QUEUE_HOLD[^ ]* /QUEUE_HOLD\${init_jobid} /" $SUBPROJECT/config/steps > $SUBPROJECT/config/steps.final
 			else
-				sed "2,/^${FIRST_STEP}_jobid=/s/^/#/;/^#cut_db_jobid=/{s/^#//;s/ \([^ ]*\)$/ QUEUE_HOLD\${init_jobid} \1/};/^#${FIRST_STEP}_jobid=/{s/^#//;s/QUEUE_HOLD[^ ]* /QUEUE_HOLD\${cut_db_jobid} /}" $SUBPROJECT/config/steps > $SUBPROJECT/config/steps.final
+				sed "2,/${FIRST_STEP}\.sh)$/s/^/#/;/^#cut_db_jobid=/{s/^#//;s/ \([^ ]*\)$/ QUEUE_HOLD\${init_jobid} \1/};/${FIRST_STEP}\.sh)$/{s/^#//;s/QUEUE_HOLD[^ ]* /QUEUE_HOLD\${cut_db_jobid} /}" $SUBPROJECT/config/steps > $SUBPROJECT/config/steps.final
 			fi
 			# hold on previous subproject last step if still in the queue
 			LAST_REF_JOBID=$(grep ${DELTAMP_VER}.${LAST_REF}.${REF_SUBPROJECT} $EXEC_PATH/$REF_SUBPROJECT/config/jobid | awk '{print $1}')
@@ -852,6 +852,7 @@ while read reg
 do
 	sed 's/QUEUE_SEP${'$reg'[^}]*}//' config/steps.final > config/steps.final.tmp && mv config/steps.final.tmp config/steps.final
 done < <(sed -n '/^#/!{s/^.*QUEUE_HOLD\([^ ]*\).*$/\1/p;s/^.*QUEUE_HARRAY\([^ ]*\).*$/\1/p}' config/steps.final | sed 's/QUEUE_SEP/\n/' | sed 's/^[^a-z]*\([a-z_]*\)[^a-z]*$/\1/' | sed '/^$/d' | sort -u | join -v 1 - <(sed -n '/^#/!s/=.*$//p' config/steps.final | sort))
+QUEUE_HANG=$(echo QUEUE_HOLD | sed 's/QUEUE_SEP$//') && QUEUE_AHANG=$(echo QUEUE_HARRAY | sed 's/QUEUE_SEP$//') && sed 's/ '"$QUEUE_HANG"' / /;s/ '"$QUEUE_AHANG"' / /' config/steps.final > config/steps.final.tmp && mv config/steps.final.tmp config/steps.final
 
 # Add account/project name to queuing commands
 if [ ! -z $DELTAMP_ACCOUNT ]
@@ -870,7 +871,7 @@ then
 		ALL_PREV=(`head -1 $REF_SUBPROJECT/config/tree.summary | cut -f 2- | paste - <(echo $SUBPROJECT)`)
 		cat <(paste <(sed '/^Parameters$/,$d' $REF_SUBPROJECT/config/tree.summary) <(cat <(echo $SUBPROJECT) <(cut -f 2 $SUBPROJECT/config/steps.summary))) <(echo Parameters) <(paste <(echo $PARAM | tr " " "\n") <(for i in "${ALL_PREV[@]}"; do grep "$(echo $PARAM | sed 's/^/\^/;s/ /[ \t]\\\|\^/g;s/$/[ \t]/')" $i/config/env.txt | cut -d " " -f 2 | tr "\n" "\t" | sed 's/\t$/\n/' ; done | transpose_tab)) > $SUBPROJECT/config/tree.summary
 	else
-		cat <(echo -e "Steps\t$REF_SUBPROJECT\t$SUBPROJECT") <(paste $REF_SUBPROJECT/config/steps.summary <(cut -f 2 $SUBPROJECT/config/steps.summary)) <(echo Parameters) <(join <(grep "$(echo ${TMP_DIF[$REF_SUBPROJECT]} | sed 's/^/\^/;s/#/[ \t]\\\|\^/g;s/$/[ \t]/')" $REF_SUBPROJECT/config/env.txt | sort) <(grep "$(echo ${TMP_DIF[$REF_SUBPROJECT]} | sed 's/^/\^/;s/#/[ \t]\\\|\^/g;s/$/[ \t]/')" $SUBPROJECT/config/env.txt | sort) | tr " " "\t") > $SUBPROJECT/config/tree.summary
+		cat <(echo -e "Steps\t$REF_SUBPROJECT\t$SUBPROJECT") <(paste $REF_SUBPROJECT/config/steps.summary <(cut -f 2 $SUBPROJECT/config/steps.summary)) <(echo Parameters) <(join -a 1 -a 2 -o 0,1.2,2.2 -e "NA" <(grep "$(echo ${TMP_DIF[$REF_SUBPROJECT]} | sed 's/^/\^/;s/#/[ \t]\\\|\^/g;s/$/[ \t]/')" $REF_SUBPROJECT/config/env.txt | sort -k 1,1) <(grep "$(echo ${TMP_DIF[$REF_SUBPROJECT]} | sed 's/^/\^/;s/#/[ \t]\\\|\^/g;s/$/[ \t]/')" $SUBPROJECT/config/env.txt | sort -k 1,1) | tr " " "\t") > $SUBPROJECT/config/tree.summary
 	fi
 fi
 
@@ -904,7 +905,7 @@ then
 		echo "deltamp execution will begin with ${ADD_CUT_DB}${FIRST_STEP} step."
 		echo ""
 		echo "The following parameters differ between both SUBPROJECTs:"
-		diff --suppress-common-lines -y <(sort $SUBPROJECT/config/env.txt | grep -v "${SUBPROJECT##*_}\|START\|CITATION\|VERSION\|ARGUMENTS\|CHIMERA[12]") <(sort $REF_SUBPROJECT/config/env.txt | grep -v "${REF_SUBPROJECT##*_}\|START\|CITATION\|VERSION\|ARGUMENTS\|CHIMERA[12]") | awk '{print $1"\t"$2"\t"$5}' | cat <(echo -e "Parameter\tCurrent SUBPROJECT\tPrevious SUBPROJECT") - > $SUBPROJECT/config/prev.diff.txt
+		join -a 1 -a 2 -o 0,1.2,2.2 -e "NA" <(sort -k 1,1 $SUBPROJECT/config/env.txt | grep -v "${SUBPROJECT##*_}\|START\|CITATION\|VERSION\|ARGUMENTS\|CHIMERA[12]\|NBRUN") <(sort -k 1,1 $REF_SUBPROJECT/config/env.txt | grep -v "${REF_SUBPROJECT##*_}\|START\|CITATION\|VERSION\|ARGUMENTS\|CHIMERA[12]\|NBRUN") | awk '$2!=$3{print $1"\t"$2"\t"$3}' | cat <(echo -e "Parameter\tCurrent SUBPROJECT\tPrevious SUBPROJECT") - > $SUBPROJECT/config/prev.diff.txt
 		column -t -s $'\t' $SUBPROJECT/config/prev.diff.txt
 		echo ""
 	fi
