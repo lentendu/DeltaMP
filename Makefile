@@ -1,6 +1,7 @@
 # object variables
 version := 0.5
 SHELL := /bin/bash
+commit := $(shell git log -1 --pretty=format:%h)
 batch := $(shell grep BATCH_QUEUE config.txt | cut -f 2)
 modulefiles := $(shell grep MODULEFILES_DIR config.txt | cut -f 2)
 module := $(shell grep MODULE_NAME config.txt | cut -f 2)
@@ -32,7 +33,7 @@ all: $(deltamp) $(module) $(steps) $(batch_spec) $(test_config)
 # rule to build deltamp, pipeline_master, restart_from_step, delete_subproject and check_previous_step
 $(deltamp): bin/% : %.main | lib/$(batch)/option_variables
 	SEDMAIN=$$(sed 's/^/s\//;s/\t/\//;s/$$/\/g/' $| |  tr "\n" ";" | sed 's/^/sed "/;s/;$$/"/'); \
-	eval $$SEDMAIN $< | sed 's#^\(VERSION\[DELTAMP\]=\)$$#\1$(version)#;s#^\(DELTAMP_BUILD=\)$$#\1$(CURDIR)#' > $@ && chmod +x $@
+	eval $$SEDMAIN $< | sed 's#^\(VERSION\[DELTAMP\]=\)$$#\1$(version)#;s#^\(DELTAMP_BUILD=\)$$#\1$(CURDIR)#;s#^\(DELTAMP_COMMIT=\)$$#\1$(commit)#' > $@ && chmod +x $@
 
 # rule to build the module file of the current version
 $(module): src/deltamp.module | $(modulefiles)

@@ -109,6 +109,7 @@ declare -A VERSION
 VERSION[DELTAMP]=
 DELTAMP_BUILD=
 DELTAMP_VER=deltamp${VERSION[DELTAMP]//./}
+DELTAMP_COMMIT=
 BIN=$DELTAMP_BUILD/bin
 eval $(sed -n '/^BATCH_QUE/{s/\t/=/;p}' $DELTAMP_BUILD/config.txt)
 
