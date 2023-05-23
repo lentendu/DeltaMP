@@ -236,6 +236,10 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Minimum overlap__: a number between 0 and ∞ provided to the --fastq_minovlen option of vsearch or the -o option of pandaseq. The default is 10.
 
++ __Keep unmerged__: “yes” or “no”. Wether to keep high-quality reads which cannot be pair-end assembled alongside with paired reads for further processing or not. A padding sequence of "NNNNN" is added between the unpaired reads. The default is "no".
+
++ __Avoid pair-end__: “yes” or “no”. In case of low quality reads or too long target fragment, the pair-end assembly procedure is skipped and paired sequences are simply joined with a padding sequence of "NNNNN". Use this option as a last resort in case all other parameter tunning did not provide suitable results. The default is "no".
+
 
 ### TRIMMING section
 + __Denoising__: *454 specific parameter*, "yes" or "no", whether to perform 454 flowgram denoising using FlowClus or nothing. The default is "no".

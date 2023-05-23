@@ -186,8 +186,12 @@ do
 			for x in ${FWD_NAME} ${RVS_NAME}
 			do
 				if [ $x == "$FWD_NAME" ] ; then y=${RVS_NAME} ; else y=${FWD_NAME} ; fi
-				if [ -f $EXEC/libraries/fastq/$x.$y.$i.pairend.fastq.$EXT ]
+				if [ -f $EXEC/libraries/fastq/$x.$y.$i.pairend.fastq.$EXT ] || [ -f $EXEC/libraries/fastq/$x.${FWD_LIB}.noN.fastq.$EXT ]
 				then
+					if [ $UNPAIR == "yes" ]
+					then
+						ADD=".noN"
+					fi
 					if [ $TRUNCLEN == "no" ]
 					then
 						read FEE REE < <(paste $EXEC/quality_check/$x.fwd.optimized.quality.txt $EXEC/quality_check/$y.rvs.optimized.quality.txt)
@@ -196,15 +200,18 @@ do
 						TRUNCEEF=" --fastq_trunclen $FTLEN"
 						TRUNCEER=" --fastq_trunclen $RTLEN"
 					fi
-			        vsearch --quiet --fastq_filter $EXEC/libraries/fastq/$x.${FWD_LIB}.fastq.$EXT --fastq_truncee $FEE$TRUNCEEF --fastqout $x.${FWD_LIB}.trunc.fastq # --fastq_maxns $MAXAMBIG
-			        vsearch --quiet --fastq_filter $EXEC/libraries/fastq/$y.${RVS_LIB}.fastq.$EXT --fastq_truncee $REE$TRUNCEER --fastqout $y.${RVS_LIB}.trunc.fastq #  --fastq_maxns $MAXAMBIG
+			        vsearch --quiet --fastq_filter $EXEC/libraries/fastq/$x.${FWD_LIB}$ADD.fastq.$EXT --fastq_truncee $FEE$TRUNCEEF --fastqout $x.${FWD_LIB}.trunc.fastq # --fastq_maxns $MAXAMBIG
+			        vsearch --quiet --fastq_filter $EXEC/libraries/fastq/$y.${RVS_LIB}$ADD.fastq.$EXT --fastq_truncee $REE$TRUNCEER --fastqout $y.${RVS_LIB}.trunc.fastq #  --fastq_maxns $MAXAMBIG
 					join <(sed -n '1~4{s/[\t ].*$//;p}' $x.${FWD_LIB}.trunc.fastq | sort) <(sed -n '1~4{s/[\t ].*$//;p}' $y.${RVS_LIB}.trunc.fastq | sort) | sed 's/^@//' > $x.$y.$i.trunc.accnos
 					seqkit grep -f $x.$y.$i.trunc.accnos $x.${FWD_LIB}.trunc.fastq > $x.$i.fwd.filtered.fastq
 					seqkit grep -f $x.$y.$i.trunc.accnos $y.${RVS_LIB}.trunc.fastq > $y.$i.rvs.filtered.fastq
 					rm $x.${FWD_LIB}.trunc.fastq $y.${RVS_LIB}.trunc.fastq $x.$y.$i.trunc.accnos
 					if [ $ASV == "no" ]
 					then
-						if [ $PALG == "vsearch" ]
+						if [ $UNPAIR == "yes" ]
+						then
+							vsearch --quiet --fastq_join $x.$i.fwd.filtered.fastq --reverse $y.$i.rvs.filtered.fastq --join_padgap NNNNN --fastqout $x.$y.$i.join.fastq 2> log.join.$x.$i.txt
+						elif [ $PALG == "vsearch" ]
 						then
 							ASCII=$(vsearch --fastq_chars $x.$i.fwd.filtered.fastq 2>&1 | grep -m 1 "^Guess" | sed 's/.* //')
 							PCTTRESH=$(awk -v P=$PTRESH 'BEGIN{print (1-P)*100}')
@@ -216,25 +223,36 @@ do
 							pandaseq -f $x.$i.fwd.filtered.fastq -r $y.$i.rvs.filtered.fastq -g log.pairend.$x.$i.txt -F -A $PALG -o $MIN_OV -O $((MAXLEN+MIN_OV-MINLEN)) -t $PTRESH -T $NCPUS > $x.$y.$i.pairend.fastq
 						fi
 					fi
+				unset ADD
 				fi
 			done
 			# Concatenate both direction or start pseudo-pooling approach for dada2
 			if [ $ASV == "no" ]
 			then
-				if [ -s $FWD_NAME.$RVS_NAME.$i.pairend.fastq ]
+				if [ $UNPAIR == "no" ]
 				then
-					if [ -s $RVS_NAME.$FWD_NAME.$i.pairend.fastq ]
+					PAIRSUF=pairend
+				else
+					PAIRSUF=join
+					MAXAMBIG=5 # for the padding N sequence
+					MINLEN=$(awk -v F=$(awk -v m=$MINLEN '{if($1<m){m=$1}}END{print m}' $EXEC/quality_check/*.fwd.optimized.quality.txt) -v R=$(awk -v m=$MINLEN '{if($1<m){m=$1}}END{print m}' $EXEC/quality_check/*.rvs.optimized.quality.txt) -v A=$MAXAMBIG 'BEGIN{print F+R+A}')
+					# smallest unpaired length
+
+				fi
+				if [ -s $FWD_NAME.$RVS_NAME.$i.$PAIRSUF.fastq ]
+				then
+					if [ -s $RVS_NAME.$FWD_NAME.$i.$PAIRSUF.fastq ]
 					then
-						vsearch --fastx_revcomp $RVS_NAME.$FWD_NAME.$i.pairend.fastq --fastqout - | cat $FWD_NAME.$RVS_NAME.$i.pairend.fastq - | vsearch --quiet --fastq_filter - --fastq_maxns $MAXAMBIG --fastq_maxlen $MAXLEN --fastq_minlen $MINLEN --fastaout - | twofasta | sed '/>/{s/:/_/;s/[ \t].*$//;}' > $i.pairend.trim.fasta
-						rm $RVS_NAME.$FWD_NAME.$i.pairend.fastq $FWD_NAME.$RVS_NAME.$i.pairend.fastq
+						vsearch --fastx_revcomp $RVS_NAME.$FWD_NAME.$i.$PAIRSUF.fastq --fastqout - | cat $FWD_NAME.$RVS_NAME.$i.$PAIRSUF.fastq - | vsearch --quiet --fastq_filter - --fastq_maxns $MAXAMBIG --fastq_maxlen $MAXLEN --fastq_minlen $MINLEN --fastaout - | seqkit grep -w 0 -srv -p "\"A{$MAXHOMOP,}\",\"C{$MAXHOMOP,}\"" | sed '/>/{s/:/_/;s/[ \t].*$//;}' > $i.$PAIRSUF.trim.fasta
+						rm $RVS_NAME.$FWD_NAME.$i.$PAIRSUF.fastq $FWD_NAME.$RVS_NAME.$i.$PAIRSUF.fastq
 					else
-						vsearch --quiet --fastq_filter $FWD_NAME.$RVS_NAME.$i.pairend.fastq --fastq_maxns $MAXAMBIG --fastq_maxlen $MAXLEN --fastq_minlen $MINLEN --fastaout - | twofasta | sed '/>/{s/:/_/;s/[ \t].*$//;}' > $i.pairend.trim.fasta
-						rm $FWD_NAME.$RVS_NAME.$i.pairend.fastq
+						vsearch --quiet --fastq_filter $FWD_NAME.$RVS_NAME.$i.$PAIRSUF.fastq --fastq_maxns $MAXAMBIG --fastq_maxlen $MAXLEN --fastq_minlen $MINLEN --fastaout - | seqkit grep -w 0 -srv -p "\"A{$MAXHOMOP,}\",\"C{$MAXHOMOP,}\"" | sed '/>/{s/:/_/;s/[ \t].*$//;}' > $i.$PAIRSUF.trim.fasta
+						rm $FWD_NAME.$RVS_NAME.$i.$PAIRSUF.fastq
 					fi
-				elif [ -s $RVS_NAME.$FWD_NAME.$i.pairend.fastq ]
+				elif [ -s $RVS_NAME.$FWD_NAME.$i.$PAIRSUF.fastq ]
 				then
-					vsearch --fastx_revcomp $RVS_NAME.$FWD_NAME.$i.pairend.fastq --fastqout - | vsearch --quiet --fastq_filter - --fastq_maxns $MAXAMBIG --fastq_maxlen $MAXLEN --fastq_minlen $MINLEN --fastaout - | twofasta | awk '{if($1~"^>"){gsub(":","_",$1)};print $1}' > $i.pairend.trim.fasta
-					rm $RVS_NAME.$FWD_NAME.$i.pairend.fastq
+					vsearch --fastx_revcomp $RVS_NAME.$FWD_NAME.$i.$PAIRSUF.fastq --fastqout - | vsearch --quiet --fastq_filter - --fastq_maxns $MAXAMBIG --fastq_maxlen $MAXLEN --fastq_minlen $MINLEN --fastaout - | seqkit grep -w 0 -srv -p "\"A{$MAXHOMOP,}\",\"C{$MAXHOMOP,}\"" | awk '{if($1~"^>"){gsub(":","_",$1)};print $1}' > $i.$PAIRSUF.trim.fasta
+					rm $RVS_NAME.$FWD_NAME.$i.$PAIRSUF.fastq
 				fi
 				# clean filtered
 				rm *.$i.*.filtered.fastq
@@ -355,7 +373,7 @@ then
 	then
 		if [ $TECH == "454" ] || [ $(sed -n '$=' $COUNT.count_table) -lt 20000 ]
 		then
-			twofasta $FASTA.fasta | awk '{print $1}' | paste - - | sed 's/^>//' | sort -k 1,1 | join - <(sort -k 1,1 $COUNT.count_table) | awk '{print ">"$1";size="$3"\n"$2}' | vsearch --no_progress --uchime_denovo - --nonchimeras - --xsize | twofasta > $FASTA.ok.fasta
+			twofasta $FASTA.fasta | awk '{print $1}' | paste - - | sed 's/^>//' | sort -k 1,1 | join - <(sort -k 1,1 $COUNT.count_table) | awk '{print ">"$1";size="$3"\n"$2}' | vsearch --no_progress --uchime_denovo - --nonchimeras - --xsize --qmask none | twofasta > $FASTA.ok.fasta
 		else
 			. $BIN/parallel_uchime.sh
 		fi

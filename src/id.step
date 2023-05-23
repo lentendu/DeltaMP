@@ -51,6 +51,14 @@ else
 	TEMPLATE=$DBCUT
 	IDDEF=1 # no end gap allowed
 fi
+if [ $UNPAIR == "yes" ]
+then
+	IDDEF=0 # similarity only based on matching columns, ignoring all gaps (end and internal, due to missing pair-end)
+	if [ $ASSIGN_ALL == "yes" ] ; then PREF=${FASTA} ; else PREF=${FASTA_OTUS} ; fi
+	sed '/^>/!s/NNNNNN*//' $PREF.fasta > $PREF.noN.fasta
+	ADD=".noN"
+	QCOV=" --query_cov 0.9" # fix a high query coverage to avoid too much internal gaps and wrong identification
+fi
 
 # incorporate additional sequences if provided
 if [ $DBADD != "no" ]
@@ -64,15 +72,22 @@ then
 	# control absence of duplicate identifiers : not for the moment
 	# control primer presence in new sequences : not for the moment
 	# merge fasta and taxonomy
-	cat $DBADD.fasta $DBFOLD/$TEMPLATE.fasta > ${OUT%/*}/$(basename $DBADD)_plus_$TEMPLATE.fasta
-	cat $DBADD.taxonomy $DBFOLD/$TEMPLATE.taxonomy > ${OUT%/*}/$(basename $DBADD)_plus_$TEMPLATE.taxonomy
+	if [ ! -f ${OUT%/*}/$(basename $DBADD)_plus_$TEMPLATE.fasta ]
+	then
+		cat $DBADD.fasta $DBFOLD/$TEMPLATE.fasta > ${OUT%/*}/$(basename $DBADD)_plus_$TEMPLATE.fasta
+		cat $DBADD.taxonomy $DBFOLD/$TEMPLATE.taxonomy > ${OUT%/*}/$(basename $DBADD)_plus_$TEMPLATE.taxonomy
+	fi
 	DBFOLD=${OUT%/*}
 	TEMPLATE=$(basename $DBADD)_plus_$TEMPLATE
 	if [ $CLASSIF == "vsearch" ]
 	then
-		sed '$!N;/>/s/\n/ /;s/>//' $DBFOLD/$TEMPLATE.fasta | sort -k 1,1 | join - <(sort -k 1,1 $DBFOLD/$TEMPLATE.taxonomy) | sed 's/;$//;s/;/,/g' | awk '{print ">"$1";tax="$3";\n"$2}' > $DBFOLD/vsearch.$TEMPLATE.fasta
+		seqkit seq -w 0 $DBFOLD/$TEMPLATE.fasta | sed '$!N;/>/s/\n/ /;s/>//' | sort -k 1,1 | join - <(sort -k 1,1 $DBFOLD/$TEMPLATE.taxonomy) | sed 's/;$//;s/;/,/g' | awk '{print ">"$1";tax="$3";\n"$2}' > $DBFOLD/vsearch.$TEMPLATE.fasta
 		vsearch --makeudb_usearch $DBFOLD/vsearch.$TEMPLATE.fasta --output $DBFOLD/$TEMPLATE.udb
 		rm $DBFOLD/vsearch.$TEMPLATE.fasta
+	fi
+	if [ $UNPAIR == "no" ]
+	then
+		IDDEF=2 # ignore end gap as there is no info about the additionnal sequences (cut to amplified fragment or not)
 	fi
 fi
 
@@ -104,11 +119,11 @@ elif [ $CLASSIF == "vsearch" ]
 then
 	if [ $ASSIGN_ALL == "yes" ]
 	then
-		vsearch --no_progress --usearch_global ${FASTA}.fasta --threads $NCPUS --db ${DBFOLD}/${TEMPLATE}.udb --dbmask none --qmask none --rowlen 0 --notrunclabels --userfields query+id${IDDEF}+target --maxaccepts 0 --maxrejects 32 --top_hits_only --output_no_hits --id 0.6 --iddef ${IDDEF} --userout ${FASTA}.hits
+		vsearch --no_progress --usearch_global ${FASTA}$ADD.fasta --threads $NCPUS --db ${DBFOLD}/${TEMPLATE}.udb --dbmask none --qmask none --rowlen 0 --notrunclabels --userfields query+id${IDDEF}+target --maxaccepts 0 --maxrejects 32 --top_hits_only --output_no_hits --id 0.6 --iddef ${IDDEF}$QCOV --userout ${FASTA}.hits
 		# Consensus among best matches
 		awk '{split($2,a,",");for(i in a){print a[i],$1}}' $NAMES_OTUS.names | sort --parallel=$NCPUS -k 1,1 | join -o 1.2,2.2,2.3 - <(sed 's/;\t/\t/;s/;$//;s/ size=[0-9]*//' ${FASTA}.hits | sort --parallel=$NCPUS -k 1,1) | sed 's/;tax=/\t/' | sort --parallel=$NCPUS -k 1,1 -k 2,2nr | awk '{if($1!=p){sim=$2};if($2>=sim-1){print;p=$1}}' | sort --parallel=$NCPUS -k 1,1 -k 4,4 -k 3,3 | awk '$1 != p{printf ">"}{p=$1}1' | parallel -j $NCPUS --recstart ">" --pipe -k lca > ${FASTA_OTUS}.taxonomy
 	else
-		vsearch --no_progress --usearch_global ${FASTA_OTUS}.fasta --threads $NCPUS --db ${DBFOLD}/${TEMPLATE}.udb --dbmask none --qmask none --rowlen 0 --notrunclabels --userfields query+id${IDDEF}+target --maxaccepts 0 --maxrejects 32 --top_hits_only --output_no_hits --id 0.6 --iddef ${IDDEF} --userout ${FASTA_OTUS}.hits
+		vsearch --no_progress --usearch_global ${FASTA_OTUS}$ADD.fasta --threads $NCPUS --db ${DBFOLD}/${TEMPLATE}.udb --dbmask none --qmask none --rowlen 0 --notrunclabels --userfields query+id${IDDEF}+target --maxaccepts 0 --maxrejects 32 --top_hits_only --output_no_hits --id 0.6 --iddef ${IDDEF}$QCOV --userout ${FASTA_OTUS}.hits
 		# Consensus among best matches
 		sed 's/;\t/\t/;s/;$//;s/;tax=/\t/' ${FASTA_OTUS}.hits | sort --parallel=$NCPUS -k 1,1 -k 4,4 | awk '$1 != p{printf ">"}{p=$1}1' | parallel -j $NCPUS --recstart ">" --pipe -k lca > ${FASTA_OTUS}.taxonomy
 	fi
@@ -116,6 +131,7 @@ then
 	sort -k 1,1 ${FASTA_OTUS}.taxonomy | join -2 2 - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 2,2nr -k 1,1 | nl -n rz -w ${#NBOTUS} | sort -k 2,2) | sort -k 5,5n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy","similarity","references","repseq"} {print "Otu"$5,$6,$3,$2,$4,$1}' > $CTAXO.taxonomy
 	rm ${FASTA_OTUS}*.hits ${FASTA_OTUS}.taxonomy
 fi
+if [ $UNPAIR == "yes" ]; then rm $PREF.noN.fasta ; fi
 
 # ASV renaming
 if [ $CLUST == "dada2" ]

@@ -158,9 +158,19 @@ then
 
 elif [ $CLUST == "swarm" ]
 then
-	paste - - < $FASTA.fasta | sed 's/>//;s/ size=[^ \t]*//' | sort -k 1,1 | join - <(sed '1d' $COUNT.count_table | cut -f 1,2 | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1";size="$3"\n"$2}' > $FASTA.sort.fasta
 	MEM=`awk -v N=$NCPUS 'BEGIN{print 4000*N}'`
-	swarm -f -z -c $MEM -t $NCPUS -w - -o $FASTA.swarm.tmp.names -u $FASTA.swarm -i $SUBPROJECT.internal.swarm.txt $FASTA.sort.fasta | sed '/>/s/;.*//' > $FASTA.swarm.fasta
+	if [ $UNPAIR == "yes" ]
+	then
+		# remove NNNNN padding
+		paste - - < $FASTA.fasta | sed 's/>//;s/ size=[^ \t]*//' | sort -k 1,1 | join - <(sed '1d' $COUNT.count_table | cut -f 1,2 | sort -k 1,1) | sort -k 3,3nr | awk '{sub ("NNNNN","",$2); print ">"$1";size="$3"\n"$2}' > $FASTA.sort.fasta
+		swarm -f -z -c $MEM -t $NCPUS -w - -o $FASTA.swarm.tmp.names -u $FASTA.swarm -i $SUBPROJECT.internal.swarm.txt $FASTA.sort.fasta | sed '/>/s/;.*//' > $FASTA.swarm.tmp
+		# reintegrate padding
+		seqkit grep -f <(sed -n '/^>/s/>//p' $FASTA.swarm.tmp) $FASTA.fasta > $FASTA.swarm.fasta
+		rm $FASTA.swarm.tmp
+	else
+		paste - - < $FASTA.fasta | sed 's/>//;s/ size=[^ \t]*//' | sort -k 1,1 | join - <(sed '1d' $COUNT.count_table | cut -f 1,2 | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1";size="$3"\n"$2}' > $FASTA.sort.fasta
+		swarm -f -z -c $MEM -t $NCPUS -w - -o $FASTA.swarm.tmp.names -u $FASTA.swarm -i $SUBPROJECT.internal.swarm.txt $FASTA.sort.fasta | sed '/>/s/;.*//' > $FASTA.swarm.fasta
+	fi
 	grep -P -v "^C\t" $FASTA.swarm | cut -f 1,2,9 | sed 's/;size=.*//' | sort -k 3,3 | join -1 3 - <(sed '1d' $COUNT.count_table | sort -k 1,1) | sort -k 3,3n -k 2,2r | cut -d " " -f 1,3- | awk -f $BIN/sum_count.awk | cat <(head -1 $COUNT.count_table) - > $COUNT.swarm.count_table
 	sed 's/;size=[0-9]*//g;s/^\([^ ]*\)/\1\t\1/;s/ /,/g' $FASTA.swarm.tmp.names > $FASTA.swarm.names
 	FASTA_OTUS=$FASTA.swarm

@@ -337,6 +337,18 @@ then
 	then
 		error_doc "first set a 'Minimum length truncation of unpaired reads' to be able to use the 'Maximum length truncation of unpaired reads' option "
 	fi
+	if [ $UNPAIR == "yes" ] && ( [ $TRUNCBE == "no" ] || [ $TRUNCLEN == "no" ] || [ $MAXTRUNCLEN == "no" ] )
+	then
+		error_doc "When the 'Avoid pair-end' option is turn to yes, 'Truncation before pair-end' need to be turn to yes and 'Minimum length truncation of unpaired reads' and 'Maximum length truncation of unpaired reads' need to be set to a real number " 
+	fi
+	if [ $UNPAIR == "yes" ] && [ $CLUST != "swarm" ] && [ $CLUST != "dada2" ]
+	then
+		error_doc "When the 'Avoid pair-end' option is turn to yes, 'Clustering algorithm' can only be set to 'dada2' or 'swarm'"
+	fi
+	if [ $UNPAIR == "yes" ] && [ $CLASSIF != "vsearch" ]
+	then
+		error_doc "When the 'Avoid pair-end' option is turn to yes, the 'Taxonomic classifier' can only be set to 'vsearch'"
+	fi
 fi
 
 # Databases
@@ -482,10 +494,7 @@ FULLCITATION[UCHIME]="Edgar RC, Haas BJ, Clemente JC, Quince C, Knight R (2011) 
 CITATION[TAXO]="Wang et al., 2007"
 FULLCITATION[TAXO]="Wang Q, Garrity GM, Tiedje JM, Cole JR (2007) Naïve Bayesian Classifier for Rapid Assignment of rRNA Sequences into the New Bacterial Taxonomy. Applied and Environmental Microbiology, 73, 5261–5267."
 
-	# OBITools and ecoPCR
-CITATION[OBI]="Boyer et al., 2016"
-FULLCITATION[OBI]="Boyer F, Mercier C, Bonin A et al. (2016) obitools: a unix-inspired software package for DNA metabarcoding. Molecular Ecology Resources, 16, 176–182."
-VERSION[OBI]=`pip show OBITools 2> /dev/null | grep Version | awk '{print $2}'`
+	# ecoPCR
 CITATION[ECO]="Ficetola et al. 2010"
 FULLCITATION[ECO]="Ficetola GF, Coissac E, Zundel S et al. (2010) An in silico approach for the evaluation of DNA barcodes. Bmc Genomics, 11, 434."
 
@@ -722,6 +731,15 @@ else
 		. $BIN/pipeline_master > config/steps
 	else
 		. $BIN/pipeline_master | sed '/^raw_arch/{s/^/#/}' > config/steps
+	fi
+fi
+
+# avoid pair-end
+if [ $TECH == "Illumina" ]
+then
+	if [ $UNPAIR == "yes" ]
+	then
+		sed -E -i 's/^(pair_end_)/#\1/' config/steps
 	fi
 fi
 
