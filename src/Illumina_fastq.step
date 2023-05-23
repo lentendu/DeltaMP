@@ -114,7 +114,7 @@ else
 		fi
 		if [ $MAXTRUNCLEN != "no" ]
 		then
-			KEEP=" --fastq_trunclen_keep $MAXTRUNCLEN"
+			MAXKEEP=" --fastq_trunclen_keep $MAXTRUNCLEN"
 		fi
 		# Process both direction separately
 		for i in ${FWD_NAME} ${RVS_NAME}
@@ -122,7 +122,7 @@ else
 			if [ $i == "$FWD_NAME" ] ; then j=${RVS_NAME} ; else j=${FWD_NAME} ; fi
 			if [ -f fastq/$i.${FWD_LIB}.fastq.$EXT ]
 			then
-				vsearch --fastq_filter fastq/$i.${FWD_LIB}.fastq.$EXT --reverse fastq/$j.${RVS_LIB}.fastq.$EXT --fastq_truncee $MAXEE$MINKEEP$KEEP --fastqout fastq/$i.${FWD_LIB}.trunc.fastq --fastqout_rev fastq/$j.${RVS_LIB}.trunc.fastq
+				vsearch --fastq_filter fastq/$i.${FWD_LIB}.fastq.$EXT --reverse fastq/$j.${RVS_LIB}.fastq.$EXT --fastq_truncee $MAXEE$MINKEEP$MAXKEEP --fastqout fastq/$i.${FWD_LIB}.trunc.fastq --fastqout_rev fastq/$j.${RVS_LIB}.trunc.fastq
 				# remove empty files
 				if [ ! -s fastq/$i.${FWD_LIB}.trunc.fastq ]
 				then

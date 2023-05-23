@@ -23,7 +23,7 @@ start=`date +%s`
 mkdir temp_uchime && cd temp_uchime
 
 # serial chimera removal for reads with abundance above 16
-vsearch --fastx_getseqs ../$COUNT.fasta --labels <(awk -F'\t' 'NR>1 && $2>16{print $1,$2}' ../$COUNT.count_table | sort -k 2,2nr | cut -f 1 -d " ") --fastaout - | vsearch --quiet --uchime_denovo - --nonchimeras $FASTA.ab.ok.fasta --chimeras $FASTA.ab.chim.fasta
+vsearch --fastx_getseqs ../$COUNT.fasta --labels <(awk -F'\t' 'NR>1 && $2>16{print $1,$2}' ../$COUNT.count_table | sort -k 2,2nr | cut -f 1 -d " ") --fastaout - | vsearch --quiet --uchime_denovo - --nonchimeras $FASTA.ab.ok.fasta --chimeras $FASTA.ab.chim.fasta --qmask none
 
 # parallel check for decreasing abundance intervals (2^4, 2^3, 2^2, 2^1 and 2^0)
 while read i j
@@ -31,7 +31,7 @@ do
 	# merge all non-chimeric OTUs so far
 	cat $FASTA.*.ok.fasta > $FASTA.ref${j}.fasta
 	# chimera detection against more abundant
-	vsearch --fastx_getseqs ../$COUNT.fasta --labels <(awk -F'\t' -v I=$i -v J=$j 'NR>1 && $2>I && $2<=J{print $1,$2}' ../$COUNT.count_table | sort -k 2,2nr | cut -f 1 -d " ") --fastaout - | vsearch --quiet --threads $NCPUS --uchime_ref - --db $FASTA.ref${j}.fasta --nonchimeras $FASTA.low${j}.ok.fasta --chimeras $FASTA.low${j}.chim.fasta
+	vsearch --fastx_getseqs ../$COUNT.fasta --labels <(awk -F'\t' -v I=$i -v J=$j 'NR>1 && $2>I && $2<=J{print $1,$2}' ../$COUNT.count_table | sort -k 2,2nr | cut -f 1 -d " ") --fastaout - | vsearch --quiet --threads $NCPUS --uchime_ref - --db $FASTA.ref${j}.fasta --nonchimeras $FASTA.low${j}.ok.fasta --chimeras $FASTA.low${j}.chim.fasta --qmask none
 done < <(seq 4 -1 0 | awk '{print 2^($1-1),2^$1}')
 
 # merge non chimeric and chimeric sequences

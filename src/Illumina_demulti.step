@@ -113,47 +113,54 @@ else
 	export FWD_LIB RVS_LIB
 	cat fastq/oligo_pairs.${LIB_NAME}.txt | parallel -j $NCPUS lib2sam
 	rm tmp.$FWD_LIB tmp.$RVS_LIB
-	
-	# demultiplexing stats and report on other barcode pairs found (potential tag-jumping)
-	NBFB=$(grep -c "^>" fastq/oligos.F.$LIB_NAME)
-	NBRB=$(grep -c "^>" fastq/oligos.R.$LIB_NAME)
-	NBS=$(sed -n '$=' fastq/oligo_pairs.${LIB_NAME}.txt)
-	OKS=($(ls fastq/*.${FWD_LIB}.fastq | join - <(cut -d " " -f 1 fastq/oligo_pairs.${LIB_NAME}.txt | sed "s@^@fastq/@;s@\$@\.${FWD_LIB}\.fastq@" | sort)))
-	READALL=$(eval $DECOMP ${FWD_LIB}.fastq.$EXT | echo $((`wc -l`/4)))
-	READOKS=$(for i in ${OKS[@]} ; do sed -n '1~4p' $i | sed -n '$=' ; done | awk -v A=$READALL '{s+=$1}END{printf "%.2f", s/A*100}')
-	UNP=($(ls fastq/*.${FWD_LIB}.fastq | join -v 1 - <(cut -d " " -f 1 fastq/oligo_pairs.${LIB_NAME}.txt | sed "s@^@fastq/@;s@\$@\.${FWD_LIB}\.fastq@" | sort)))
-	cat << EOF > fastq/demultiplexing_info.$LIB_NAME.txt
+fi
+
+# remove empty fastq
+DEL=$(find fastq -type f \( -name *.${FWD_LIB}.fastq -o -name *.${RVS_LIB}.fastq \) -empty -print -delete)
+if [ ! -z "$DEL" ]
+then
+	echo "Deleted empty files:" | cat - <(echo $DEL | tr " " "\n")
+fi
+
+# demultiplexing stats and report on other barcode pairs found (potential tag-jumping)
+NBFB=$(grep -c "^>" fastq/oligos.F.$LIB_NAME)
+NBRB=$(grep -c "^>" fastq/oligos.R.$LIB_NAME)
+NBS=$(sed -n '$=' fastq/oligo_pairs.${LIB_NAME}.txt)
+OKS=($(ls fastq/*.${FWD_LIB}.fastq | join - <(cut -d " " -f 1 fastq/oligo_pairs.${LIB_NAME}.txt | sed "s@^@fastq/@;s@\$@\.${FWD_LIB}\.fastq@" | sort)))
+READALL=$(eval $DECOMP ${FWD_LIB}.fastq.$EXT | echo $((`wc -l`/4)))
+READOKS=$(for i in ${OKS[@]} ; do sed -n '1~4p' $i | sed -n '$=' ; done | awk -v A=$READALL '{s+=$1}END{printf "%.2f", s/A*100}')
+UNP=($(ls fastq/*.${FWD_LIB}.fastq | join -v 1 - <(cut -d " " -f 1 fastq/oligo_pairs.${LIB_NAME}.txt | sed "s@^@fastq/@;s@\$@\.${FWD_LIB}\.fastq@" | sort)))
+cat << EOF > fastq/demultiplexing_info.$LIB_NAME.txt
 There was $NBFB forward and $NBRB reverse barcodes provided for demultiplexing the $NBS samples in the library $LIB_NAME (${FWD_LIB}.fastq.$EXT ${RVS_LIB}.fastq.$EXT)
 From the $(($NBFB*$NBRB)) possible barcode pairs, ${#OKS[@]} pairs from the $NBS samples were found, representing ~ $READOKS % of the original $READALL total read count of $LIB_NAME.
 EOF
-	
-	# list missing samples and report
-	MY_TMP_NAME=`echo $JOBNAME | sed "s/$DELTAMP_VER\.//;s/\.$SUBPROJECT//"`
-	if [ ${#OKS[@]} -lt $NBS ]
+
+# list missing samples and report
+MY_TMP_NAME=`echo $JOBNAME | sed "s/$DELTAMP_VER\.//;s/\.$SUBPROJECT//"`
+if [ ${#OKS[@]} -lt $NBS ]
+then
+	DMISS=($(echo ${OKS[@]#*/} | tr " " "\n" | sed "s/\.${LIB_NAME}.*\.fastq//" | sort | join -v 2 - <(cut -d " " -f 1 fastq/oligo_pairs.${LIB_NAME}.txt)))
+	if [ ${#DMISS[@]} -gt 1 ]
 	then
-		DMISS=($(echo ${OKS[@]#*/} | tr " " "\n" | sed "s/\.${LIB_NAME}.*\.fastq//" | sort | join -v 2 - <(cut -d " " -f 1 fastq/oligo_pairs.${LIB_NAME}.txt)))
-		if [ ${#DMISS[@]} -gt 1 ]
-		then
-			echo ${DMISS[@]} | sed 's/ /, /g;s/^/The samples /;s/$/ were not found in the raw library\./' >> fastq/demultiplexing_info.$LIB_NAME.txt
-		else
-			echo ${DMISS[@]} | sed 's/ /, /g;s/^/The sample /;s/$/ was not found in the raw library\./' >> fastq/demultiplexing_info.$LIB_NAME.txt
-		fi
-		echo ${DMISS[@]} | tr " " "\n" > ${MY_TMP_NAME}.${LIB_NAME}.missing
-	fi
-	
-	# count, report and move unexpected barcode pairs reads to "sequencing negative" directory
-	if [ ${#UNP[@]} -gt 0 ]
-	then
-		UNPP=$(basename -a ${UNP[@]} | sed -r 's/^(R[0-9]*)-(F[0-9]*)/\2-\1/' | sort -u | sed -n '$=')
-		READUNP=$(for i in ${UNP[@]} ; do sed -n '1~4p' $i | sed -n '$=' ; done | awk -v A=$READALL '{s+=$1}END{printf "%.4f", s/A*100}')
-		echo "$UNPP unexpected pairs were also found, accounting for $READUNP % of the original $LIB_NAME reads." >> fastq/demultiplexing_info.$LIB_NAME.txt
-		mkdir fastq/seqneg.$LIB_NAME
-		UNPR=($(ls fastq/*.${RVS_LIB}.fastq | join -v 1 - <(cut -d " " -f 1 fastq/oligo_pairs.${LIB_NAME}.txt | sed "s@^@fastq/@;s@\$@\.${RVS_LIB}\.fastq@" | sort)))
-		mv ${UNP[@]} fastq/seqneg.$LIB_NAME && mv ${UNPR[@]} fastq/seqneg.$LIB_NAME
-		ls fastq/seqneg.$LIB_NAME/*${LIB_NAME}*.fastq | parallel -j $NCPUS ${COMP/ -p \$NCPUS/}
+		echo ${DMISS[@]} | sed 's/ /, /g;s/^/The samples /;s/$/ were not found in the raw library\./' >> fastq/demultiplexing_info.$LIB_NAME.txt
 	else
-		echo "None of the $(($NBFB*$NBRB-$NBS)) unexpected pairs were found." >> fastq/demultiplexing_info.$LIB_NAME.txt
+		echo ${DMISS[@]} | sed 's/ /, /g;s/^/The sample /;s/$/ was not found in the raw library\./' >> fastq/demultiplexing_info.$LIB_NAME.txt
 	fi
+	echo ${DMISS[@]} | tr " " "\n" > ${MY_TMP_NAME}.${LIB_NAME}.missing
+fi
+
+# count, report and move unexpected barcode pairs reads to "sequencing negative" directory
+if [ ${#UNP[@]} -gt 0 ]
+then
+	UNPP=$(basename -a ${UNP[@]} | sed -r 's/^(R[0-9]*)-(F[0-9]*)/\2-\1/' | sort -u | sed -n '$=')
+	READUNP=$(for i in ${UNP[@]} ; do sed -n '1~4p' $i | sed -n '$=' ; done | awk -v A=$READALL '{s+=$1}END{printf "%.4f", s/A*100}')
+	echo "$UNPP unexpected pairs were also found, accounting for $READUNP % of the original $LIB_NAME reads." >> fastq/demultiplexing_info.$LIB_NAME.txt
+	mkdir fastq/seqneg.$LIB_NAME
+	UNPR=($(ls fastq/*.${RVS_LIB}.fastq | join -v 1 - <(cut -d " " -f 1 fastq/oligo_pairs.${LIB_NAME}.txt | sed "s@^@fastq/@;s@\$@\.${RVS_LIB}\.fastq@" | sort)))
+	mv ${UNP[@]} fastq/seqneg.$LIB_NAME && mv ${UNPR[@]} fastq/seqneg.$LIB_NAME
+	ls fastq/seqneg.$LIB_NAME/*${LIB_NAME}*.fastq | parallel -j $NCPUS ${COMP/ -p \$NCPUS/}
+else
+	echo "None of the $(($NBFB*$NBRB-$NBS)) unexpected pairs were found." >> fastq/demultiplexing_info.$LIB_NAME.txt
 fi
 
 # compress all fastq files
