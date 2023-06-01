@@ -183,12 +183,12 @@ then
 	if [ $PERRUN == "no" ]
 	then
 		# pseudo-pool approach
-		Rscript --vanilla $BIN/Rscript_dada2_all_libraries.R $NCPUS $SUBPROJECT $FWD_NAME $RVS_NAME $MIN_OV $PTRESH $MINLEN
+		Rscript --vanilla $BIN/Rscript_dada2_all_libraries.R $NCPUS $SUBPROJECT $FWD_NAME $RVS_NAME $MIN_OV $PTRESH $MINLEN $BIMERA
 		find ./ -type f -name "*.index" | parallel eval $COMP
 	elif [ $PERRUN == "yes" ]
 	then
 		# finalise pooled approach
-		Rscript --vanilla $BIN/Rscript_dada2_run.R $NCPUS $SUBPROJECT $MINLEN
+		Rscript --vanilla $BIN/Rscript_dada2_run.R $NCPUS $SUBPROJECT $MINLEN $BIMERA
 	fi
 	FASTA_OTUS=$SUBPROJECT.dada2
 	COUNT_OTUS=$SUBPROJECT.dada2
@@ -218,14 +218,14 @@ then
 	if [ $CLUST != "dada2" ]
 	then
 		cut -f 2 $NAMES_OTUS.names | tr "," "\n" > $NAMES_OTUS.accnos
-		seqkit grep -f $NAMES_OTUS.accnos $FASTA.fasta > $FASTA.nochim.fasta
-		sort $NAMES_OTUS.accnos | join -t $'\t' - <(sed '1d' $COUNT.count_table) | cat <(head -1 $COUNT.count_table) - > $COUNT.nochim.count_table
-		sort -k 1,1 -t $'\t' $NAMES.names | join -t $'\t' - <(sort $NAMES_OTUS.accnos) > $NAMES.nochim.names
+		seqkit grep -w 0 -f $NAMES_OTUS.accnos $FASTA.fasta > $FASTA.pick.fasta
+		sort $NAMES_OTUS.accnos | join -t $'\t' - <(sed '1d' $COUNT.count_table) | cat <(head -1 $COUNT.count_table) - > $COUNT.pick.count_table
+		sort -k 1,1 -t $'\t' $NAMES.names | join -t $'\t' - <(sort $NAMES_OTUS.accnos) > $NAMES.pick.names
 		rm $FASTA.fasta $COUNT.count_table
 		sed -i '/^FASTA=/d;/^COUNT=/d;/^NAMES=/d' current_files.summary
-		eval $(echo FASTA=$FASTA.nochim | tee -a current_files.summary)
-		eval $(echo COUNT=$COUNT.nochim | tee -a current_files.summary)
-		eval $(echo NAMES=$NAMES.nochim | tee -a current_files.summary)
+		eval $(echo FASTA=$FASTA.pick | tee -a current_files.summary)
+		eval $(echo COUNT=$COUNT.pick | tee -a current_files.summary)
+		eval $(echo NAMES=$NAMES.pick | tee -a current_files.summary)
 		rm $NAMES_OTUS.accnos
 	fi
 	rm $COUNT_OTUS.count_table $COUNT_OTUS.singletons.accnos
@@ -240,9 +240,9 @@ then
 	sed -n '/^>/{s/>//;p}' $FASTA_OTUS.nochim.fasta | nl -s $'\t' -n ln | sort -k 2,2 -t $'\t' | join -t $'\t' -1 2 - <(sed '1d' $COUNT_OTUS.count_table | sort -k 1,1 -t $'\t') | sort -k 2,2n -t $'\t' | cut -f 1,3- | cat <(head -1 $COUNT_OTUS.count_table) - | tee $COUNT_OTUS.nochim.count_table | awk 'NR>1{print $1}' > $COUNT_OTUS.nochim.accnos
 	if [ $CLUST == "dada2" ]
 	then
-		nl $NAMES_OTUS.names | sort -k 2,2 -t $'\t' | join -1 2 -t $'\t' - <(sort -k 1,1 $COUNT_OTUS.nochim.accnos) | sort -k 2,2n -t $'\t' | cut -f 1,3 > $NAMES_OTUS.pick.names
+		nl $NAMES_OTUS.names | sort -k 2,2 -t $'\t' | join -1 2 -t $'\t' - <(sort -k 1,1 $COUNT_OTUS.nochim.accnos) | sort -k 2,2n -t $'\t' | cut -f 1,3 > $NAMES_OTUS.nochim.names
 		rm $NAMES_OTUS.names
-		NAMES_OTUS=$NAMES_OTUS.pick
+		NAMES_OTUS=$NAMES_OTUS.nochim
 	else
 		awk '{print $1"\t"NR}' $COUNT_OTUS.nochim.accnos | sort -k 1,1 -t $'\t' | join -t $'\t' - <(sort -k 1,1 -t $'\t' $NAMES_OTUS.names) | sort -k 2,2n -t $'\t' | cut -f 1,3 > $NAMES_OTUS.nochim.names
 		rm $NAMES_OTUS.names
@@ -256,7 +256,6 @@ then
 		eval $(echo FASTA=$FASTA.nochim | tee -a current_files.summary)
 		eval $(echo COUNT=$COUNT.nochim | tee -a current_files.summary)
 		eval $(echo NAMES=$NAMES.nochim | tee -a current_files.summary)
-		rm $NAMES_OTUS.accnos
 	fi
 	rm $FASTA_OTUS.sort.fasta $FASTA_OTUS.fasta $COUNT_OTUS.count_table $COUNT_OTUS.nochim.accnos
 	FASTA_OTUS=$FASTA_OTUS.nochim

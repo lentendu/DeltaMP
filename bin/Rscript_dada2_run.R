@@ -9,6 +9,7 @@ suppressMessages(library(dada2))
 ncores<-as.numeric(commandArgs()[7])
 subp<-commandArgs()[8]
 minlen<-as.numeric(commandArgs()[9])
+bim<-commandArgs()[10]
 
 # merge all seqtab and remove too short sequences
 list_seqtab<-data.frame(seqtab=list.files(pattern=".dada2_seqtab.rds$"),stringsAsFactors=F) %>%
@@ -18,7 +19,11 @@ seqtab<-dlply(list_seqtab,.(lib,comb),function(x) readRDS(x$seqtab) %>% .[,nchar
   mergeSequenceTables(tables=.)
 
 # remove bimeras
-seqtab_clean<-removeBimeraDenovo(seqtab, method="pooled", multithread=ncores)
+if ( bim == "yes" ) {
+	seqtab_clean<-removeBimeraDenovo(seqtab, method="pooled", multithread=ncores)
+} else {
+	seqtab_clean<-seqtab
+}
 
 # percent of ASV and reads removed
 nbbim<-ncol(seqtab)-ncol(seqtab_clean)

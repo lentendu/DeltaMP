@@ -28,7 +28,7 @@ SKIP_TRESH	0	Samples percentage allowed below the read count threshold	^[0-9]+(.
 ITSX	no	ITSx region to extract	no ^ITS[12]$
 SUBSAMPLE	no	Subsampling	no yes
 PRECLUST	no	Pre-clustering	no cdhit454 mothur
-CHIMERA	after	Chimera removal	before after both
+CHIMERA	after	Chimera removal	before after both no
 CLUST	mcl	Clustering algorithm	mcl sumaclust cd-hit-est vsearch swarm dada2
 TRESH	97	Clustering similarity threshold	^[0-9]+(.[0-9]+)?$
 PREV_PATH	no	Cluster with previous subproject reference sequences	no ^/.+(/.+)*$

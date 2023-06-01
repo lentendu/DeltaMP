@@ -12,6 +12,7 @@ rvsname<-commandArgs()[10]
 minov<-as.numeric(commandArgs()[11])
 maxmis<-minov*(1-as.numeric(commandArgs()[12]))
 minlen<-as.numeric(commandArgs()[13])
+bim<-commandArgs()[14]
 
 # libraries and samples
 lib3<-read.table("../config/lib3.list",sep="\t",stringsAsFactors=F)
@@ -85,8 +86,12 @@ if (length(seqtab_pairs)>1) {
 # Remove too short sequences
 seqtab_ok<-seqtab[,nchar(colnames(seqtab))>=minlen]
 
-# Remove chimeras
-seqtab_clean<-removeBimeraDenovo(seqtab_ok, method="consensus", multithread=ncores)
+# Remove bimeras
+if ( bim == "yes" ) {
+	seqtab_clean<-removeBimeraDenovo(seqtab_ok, method="consensus", multithread=ncores)
+} else {
+	seqtab_clean<-seqtab_ok
+}
 
 # percent of ASV and reads removed
 nbbim<-ncol(seqtab)-ncol(seqtab_clean)

@@ -293,6 +293,8 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Chimera removal__: "before", "after" or "both", to check for chimera before OTU clustering only (in each sample separetedly), after OTU clustering only (among OTU representative sequences), or at both moments. *De-novo* chimera are detected with UCHIME and removed. For dada2 clustering, bimera are always removed using _removeBimera_. The default is "after".
 
++ __Remove bimera after ASV calling and joining__: *Illumina specific parameter*, "no" or "yes" to remove bimera when clustering with dada2. Independent from the __Chimera removal__ parameter. The default is "no".
+
 + __Subsampling__: “yes” or “no”. Activating subsampling will randomly select the same number of reads in all samples according to the read count in the sample with the lowest number of reads, after the trimming step. The default is “no”.
 
 + __Clustering algorithm__: "cd-hit-est”, “vsearch”, “mcl”, “sumaclust”, “swarm” or “dada2“. The default is “mcl”.
