@@ -457,17 +457,20 @@ fi
 
 if [ $PREV_PATH != "no" ]
 then
-	PREV_SUB=${PREV_PATH##*/}
-	if [ ! -d $PREV_PATH ]
-	then
-		error_doc "The path to the previous subproject output directory for reference clustering $PREV_PATH was not found."
-	elif [ ! -f $PREV_PATH/$PREV_SUB.processing.files.tar.gz ]
-	then
-		error_doc "There is no processing.files.tar.gz archive in the path to the previous subproject output directory for reference clustering."
-	elif [ ! -f $PREV_PATH/$PREV_SUB.outputs.tar.gz ]
-	then
-		error_doc "There is no outputs.tar.gz archive in the path to the previous subproject output directory for reference clustering."
-	fi
+	for i in ${!PREV_PATH[@]}; do PREV_SUB[$i]=${PREV_PATH[$i]##*/}; done
+	for i in ${!PREV_PATH[@]}
+	do
+		if [ ! -d ${PREV_PATH[$i]} ]
+		then
+			error_doc "The path to the previous subproject output directory for reference clustering ${PREV_PATH[$i]} was not found."
+		elif [ ! -f ${PREV_PATH[$i]}/${PREV_SUB[$i]}.processing.files.tar.gz ]
+		then
+			error_doc "There is no processing.files.tar.gz archive in the path to the previous subproject output directory for reference clustering."
+		elif [ ! -f ${PREV_PATH[$i]}/${PREV_SUB[$i]}.outputs.tar.gz ]
+		then
+			error_doc "There is no outputs.tar.gz archive in the path to the previous subproject output directory for reference clustering."
+		fi
+	done
 fi
 
 # Dependencies

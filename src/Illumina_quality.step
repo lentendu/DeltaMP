@@ -56,7 +56,7 @@ then
 else
 	TRIMSTEPS=(raw raw_with_primer truncated pairend)
 	HEADER=(Sample Library Raw Primer_detected Minimal_length_and_quality_truncation Pair-end)	
-	if [ $UNPAIR == "yes" ]
+	if [ $UNPAIR == "yes" ] || [ $ASV == "yes" ]
 	then
 		TRIMSTEPS=(${TRIMSTEPS[@]:0:3})
 		HEADER=(${HEADER[@]:0:5})
@@ -164,7 +164,7 @@ do
 	else
 		MIN_DEPTH_ECHO[$i]="${MINTRESH[$i]} times the amount of \${TRIMSTEPS[\$((i-1))]}"
 	fi
-	head -n -4 $SUBPROJECT.sample_counts.tsv | awk -v I=$i -v M=${MINTRESH[$i]} 'NR>1{if(M<=1){if($(I+1)<M*$I) print $1,$(I+1),$(I+1)/$I} else if(M>1){if($(I+1)<M)print $1,$(I+1)}}' > min_depth.${TRIMSTEPS[$((i-1))]}.test
+	head -n -4 $SUBPROJECT.sample_counts.tsv | awk -v I=$((i+1)) -v M=${MINTRESH[$i]} 'BEGIN{OFS="\t"}NR>1{if(M<=1){if($(I+1)<M*$I) print $1,$(I+1),$(I+1)/$I} else if(M>1){if($(I+1)<M)print $1,$(I+1)}}' > min_depth.${TRIMSTEPS[$i]}.test
 done
 SKIP_SAMP=$(awk -v S=$(sed -n '$=' $SUBPROJECT.sample_counts.tsv) -v T=$SKIP_TRESH 'BEGIN{M=(S-5)*T/100; printf "%.0f", int(M) }')
 for i in $(seq 1 $((${#TRIMSTEPS[@]}-1)))
@@ -172,8 +172,7 @@ do
 	if [ -s min_depth.${TRIMSTEPS[$i]}.test ]
 	then
 		echo "The following sample(s) do not have the requested minimum amount of ${TRIMSTEPS[$i]} reads fixed at "$(eval echo ${MIN_DEPTH_ECHO[$i]})" reads:"
-		echo "Sample Reads"
-		cat min_depth.${TRIMSTEPS[$i]}.test
+		cat <(echo -e "Sample\t${TRIMSTEPS[$((i-1))]} reads\tpercent") min_depth.${TRIMSTEPS[$i]}.test | column -t -s $'\t'
 		echo ""
 		# compare amount of samples to the skip threshod
 		if [ $(cat min_depth.${TRIMSTEPS[$i]}.test | wc -l) -le $SKIP_SAMP ]
@@ -408,19 +407,23 @@ fi
 if [ $CLUST == "dada2" ] && [ "$PREV_PATH" != "no" ]
 then
 	cd $EXEC/processing
-	PREV_ASV=${PREV_SUB}.all_repseq
-	tar xzvf ${PREV_PATH}/${PREV_SUB}.outputs.tar.gz ${PREV_SUB}.outputs/${PREV_ASV}.fasta
-	# cut previous ASVs to forward and reverse truncation length
-	for i in ${FWD_NAME} ${RVS_NAME}
+	for i in ${!PREV_PATH[@]}
 	do
-		if [ $i == "$FWD_NAME" ] ; then j=${RVS_NAME} ; else j=${FWD_NAME} ; fi
-		if [ -f ../quality_check/$i.fwd.optimized.quality.txt ]
-		then
-			OQUAL=($(cat ../quality_check/$i.fwd.optimized.quality.txt))
-			seqkit subseq -w 0 -r 1:${OQUAL[0]} ${PREV_SUB}.outputs/${PREV_ASV}.fasta > ${PREV_SUB}.$i.fwd.fasta
-			vsearch --quiet --fastx_revcomp ${PREV_SUB}.outputs/${PREV_ASV}.fasta --fastaout - | seqkit subseq -w 0 -r 1:${OQUAL[0]} > ${PREV_SUB}.$j.rvs.fasta
-			unset OQUAL
-		fi
+		PREV_ASV=${PREV_SUB[$i]}.all_repseq
+		tar xzvf ${PREV_PATH[$i]}/${PREV_SUB[$i]}.outputs.tar.gz ${PREV_SUB[$i]}.outputs/${PREV_ASV}.fasta
+		# cut previous ASVs to forward and reverse truncation length
+		for j in fwd_rvs rvs_fwd
+		do
+			k=(${j/_/ })
+			if [ -f ../quality_check/${FWD_NAME}.${k[0]}.optimized.quality.txt ]
+			then
+				OQUAL=($(cat ../quality_check/${FWD_NAME}.${k[0]}.optimized.quality.txt))
+				seqkit subseq -w 0 -r 1:${OQUAL[0]} ${PREV_SUB[$i]}.outputs/${PREV_ASV}.fasta > ${PREV_SUB[$i]}.${FWD_NAME}.${k[0]}.fasta
+				RQUAL=($(cat ../quality_check/${RVS_NAME}.${k[1]}.optimized.quality.txt))
+				vsearch --quiet --fastx_revcomp ${PREV_SUB[$i]}.outputs/${PREV_ASV}.fasta --fastaout - | seqkit subseq -w 0 -r 1:${RQUAL[0]} > ${PREV_SUB[$i]}.${RVS_NAME}.${k[1]}.fasta
+				unset OQUAL RQUAL
+			fi
+		done
 	done
 fi
 

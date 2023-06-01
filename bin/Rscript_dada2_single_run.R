@@ -13,7 +13,7 @@ rvsname<-commandArgs()[10]
 comb<-commandArgs()[11]
 minov<-as.numeric(commandArgs()[12])
 maxmis<-minov*(1-as.numeric(commandArgs()[13]))
-prev<-commandArgs()[14]
+prev<-unlist(strsplit(commandArgs()[14],"#"))
 
 # all libraries
 librun<-read.table("../config/librun.list",sep="\t",col.names=c("sample","library","run"),stringsAsFactors=F) %>%
@@ -34,8 +34,8 @@ pairs<-pivot_wider(libs,names_from=lib,values_from=c(dir,filename))
 
 
 # priors ASV
-if (prev != "no") {
-  prior_asv<-data.frame(filename=list.files(pattern=paste0(prev,".*\\.[fr][wv][ds]\\.fasta$")),stringsAsFactors=F) %>%
+if ( any(prev != "no") ) {
+  prior_asv<-data.frame(filename=list.files(pattern=paste0("(",paste(prev,collapse="|"),")",".*\\.[fr][wv][ds]\\.fasta$")),stringsAsFactors=F) %>%
     separate(filename,c("subp","dir","lib","ext"),sep="\\.",remove=F)
   prior_seq<-dlply(prior_asv,.(dir,lib),function(x) {
     unique(foreach(y=iapply(x,1),.combine=c) %do% {
@@ -56,7 +56,7 @@ err<-dlply(libs,.(lib),function(x) {
 dada_all<-dlply(libs,.(lib),function(x) {
   tmp_err<-err[[unique(x$lib)]]
   tmp_derep<-derep[[unique(x$lib)]]
- if (prev != "no") {
+ if ( any(prev != "no") ) {
    tmp_prior<-prior_seq[[unique(paste(x$dir,x$lib,sep="."))]]
    dada(tmp_derep,tmp_err,pool=T,multithread=ncores,priors=tmp_prior)
  } else {

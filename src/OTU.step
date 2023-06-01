@@ -264,66 +264,82 @@ then
 fi
 
 
-# grafting OTUs with previous subproject OTUs
+# grafting OTUs with previous subprojects OTUs
 if [ $PREV_PATH != "no" ]
 then
 	if [ $CLUST == "dada2" ]
 	then
 		# grafting already included in dada2 scripts, only need to separate new from previous ASVs
-		PREV_ASV=${PREV_SUB}.all_repseq
-		grep ">" $FASTA_OTUS.fasta | sort | join - <(grep ">" ${PREV_SUB}.outputs/${PREV_ASV}.fasta | sort) | sed 's/>//' > to_exclude.accnos
+		for i in ${PREV_SUB[@]}
+		do
+			PREV_ASV=$i.all_repseq
+			grep ">" $FASTA_OTUS.fasta | sort | join - <(grep ">" $i.outputs/${PREV_ASV}.fasta | sort) | sed 's/>//' >> to_exclude.accnos
+		done
 	else
-		# access previous subproject OTUs and amplicons
-		tar xzvf $PREV_PATH/$PREV_SUB.processing.files.tar.gz $PREV_SUB.processing/OTU_env.txt
-		while read var val; do unset $var ; declare $var="$val" ; done < <(grep "^[FNC][AO]" $PREV_SUB.processing/OTU_env.txt | sed 's/^/PREV_/')
-		tar xzvf $PREV_PATH/$PREV_SUB.processing.files.tar.gz $PREV_SUB.processing/$PREV_FASTA.fasta $PREV_SUB.processing/$PREV_COUNT.count_table $PREV_SUB.processing/$PREV_NAMES_OTUS.names
-		sed 's/[; ]*size=\([0-9]*\).*$//' $PREV_SUB.processing/$PREV_FASTA.fasta | seqkit grep -w 0 -f <(awk -F'\t' -v I="$PREV_DOM" -'NR>1 && $2>=I{print $1}' $PREV_SUB.processing/$PREV_COUNT.count_table) > tmp_prev.fasta
-		# find exact similar amplicons (not between singletons amplicons, allow internal matches) and the OTU they are belonging to
-		sed 's/[; ]*size=\([0-9]*\).*$//' $FASTA.fasta | seqkit grep -w 0 -f <(awk -F'\t' -v I="$PREV_DOM" -'NR>1 && $2>=I{print $1}' $COUNT.count_table) | vsearch --usearch_global - --threads $NCPUS --db tmp_prev.fasta --id 1 --maxaccepts 0 --userfields query+target+id+ql+tl --userout - | awk -v P=${PREV_PERC} '($5>=$4 && $4>=$5*P/100) || ($4>=$5 && $5>=$4*P/100){print $1,$2}' > aa.tmp
-		awk '{n=split($2,a,",");for(i in a){print a[i],$1,NR,n}}' $NAMES_OTUS.names | sort --parallel=$NCPUS -k 1,1 | join - <(sort -k 1,1 aa.tmp) | sort -k 5,5 | join -1 5 - <(awk '{n=split($2,a,",");for(i in a){print a[i],$1,NR,n}}' $PREV_SUB.processing/$PREV_NAMES_OTUS.names | sort --parallel=$NCPUS -k 1,1) | sort -k 3,3 -k 6,6 | awk '{if(NR==1){os=$3;op=$6;nos=$4;nop=$7;s=$2"|"$1;sos=$5;sop=$8} else {if($3==os && $6==op){s=s","$2"|"$1} else {print os,op,nos,nop,sos,sop,s;os=$3;op=$6;nos=$4;nop=$7;s=$2"|"$1;sos=$5;sop=$8}}}END{print os,op,nos,nop,sos,sop,s}' > otus.aa.tmp
-		# report
-		echo "There is $(sed -n '$=' aa.tmp) amplicons from $(cut -d " " -f 1 otus.aa.tmp | sort -u | wc -l) OTUs of $SUBPROJECT found in $(cut -d " " -f 2 otus.aa.tmp | sort -u | wc -l) OTUs of $PREV_SUB"
-		cut -f 2 -d " " otus.aa.tmp | sort | uniq -c | awk '$1>1{print $2}' | sort | join -2 2 - <(sort -k 2,2 otus.aa.tmp) | awk '{if(NR==1){op=$1;os=$2} else {if($1==op){os=os" "$2} else {print op"\t"os;op=$1;os=$2}}}END{if(op!=""){print op"\t"os}}' > otus.aa.sopmos.tmp
-		cut -f 1 -d " " otus.aa.tmp | sort | uniq -c | awk '$1>1{print $2}' | sort | join - <(sort -k 1,1 otus.aa.tmp) | awk '{if(NR==1){os=$1;op=$2} else {if($1==os){op=op" "$2} else {print os"\t"op;os=$1;op=$2}}}END{if(os!=""){print os"\t"op}}' > otus.aa.sosmop.tmp
-		if [ -s otus.aa.sopmos.tmp ]
-		then
-			echo "Amplicons found in $(awk '{if(NR==1){m=NF-1;M=NF-1} else {if(NF-1>M){M=NF-1};if(NF-1<m){m=NF-1}}}END{print m" to "M}' otus.aa.sopmos.tmp) OTUs of $SUBPROJECT (total = $(awk '{s+=NF-1}END{print s}' otus.aa.sopmos.tmp) OTUs) were found in a single OTUs of $PREV_SUB (total = $(sed -n '$=' otus.aa.sopmos.tmp) OTUs)."
-		fi
-		if [ -s otus.aa.sosmop.tmp ]
-		then
-			echo "Amplicons found in a single OTU of $SUBPROJECT (total = $(sed -n '$=' otus.aa.sosmop.tmp) OTUs) were found in $(awk '{if(NR==1){m=NF-1;M=NF-1} else {if(NF-1>M){M=NF-1};if(NF-1<m){m=NF-1}}}END{print m" to "M}' otus.aa.sosmop.tmp) OTUs of $PREV_SUB (total = $(awk '{s+=NF-1}END{print s}' otus.aa.sosmop.tmp) OTUs)."
-		fi
-		echo "For $(($(sed -n '$=' otus.aa.tmp) - $(cut -f 2 otus.aa.sopmos.tmp | wc -w) - $(cut -f 2 otus.aa.sosmop.tmp | wc -w))) OTUS, amplicons of a single OTU of $SUBPROJECT were found in a single OTU of $PREV_SUB."
-		# Remove OTUs for which amplicons were found in a single OTU of PREV_SUB
-		sort -k 1,1 otus.aa.tmp | join -v 1 - otus.aa.sosmop.tmp | sort -k 3,3n | cut -d " " -f 1 > to_exclude.accnos
+		# access previous subprojects OTUs and amplicons
+		for i in ${!PREV_PATH[@]}
+		do
+			j=${PREV_SUB[$i]}
+			tar xzvf ${PREV_PATH[$i]}/$j.processing.files.tar.gz $j.processing/OTU_env.txt
+			while read var val; do unset $var ; declare $var="$val" ; done < <(grep "^[FNC][AO]" $j.processing/OTU_env.txt | sed 's/^/PREVIOUS_/')
+			tar xzvf ${PREV_PATH[$i]}/$j.processing.files.tar.gz $j.processing/$PREVIOUS_FASTA.fasta $j.processing/$PREVIOUS_COUNT.count_table $j.processing/$PREVIOUS_NAMES_OTUS.names
+			sed 's/[; ]*size=\([0-9]*\).*$//' $j.processing/$PREVIOUS_FASTA.fasta | seqkit grep -w 0 -f <(awk -F'\t' -v I="$PREVIOUS_DOM" -'NR>1 && $2>=I{print $1}' $j.processing/$PREVIOUS_COUNT.count_table) > tmp_prev.fasta
+			
+			# find exact similar amplicons (not between singletons amplicons, allow internal matches) and the OTU they are belonging to
+			sed 's/[; ]*size=\([0-9]*\).*$//' $FASTA.fasta | seqkit grep -w 0 -f <(awk -F'\t' -v I="$PREVIOUS_DOM" -'NR>1 && $2>=I{print $1}' $COUNT.count_table) | vsearch --usearch_global - --threads $NCPUS --db tmp_prev.fasta --id 1 --maxaccepts 0 --userfields query+target+id+ql+tl --userout - | awk -v P=${PREVIOUS_PERC} '($5>=$4 && $4>=$5*P/100) || ($4>=$5 && $5>=$4*P/100){print $1,$2}' > aa.tmp
+			awk '{n=split($2,a,",");for(i in a){print a[i],$1,NR,n}}' $NAMES_OTUS.names | sort --parallel=$NCPUS -k 1,1 | join - <(sort -k 1,1 aa.tmp) | sort -k 5,5 | join -1 5 - <(awk '{n=split($2,a,",");for(i in a){print a[i],$1,NR,n}}' $j.processing/$PREVIOUS_NAMES_OTUS.names | sort --parallel=$NCPUS -k 1,1) | sort -k 3,3 -k 6,6 | awk '{if(NR==1){os=$3;op=$6;nos=$4;nop=$7;s=$2"|"$1;sos=$5;sop=$8} else {if($3==os && $6==op){s=s","$2"|"$1} else {print os,op,nos,nop,sos,sop,s;os=$3;op=$6;nos=$4;nop=$7;s=$2"|"$1;sos=$5;sop=$8}}}END{print os,op,nos,nop,sos,sop,s}' > otus.aa.tmp
+			
+			# report
+			echo "There is $(sed -n '$=' aa.tmp) amplicons from $(cut -d " " -f 1 otus.aa.tmp | sort -u | wc -l) OTUs of $SUBPROJECT found in $(cut -d " " -f 2 otus.aa.tmp | sort -u | wc -l) OTUs of $j"
+			cut -f 2 -d " " otus.aa.tmp | sort | uniq -c | awk '$1>1{print $2}' | sort | join -2 2 - <(sort -k 2,2 otus.aa.tmp) | awk '{if(NR==1){op=$1;os=$2} else {if($1==op){os=os" "$2} else {print op"\t"os;op=$1;os=$2}}}END{if(op!=""){print op"\t"os}}' > otus.aa.sopmos.tmp
+			cut -f 1 -d " " otus.aa.tmp | sort | uniq -c | awk '$1>1{print $2}' | sort | join - <(sort -k 1,1 otus.aa.tmp) | awk '{if(NR==1){os=$1;op=$2} else {if($1==os){op=op" "$2} else {print os"\t"op;os=$1;op=$2}}}END{if(os!=""){print os"\t"op}}' > otus.aa.sosmop.tmp
+			if [ -s otus.aa.sopmos.tmp ]
+			then
+				echo "Amplicons found in $(awk '{if(NR==1){m=NF-1;M=NF-1} else {if(NF-1>M){M=NF-1};if(NF-1<m){m=NF-1}}}END{print m" to "M}' otus.aa.sopmos.tmp) OTUs of $SUBPROJECT (total = $(awk '{s+=NF-1}END{print s}' otus.aa.sopmos.tmp) OTUs) were found in a single OTUs of $j (total = $(sed -n '$=' otus.aa.sopmos.tmp) OTUs)."
+			fi
+			if [ -s otus.aa.sosmop.tmp ]
+			then
+				echo "Amplicons found in a single OTU of $SUBPROJECT (total = $(sed -n '$=' otus.aa.sosmop.tmp) OTUs) were found in $(awk '{if(NR==1){m=NF-1;M=NF-1} else {if(NF-1>M){M=NF-1};if(NF-1<m){m=NF-1}}}END{print m" to "M}' otus.aa.sosmop.tmp) OTUs of $j (total = $(awk '{s+=NF-1}END{print s}' otus.aa.sosmop.tmp) OTUs)."
+			fi
+			echo "For $(($(sed -n '$=' otus.aa.tmp) - $(cut -f 2 otus.aa.sopmos.tmp | wc -w) - $(cut -f 2 otus.aa.sosmop.tmp | wc -w))) OTUS, amplicons of a single OTU of $SUBPROJECT were found in a single OTU of $j."
+			# Remove OTUs for which amplicons were found in a single OTU of PREV_SUB
+			sort -k 1,1 otus.aa.tmp | join -v 1 - otus.aa.sosmop.tmp | sort -k 3,3n | cut -d " " -f 1 >> to_exclude.accnos
+			# clean
+			rm -r $j.processing tmp_prev.fasta aa.tmp otus.aa.sopmos.tmp
+		done
 	fi
-	mothur "#remove.seqs(accnos=to_exclude.accnos, fasta=$FASTA_OTUS.fasta, count=$COUNT_OTUS.count_table);
-	get.current()"
-	mv $FASTA_OTUS.fasta $PREV_SUB.match_otu.fasta
-	mv $COUNT_OTUS.count_table $PREV_SUB.match_otu.count_table
-	FASTA_OTUS=`sed -n '/^fasta=/{s/.*=//;s/\.fasta//;p}' current_files.summary`
-	COUNT_OTUS=`sed -n '/^count=/{s/.*=//;s/\.count_table//;p}' current_files.summary`
-	join -t $'\t' -v 2 to_exclude.accnos $NAMES_OTUS.names > $NAMES_OTUS.pick.names
-	mv $NAMES_OTUS.names $PREV_SUB.match_otu.names
+	# Get ASV/OTUs not present in previous subproject
+	seqkit grep -w 0 -v -f <(sort -u to_exclude.accnos) $FASTA_OTUS.fasta > $FASTA_OTUS.pick.fasta
+	sed '1d' $COUNT_OTUS.count_table | nl | sort -k 2,2 -t $'\t' | join -v 1 -1 2 -t $'\t' - <(sort -u to_exclude.accnos) | sort -k 2,2n -t $'\t' | cut -f 1,3- | cat <(head -1 $COUNT_OTUS.count_table) - > $COUNT_OTUS.pick.count_table
+	join -t $'\t' -v 2 <(sort -u to_exclude.accnos) $NAMES_OTUS.names > $NAMES_OTUS.pick.names
+	mv $FASTA_OTUS.fasta previous.match_otu.fasta
+	mv $COUNT_OTUS.count_table previous.match_otu.count_table
+	mv $NAMES_OTUS.names previous.match_otu.names
+	FASTA_OTUS=$FASTA_OTUS.pick
+	COUNT_OTUS=$COUNT_OTUS.pick
 	NAMES_OTUS=$NAMES_OTUS.pick
-	# Gather those OTUs in parallel files
-	mothur "#get.seqs(accnos=to_exclude.accnos, fasta=$PREV_SUB.match_otu.fasta, count=$PREV_SUB.match_otu.count_table)"
-	join -t $'\t' to_exclude.accnos $PREV_SUB.match_otu.names > $PREV_SUB.match_otu.pick.names
+	# Keep ASV/OTUs present in previous subproject
+	seqkit grep -w 0 -f <(sort -u to_exclude.accnos) previous.match_otu.fasta > previous.match_otu.pick.fasta
+	sed '1d' previous.match_otu.count_table | nl | sort -k 2,2 -t $'\t' | join -1 2 -t $'\t' - <(sort -u to_exclude.accnos) | sort -k 2,2n -t $'\t' | cut -f 1,3- | cat <(head -1 previous.match_otu.count_table) - > previous.match_otu.pick.count_table
+	sort -u to_exclude.accnos | join -t $'\t' - previous.match_otu.names > previous.match_otu.pick.names
 	if [ $CLUST != "dada2" ]
 	then
 		cut -f 2 $NAMES_OTUS.names | tr "," "\n" > $NAMES_OTUS.accnos
-		mothur "#get.seqs(accnos=$NAMES_OTUS.accnos, fasta=$FASTA.fasta, count=$COUNT.count_table);
-		get.current()"
-		mv $FASTA.fasta $PREV_SUB.match.fasta
-		mv $COUNT.count_table $PREV_SUB.match.count_table
-		FASTA=`sed -n '/^fasta=/{s/.*=//;s/\.fasta//;p}' current_files.summary`
-		COUNT=`sed -n '/^count=/{s/.*=//;s/\.count_table//;p}' current_files.summary`
+		seqkit grep -w 0 -f $NAMES_OTUS.accnos $FASTA.fasta > $FASTA.pick.fasta
+		sort $NAMES_OTUS.accnos | join -t $'\t' - <(sed '1d' $COUNT.count_table) | cat <(head -1 $COUNT.count_table) - > $COUNT.pick.count_table
+		sort -k 1,1 -t $'\t' $NAMES.names | join -t $'\t' - <(sort $NAMES_OTUS.accnos) > $NAMES.pick.names
+		mv $FASTA.fasta previous.match.fasta
+		mv $COUNT.count_table previous.match.count_table
+		eval $(echo FASTA=$FASTA.pick | tee -a current_files.summary)
+		eval $(echo COUNT=$COUNT.pick | tee -a current_files.summary)
+		eval $(echo NAMES=$NAMES.pick | tee -a current_files.summary)
 		rm $NAMES_OTUS.accnos
-		cut -f 2 $PREV_SUB.match_otu.pick.names | tr "," "\n" > $PREV_SUB.match_otu.pick.accnos
-		mothur "#get.seqs(accnos=$PREV_SUB.match_otu.pick.accnos, fasta=$PREV_SUB.match.fasta, count=$PREV_SUB.match.count_table)"
-		rm $PREV_SUB.match.fasta $PREV_SUB.match.count_table $PREV_SUB.match_otu.pick.accnos
+		cut -f 2 previous.match_otu.pick.names | tr "," "\n" > previous.match_otu.pick.accnos
+		seqkit grep -w 0 -f previous.match_otu.pick.accnos previous.match.fasta > previous.match.pick.fasta
+		sed '1d' previous.match.count_table | nl | sort -k 2,2 -t $'\t' | join -v 1 -1 2 -t $'\t' - <(sort -u previous.match.pick.accnos) | sort -k 2,2n -t $'\t' | cut -f 1,3- | cat <(head -1 previous.match.count_table) - > previous.match.pick.count_table
+		rm previous.match.fasta previous.match.count_table previous.match_otu.pick.accnos
 	fi
-	rm to_exclude.accnos $PREV_SUB.match_otu.fasta $PREV_SUB.match_otu.count_table $PREV_SUB.match_otu.names
+	rm to_exclude.accnos previous.match_otu.fasta previous.match_otu.count_table previous.match_otu.names
 fi
 
 # Save newly set and updated variables

@@ -35,7 +35,7 @@ do
 	if [ ! -z "$(find ./ -type f -name $i.*.$LIBNAME.fwd.filtered.derep)" ]
 	then
 		echo "Orientation: $i in R1 and $j in R2"
-		Rscript --vanilla $BIN/Rscript_dada2_single_run.R $NCPUS $LIBNAME $i $j $comb $MIN_OV $PTRESH ${PREV_PATH##*/}
+		Rscript --vanilla $BIN/Rscript_dada2_single_run.R $NCPUS $LIBNAME $i $j $comb $MIN_OV $PTRESH $(echo ${PREV_PATH[@]##*/} | tr " " "#")
 	fi
 done
 
