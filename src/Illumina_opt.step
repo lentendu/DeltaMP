@@ -66,7 +66,7 @@ do
 		sed -n '/RatePct/,/^$/p' fasta/$i.$j.$LIB_NAME.pairend_trim.stats | sed '1,2d;$d' | awk '{print $3}' > raw_stat/$i.$j.$LIB_NAME.pairend_trim.meanposqual
 		rm fasta/$i.$j.$LIB_NAME.pairend_trim.stats fasta/$i.$j.$LIB_NAME.pairend.trim.fastq
 		
-	elif [ $TRUNCBE == "yes" ] && [ -f fastq/$i.${FWD_LIB}.fastq.$EXT ] && [ -f fastq/$j.${RVS_LIB}.fastq.$EXT ]
+	elif [ $TRUNCBE == "yes" ] && [ -f fastq/$i.${FWD_LIB}.fastq.$EXT ] && [ $(gunzip -ck fastq/$i.${FWD_LIB}.fastq.$EXT | grep -c "^+$") -gt 100 ] # only if at least 100 seq, otherwise eestats2 crash
 	then
 		if [ $TRUNCLEN != "no" ]
 		then
@@ -79,8 +79,8 @@ do
 			if [ $UNPAIR == "yes" ]
 			then
 				# truncate just before the first N base, if any (reads with N's are removed after pair-end merging otherwise)
-				seqkit subseq --bed <(seqkit locate --bed -rP -p "^[ATCG][ATCG]*" fastq/$i.${FWD_LIB}.fastq.$EXT) fastq/$i.${FWD_LIB}.fastq.$EXT | sed '/^@/s/_1-[0-9][0-9]*:.*//' | eval $COMP > fastq/$i.${FWD_LIB}.noN.fastq.$EXT
-				seqkit subseq --bed <(seqkit locate --bed -rP -p "^[ATCG][ATCG]*" fastq/$j.${RVS_LIB}.fastq.$EXT) fastq/$j.${RVS_LIB}.fastq.$EXT | sed '/^@/s/_1-[0-9][0-9]*:.*//' | eval $COMP > fastq/$j.${RVS_LIB}.noN.fastq.$EXT
+				seqkit subseq -j 1 --bed <(seqkit locate -j 1 --bed -rP -p "^[ATCG][ATCG]*" fastq/$i.${FWD_LIB}.fastq.$EXT) fastq/$i.${FWD_LIB}.fastq.$EXT | sed '/^@/s/_1-[0-9][0-9]*:.*//' | eval $COMP > fastq/$i.${FWD_LIB}.noN.fastq.$EXT
+				seqkit subseq -j 1 --bed <(seqkit locate -j 1 --bed -rP -p "^[ATCG][ATCG]*" fastq/$j.${RVS_LIB}.fastq.$EXT) fastq/$j.${RVS_LIB}.fastq.$EXT | sed '/^@/s/_1-[0-9][0-9]*:.*//' | eval $COMP > fastq/$j.${RVS_LIB}.noN.fastq.$EXT
 				ADD=".noN"
 			fi
 			vsearch --quiet --fastq_eestats2 fastq/$i.${FWD_LIB}$ADD.fastq.$EXT --ee_cutoffs $(seq $MINEE $EESTEP $MAXEE | tr "\n" "," | sed 's/,$//') --length_cutoffs $LENCUT --output - | sed '1,/^---/d;s/^  *//;s/  */\t/g;s/\([0-9]*\)(\t*\([0-9\.]*\)%)/\1 \2/g' > ../quality_check/$i.${FWD_LIB}.eestat
@@ -91,8 +91,8 @@ do
 			PCTTRESH=$(awk -v P=$PTRESH 'BEGIN{print (1-P)*100}')
 			for k in $(seq $MINEE $EESTEP $MAXEE)
 			do
-				vsearch --quiet --fastq_filter fastq/$i.${FWD_LIB}.fastq.$EXT --fastq_truncee $k --fastqout $i.${FWD_LIB}.$k.fastq
-				vsearch --quiet --fastq_filter fastq/$j.${RVS_LIB}.fastq.$EXT --fastq_truncee $k --fastqout $j.${RVS_LIB}.$k.fastq
+				vsearch --quiet --threads 1 --fastq_filter fastq/$i.${FWD_LIB}.fastq.$EXT --fastq_truncee $k --fastqout $i.${FWD_LIB}.$k.fastq
+				vsearch --quiet --threads 1 --fastq_filter fastq/$j.${RVS_LIB}.fastq.$EXT --fastq_truncee $k --fastqout $j.${RVS_LIB}.$k.fastq
 			done
 			for k in $(seq $MINEE $EESTEP $MAXEE)
 			do

@@ -81,27 +81,33 @@ if [ -z "$(i=fastq/${FWD_NAME}.${FWD_LIB}.fastq.$EXT ; if [ -f $i ]; then eval $
 then
 	MY_TMP_NAME=`echo $JOBNAME | sed "s/$DELTAMP_VER\.//;s/\.$SUBPROJECT//"`
 	echo $SAMP_NAME > ${MY_TMP_NAME}.${SAMP_NAME}.missing
-else	
-	# raw reads stat
-	for i in ${FWD_LIB} ${RVS_LIB}
+else
+	RAWCOUNT=$(seqkit stat -T ${RAWPATH}${FWD_LIB}.fastq.$EXT | sed '1d' | cut -f 4)
+	for j in ${FWD_NAME} ${RVS_NAME}
 	do
-		for j in ${FWD_NAME} ${RVS_NAME}
+		if [ $j == "$FWD_NAME" ] ; then l=${RVS_NAME} ; else l=${FWD_NAME} ; fi
+		for i in ${FWD_LIB} ${RVS_LIB}
 		do
-			if [ $i == ${FWD_LIB} ] ; then k=$LIB_NAME.fwd ; else k=$LIB_NAME.rvs ; fi
-			if [ -f fastq/$j.$i.fastq.$EXT ]
+			LIB_COUNT=$(seqkit stat -T fastq/$j.$i.fastq.$EXT 2> /dev/null | sed '1d' | cut -f 4)
+			# removal of empty files
+			if [ "${LIB_COUNT:-0}" -eq 0 ]
 			then
-				if [ $(eval $DECOMP fastq/$j.$i.fastq.$EXT | wc -c) -gt 0 ]
-				then
-					vsearch --quiet --fastq_stats fastq/$j.$i.fastq.$EXT --log fastq/$j.$k.stats
-					sed -n '/^Read length distribution/,/^$/{s/>=//;p}' fastq/$j.$k.stats | awk '$3~"%"{print $1,$2}' | sort -k1,1n > raw_stat/$j.$k.length
-					sed -n '/^Q score distribution/,/^$/p' fastq/$j.$k.stats | awk '$5~"%"{print $2,$4}' | sort -k 1,1 | join -a 1 -o 0,2.2 -e "0" <(seq 0 41 | sort -k 1,1) - | sort -k 1,1n | cut -d " " -f 2 > raw_stat/$j.$k.meanqual
-					sed -n '/RatePct/,/^$/p' fastq/$j.$k.stats | sed '1,2d;$d' | awk '{print $3}' > raw_stat/$j.$k.meanposqual
-					rm fastq/$j.$k.stats
-				else
-					# delete if empty
-					rm fastq/$j.$i.fastq.$EXT
-				fi
+				if [ $i == ${FWD_LIB} ]; then echo "There is no reads in the orientation $j.$i / $l.${RVS_LIB}." ; fi
+				rm -f fastq/$j.$i.fastq.$EXT
+				continue
+			# removal of files with too low percent of raw reads in one orientation
+			elif (( $(echo "$LIB_COUNT < ( $RAWCOUNT * $OTRESH / 100 )" | bc -l) ))
+			then
+				if [ $i == ${FWD_LIB} ]; then echo "There is only $LIB_COUNT reads in the orientation $j.$i / $l.${RVS_LIB} , for $RAWCOUNT raw reads, which is below the Orientation threshold of $OTRESH %. Reads in this direction are ignored." ; fi
+				rm fastq/$j.$i.fastq.$EXT
+				continue
 			fi
+			if [ $i == ${FWD_LIB} ]; then k=$LIB_NAME.fwd ; else k=$LIB_NAME.rvs ; fi
+			vsearch --quiet --fastq_stats fastq/$j.$i.fastq.$EXT --log fastq/$j.$k.stats
+			sed -n '/^Read length distribution/,/^$/{s/>=//;p}' fastq/$j.$k.stats | awk '$3~"%"{print $1,$2}' | sort -k1,1n > raw_stat/$j.$k.length
+			sed -n '/^Q score distribution/,/^$/p' fastq/$j.$k.stats | awk '$5~"%"{print $2,$4}' | sort -k 1,1 | join -a 1 -o 0,2.2 -e "0" <(seq 0 41 | sort -k 1,1) - | sort -k 1,1n | cut -d " " -f 2 > raw_stat/$j.$k.meanqual
+			sed -n '/RatePct/,/^$/p' fastq/$j.$k.stats | sed '1,2d;$d' | awk '{print $3}' > raw_stat/$j.$k.meanposqual
+			rm fastq/$j.$k.stats
 		done
 	done
 	
@@ -123,7 +129,7 @@ else
 			if [ -f fastq/$i.${FWD_LIB}.fastq.$EXT ]
 			then
 				vsearch --fastq_filter fastq/$i.${FWD_LIB}.fastq.$EXT --reverse fastq/$j.${RVS_LIB}.fastq.$EXT --fastq_truncee $MAXEE$MINKEEP$MAXKEEP --fastqout fastq/$i.${FWD_LIB}.trunc.fastq --fastqout_rev fastq/$j.${RVS_LIB}.trunc.fastq
-				# remove empty files
+				# remove empty files then compress
 				if [ ! -s fastq/$i.${FWD_LIB}.trunc.fastq ]
 				then
 					rm fastq/$i.${FWD_LIB}.trunc.fastq fastq/$j.${RVS_LIB}.trunc.fastq

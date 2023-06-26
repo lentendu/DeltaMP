@@ -128,14 +128,27 @@ do
 					fi
 				else
 					PRIMER_COUNT=$(awk '{sum+=$2}END{print sum}' libraries/raw_stat/$i.$lib.fwd.length)
-					if [ $PALG == "vsearch" ]
+					if [ $TRUNCBE == "yes" ]
 					then
-						paste <(echo -e "$PRIMER_COUNT") <(awk '$2=="Pairs" || $2=="Merged"{print $1}' libraries/fastq/log.pairend.$i.$lib.txt | tr "\n" "\t")
-					elif [ $PALG == "ngmerge" ]
-					then
-						paste <(echo -e "$PRIMER_COUNT") <(sed '1d;s/.*: //' libraries/fastq/log.pairend.$i.$lib.txt | tr "\n" "\t")
+						if [ $PALG == "vsearch" ]
+						then
+							paste <(echo -e "$PRIMER_COUNT") <(awk '$2=="Pairs"{print $1}' libraries/fastq/log.pairend.$i.$lib.txt | tr "\n" "\t")
+						elif [ $PALG == "ngmerge" ]
+						then
+							paste <(echo -e "$PRIMER_COUNT") <(sed '1d;s/.*: //' libraries/fastq/log.pairend.$i.$lib.txt | head -1)
+						else
+							paste <(echo -e "$PRIMER_COUNT") <(tac libraries/fastq/log.pairend.$i.$lib.txt | grep -m 1 -P "STAT\tREADS" | cut -f 4)
+						fi
 					else
-						paste <(echo -e "$PRIMER_COUNT") <(tac libraries/fastq/log.pairend.$i.$lib.txt | grep -m 1 -P "STAT\tREADS" | cut -f 4) <(tac libraries/fastq/log.pairend.$i.$lib.txt | grep -m 1 -P "STAT\tOK\t" | cut -f 4)
+						if [ $PALG == "vsearch" ]
+						then
+							paste <(echo -e "$PRIMER_COUNT") <(awk '$2=="Pairs" || $2=="Merged"{print $1}' libraries/fastq/log.pairend.$i.$lib.txt | tr "\n" "\t")
+						elif [ $PALG == "ngmerge" ]
+						then
+							paste <(echo -e "$PRIMER_COUNT") <(sed '1d;s/.*: //' libraries/fastq/log.pairend.$i.$lib.txt | tr "\n" "\t")
+						else
+							paste <(echo -e "$PRIMER_COUNT") <(tac libraries/fastq/log.pairend.$i.$lib.txt | grep -m 1 -P "STAT\tREADS" | cut -f 4) <(tac libraries/fastq/log.pairend.$i.$lib.txt | grep -m 1 -P "STAT\tOK\t" | cut -f 4)
+						fi
 					fi
 				fi
 			fi
@@ -237,6 +250,16 @@ else
 	for i in ${FWD_NAME} ${RVS_NAME}
 	do
 		if [ $i == "$FWD_NAME" ] ; then j=${RVS_NAME} ; else j=${FWD_NAME} ; fi
+		# only proceed if enough samples in this orientation
+		NBOK=$(ls ../libraries/raw_stat/$i.*.fwd.length 2> /dev/null | sed -n '$=')
+		if (( $(echo "${NBOK:-0} <= ( $SAMP_SIZE * $SKIP_TRESH / 100 )" | bc -l) ))
+		then
+			echo "There is only ${NBOK:-0} samples with reads in the $i.fwd & $j.rvs orientation. This orientation is ignored for the truncation parameter optimization."
+			break
+		else
+			echo "Truncation parameter optimization for orientation $i.fwd & $j.rvs"
+		fi
+		#
 		if [ $TRUNCLEN == "no" ] && [ ! -z "$(find ../libraries/fastq -name $i.$j.*.pairend.fastq.$EXT)" ]
 		then
 			if [ $SKIP_TRESH -eq 100 ]

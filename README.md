@@ -205,6 +205,7 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Bind barcode to primer for demultiplexing__: *Illumina specific parameter*, "yes" or "no". For dual-indexing, control binding of barcodes with the forward/reverse primer to increase demultiplexing accuracy. The first barcode in a pair is only search associated with the forward primer at 5'-end and the second barcode is only search associated with the reverse primer at 5'-end, in both paired libraries. The default is “no”.
 
++ __Orientation threshold__: *Illumina specific parameter*, a percentage of raw demultiplexed reads above which to keep using reads in a certain orientation (forward primer in R1 and reverse primer in R2, and/or reverse primer in R1 and forward primer in R2). The default is 1.
 
 ### TARGET section
 
