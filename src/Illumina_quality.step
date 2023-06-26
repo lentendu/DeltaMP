@@ -382,7 +382,7 @@ fi
 
 # Merge raw stat statistics
 cd $EXEC/libraries/raw_stat
-if [ $DEMULTI == "no" ] || [ $PERRUN == "yes" ]
+if ( [ $DEMULTI == "no" ] || [ $PERRUN == "yes" ] ) && [ $ONERUN == "no" ]
 then
 	if [ $PERRUN == "yes" ]
 	then

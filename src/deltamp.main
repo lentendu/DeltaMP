@@ -309,7 +309,7 @@ then
 	if [ $CLUST == "dada2" ]
 	then
 		ASV=yes
-		if [ $DEMULTI == "no" ]
+		if [ $DEMULTI == "no" ] || [ $ONERUN == "yes" ]
 		then
 			PERRUN=yes
 		fi
@@ -704,6 +704,10 @@ then
 		fi
 		if [ $PERRUN == "yes" ]
 		then
+			if [ $ONERUN == "yes" ]
+			then
+				awk '{print $0"\tlibrary1"}' config/lib4.list > config/librun.list
+			fi
 			NBRUN=`cut -f 3 config/librun.list | sort -u | wc -l`
 		fi
 	fi

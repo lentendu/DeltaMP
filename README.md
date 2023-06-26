@@ -201,7 +201,7 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Strict barcode anchoring__: “yes” or “no”. Wether the barcodes are strictly anchored at the 5'-end or partial match are also allowed (non-internal barcodes) in raw undemultiplexed libraries. The default is "yes".
 
-+ __Single barcode side__: *Illumina specific parameter*, "both", "forward" or "reverse". For single-indexing (one barcode per library), provide the position of the barcode, "both" for both forward and reverse primers, "forward" for barcode only associated with the forward primer, "reverese"  for barcode only associated with the reverse primer. The default is “both”.
++ __Single barcode side__: *Illumina specific parameter*, "both", "forward" or "reverse". For single-indexing (one barcode per library), provide the position of the barcode, "both" for both forward and reverse primers, "forward" for barcode only associated with the forward primer, "reverse"  for barcode only associated with the reverse primer. The default is “both”.
 
 + __Bind barcode to primer for demultiplexing__: *Illumina specific parameter*, "yes" or "no". For dual-indexing, control binding of barcodes with the forward/reverse primer to increase demultiplexing accuracy. The first barcode in a pair is only search associated with the forward primer at 5'-end and the second barcode is only search associated with the reverse primer at 5'-end, in both paired libraries. The default is “no”.
 
@@ -300,6 +300,8 @@ The default values for the optional parameters could be displayed by using the -
 + __Clustering algorithm__: "cd-hit-est”, “vsearch”, “mcl”, “sumaclust”, “swarm” or “dada2“. The default is “mcl”.
 
 + __Clustering similarity threshold__: a number between 80 and 100 (percent of similarity). Disregarded if the “swarm” or "dada2" clustering algorithms are used. The default is 97.
+
++ __Single run__: "yes" or "no", consider all libraries coming from the same run in order to build a single error model for dada2. The default is "no".
 
 + __Cluster with previous subproject reference sequences__: the accepted values are a full path or “no”. If the full path to a previous subproject output directory is provided, all amplicons of this previous subproject will be search for exact match with amplicons from the current subproject. If amplicons of one or multiple OTUs from the current subproject have match in a single OTUs of the previous subproject, these amplicons will be assign to the OTU index name used in the previous subproject. Remaining OTUs from the current subproject without match in the reference suproject have their OTU index names starting after the last OTU of the reference subproject. This option is experimental, use with caution. The default is “no”.
 
