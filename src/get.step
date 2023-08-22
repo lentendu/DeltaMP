@@ -79,7 +79,7 @@ then
 		parallel -j $NCPUS 'if [ -f {1}/{2} ]; then ln -s {1}/{2} {2} ; fi' ::: ${LIB_DIR[@]} ::: ${ARCH[@]}
 	fi
 else
-	wget -nv -O $LIB_DIR.txt "http://www.ebi.ac.uk/ena/data/warehouse/filereport?accession=$LIB_DIR&result=read_run&download=text"
+	wget -nv -O $LIB_DIR.txt "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=$LIB_DIR&result=read_run&fields=all&format=tsv&download=true"
 	if [ "$(sed -n '$=' $LIB_DIR.txt)" -gt 1 ]
 	then
 		if [ ${ARCH[0]%%.*} == "ftp" ]
@@ -88,7 +88,7 @@ else
 		elif [ ${ARCH[0]%%.*} == "fasp" ]
 		then
 			ASPERA_DIR=$(dirname $(which ascp) | sed 's@/bin$@@')
-			parallel -j $NCPUS "ascp -QT -l 300m -P33001 -i $ASPERA_DIR/etc/asperaweb_id_dsa.openssh era-fasp@{} ./" ::: ${ARCH[@]}
+			parallel -j $NCPUS "ascp -QT -l 300m -P33001 -i ${ASPERA_DIR}/etc/asperaweb_id_dsa.openssh era-fasp@{} ./" ::: ${ARCH[@]}
 		fi
 		ARCH=($(basename -a ${ARCH[@]}))
 	else
