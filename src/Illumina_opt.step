@@ -44,7 +44,13 @@ do
 		if [ $QFILT == "maxee" ]
 		then
 			vsearch --quiet --threads 1 --fastq_filter fastq/$i.$j.$LIB_NAME.pairend.fastq.$EXT --eeout --fastq_maxlen $MAXLEN --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastqout - | seqkit grep -w 0 -srv -p "\"A{$MAXHOMOP,}\",\"C{$MAXHOMOP,}\"" > fasta/$i.$j.$LIB_NAME.pairend.trim.fastq
-			vsearch --quiet --fastq_eestats2 fasta/$i.$j.$LIB_NAME.pairend.trim.fastq --ee_cutoffs $(seq $MAXEE -$EESTEP $MINEE | tr "\n" "," | sed 's/,$//') --length_cutoffs $MINLEN,*,$LENSTEP --output - | sed -n '/^----/{n;s/^  *[0-9]*  *//;s/  */\t/g;s/(\t*\([0-9\.]*\)%)//g;p}' > ../quality_check/$i.$j.$LIB_NAME.stat
+			if [ $PREVQ != "no" ]
+			then
+				read QUAL < $PREVQ/quality_check/optimized.quality.txt
+				vsearch --quiet --fastq_filter fasta/$i.$j.$LIB_NAME.pairend.trim.fastq --fastq_maxee $QUAL --fastaout - | grep -c "^>"  > ../quality_check/$i.$j.$LIB_NAME.stat
+			else
+				vsearch --quiet --fastq_eestats2 fasta/$i.$j.$LIB_NAME.pairend.trim.fastq --ee_cutoffs $(seq $MAXEE -$EESTEP $MINEE | tr "\n" "," | sed 's/,$//') --length_cutoffs $MINLEN,*,$LENSTEP --output - | sed -n '/^----/{n;s/^  *[0-9]*  *//;s/  */\t/g;s/(\t*\([0-9\.]*\)%)//g;p}' > ../quality_check/$i.$j.$LIB_NAME.stat
+			fi
 		else
 			eval $DECOMP fastq/$i.$j.$LIB_NAME.pairend.fastq.$EXT > fastq/$i.$j.$LIB_NAME.pairend.fastq
 			mothur "#set.dir(input=$EXEC/libraries/fastq, output=$EXEC/libraries/fasta);
@@ -54,10 +60,16 @@ do
 			trim.seqs(fasta=$i.$j.$LIB_NAME.pairend.fasta, qfile=$i.$j.$LIB_NAME.pairend.qual, qaverage=$MINQUAL, minlength=$MINLEN, maxlength=$MAXLEN, maxambig=$MAXAMBIG, maxhomop=$MAXHOMOP, processors=1);
 			make.fastq(fasta=$i.$j.$LIB_NAME.pairend.trim.fasta, qfile=$i.$j.$LIB_NAME.pairend.trim.qual)" > /dev/null
 			awk '$1!~">"{sum=0;for(i=1;i<=NF;i++){sum+=$i};print sum/NF}' fasta/$i.$j.$LIB_NAME.pairend.trim.qual > fasta/$i.$j.$LIB_NAME.pairend.trim.qual.stat
-			for k in $(seq $MINQUAL 30)
-			do
-				awk -v K=$k 'BEGIN{sum=0} $1>=K{sum+=1}END{print sum}' fasta/$i.$j.$LIB_NAME.pairend.trim.qual.stat
-			done | tr "\n" "\t" | sed 's/$/\n/' > ../quality_check/$i.$j.$LIB_NAME.stat
+			if [ $PREVQ != "no" ]
+			then
+				read QUAL < $PREVQ/quality_check/optimized.quality.txt
+				awk -v K=$QUAL 'BEGIN{sum=0} $1>=K{sum+=1}END{print sum}' fasta/$i.$j.$LIB_NAME.pairend.trim.qual.stat > ../quality_check/$i.$j.$LIB_NAME.stat
+			else
+				for k in $(seq $MINQUAL 30)
+				do
+					awk -v K=$k 'BEGIN{sum=0} $1>=K{sum+=1}END{print sum}' fasta/$i.$j.$LIB_NAME.pairend.trim.qual.stat
+				done | tr "\n" "\t" | sed 's/$/\n/' > ../quality_check/$i.$j.$LIB_NAME.stat
+			fi
 			rm fastq/$i.$j.$LIB_NAME.pairend.fastq fastq/$i.$j.$LIB_NAME.pairend.fasta fastq/$i.$j.$LIB_NAME.pairend.qual fasta/$i.$j.$LIB_NAME.pairend.trim.fasta fasta/$i.$j.$LIB_NAME.pairend.scrap.fasta fasta/$i.$j.$LIB_NAME.pairend.trim.qual fasta/$i.$j.$LIB_NAME.pairend.scrap.qual fasta/$i.$j.$LIB_NAME.pairend.trim.qual.stat
 		fi
 		vsearch --quiet --fastq_stats fasta/$i.$j.$LIB_NAME.pairend.trim.fastq --log fasta/$i.$j.$LIB_NAME.pairend_trim.stats
@@ -66,7 +78,7 @@ do
 		sed -n '/RatePct/,/^$/p' fasta/$i.$j.$LIB_NAME.pairend_trim.stats | sed '1,2d;$d' | awk '{print $3}' > raw_stat/$i.$j.$LIB_NAME.pairend_trim.meanposqual
 		rm fasta/$i.$j.$LIB_NAME.pairend_trim.stats fasta/$i.$j.$LIB_NAME.pairend.trim.fastq
 		
-	elif [ $TRUNCBE == "yes" ] && [ -f fastq/$i.${FWD_LIB}.fastq.$EXT ] && [ $(gunzip -ck fastq/$i.${FWD_LIB}.fastq.$EXT | grep -c "^+$") -gt 100 ] # only if at least 100 seq, otherwise eestats2 crash
+	elif [ $TRUNCBE == "yes" ] && [ -f fastq/$i.${FWD_LIB}.fastq.$EXT ] && ( [ $PREVQ != "no" ] || [ $(gunzip -ck fastq/$i.${FWD_LIB}.fastq.$EXT | grep -c "^+$") -gt 100 ] ) # only if at least 100 seq, otherwise eestats2 crash
 	then
 		if [ $TRUNCLEN != "no" ]
 		then
@@ -83,8 +95,15 @@ do
 				seqkit subseq -j 1 --bed <(seqkit locate -j 1 --bed -rP -p "^[ATCG][ATCG]*" fastq/$j.${RVS_LIB}.fastq.$EXT) fastq/$j.${RVS_LIB}.fastq.$EXT | sed '/^@/s/_1-[0-9][0-9]*:.*//' | eval $COMP > fastq/$j.${RVS_LIB}.noN.fastq.$EXT
 				ADD=".noN"
 			fi
-			vsearch --quiet --fastq_eestats2 fastq/$i.${FWD_LIB}$ADD.fastq.$EXT --ee_cutoffs $(seq $MINEE $EESTEP $MAXEE | tr "\n" "," | sed 's/,$//') --length_cutoffs $LENCUT --output - | sed '1,/^---/d;s/^  *//;s/  */\t/g;s/\([0-9]*\)(\t*\([0-9\.]*\)%)/\1 \2/g' > ../quality_check/$i.${FWD_LIB}.eestat
-			vsearch --quiet --fastq_eestats2 fastq/$j.${RVS_LIB}$ADD.fastq.$EXT --ee_cutoffs $(seq $MINEE $EESTEP $MAXEE | tr "\n" "," | sed 's/,$//') --length_cutoffs $LENCUT --output - | sed '1,/^---/d;s/^  *//;s/  */\t/g;s/\([0-9]*\)(\t*\([0-9\.]*\)%)/\1 \2/g' > ../quality_check/$j.${RVS_LIB}.eestat
+			if [ $PREVQ != "no" ]
+			then
+				read FLEN FEE RLEN REE < <(paste $PREVQ/quality_check/$i.fwd.optimized.quality.txt $PREVQ/quality_check/$j.rvs.optimized.quality.txt)
+				vsearch --quiet --fastq_filter fastq/$i.${FWD_LIB}$ADD.fastq.$EXT --fastq_truncee $FEE --fastq_trunclen $FLEN --fastaout - | grep -c "^>" > ../quality_check/$i.${FWD_LIB}.eestat
+				vsearch --quiet --fastq_filter fastq/$j.${RVS_LIB}$ADD.fastq.$EXT --fastq_truncee $REE --fastq_trunclen $RLEN --fastaout - | grep -c "^>" > ../quality_check/$j.${RVS_LIB}.eestat
+			else
+				vsearch --quiet --fastq_eestats2 fastq/$i.${FWD_LIB}$ADD.fastq.$EXT --ee_cutoffs $(seq $MINEE $EESTEP $MAXEE | tr "\n" "," | sed 's/,$//') --length_cutoffs $LENCUT --output - | sed '1,/^---/d;s/^  *//;s/  */\t/g;s/\([0-9]*\)(\t*\([0-9\.]*\)%)/\1 \2/g' > ../quality_check/$i.${FWD_LIB}.eestat
+				vsearch --quiet --fastq_eestats2 fastq/$j.${RVS_LIB}$ADD.fastq.$EXT --ee_cutoffs $(seq $MINEE $EESTEP $MAXEE | tr "\n" "," | sed 's/,$//') --length_cutoffs $LENCUT --output - | sed '1,/^---/d;s/^  *//;s/  */\t/g;s/\([0-9]*\)(\t*\([0-9\.]*\)%)/\1 \2/g' > ../quality_check/$j.${RVS_LIB}.eestat
+			fi
 			unset ADD
 		else
 			ASCII=$(vsearch --fastq_chars fastq/$i.$FWD_LIB.fastq.$EXT 2>&1 | grep -m 1 "^Guess" | sed 's/.* //')
@@ -94,24 +113,30 @@ do
 				vsearch --quiet --threads 1 --fastq_filter fastq/$i.${FWD_LIB}.fastq.$EXT --fastq_truncee $k --fastqout $i.${FWD_LIB}.$k.fastq
 				vsearch --quiet --threads 1 --fastq_filter fastq/$j.${RVS_LIB}.fastq.$EXT --fastq_truncee $k --fastqout $j.${RVS_LIB}.$k.fastq
 			done
-			for k in $(seq $MINEE $EESTEP $MAXEE)
-			do
-				for l in $(seq $MINEE $EESTEP $MAXEE)
+			if [ $PREVQ != "no" ]
+			then
+				read FLEN FEE RLEN REE < <(paste $PREVQ/quality_check/$i.fwd.optimized.quality.txt $PREVQ/quality_check/$j.rvs.optimized.quality.txt)
+				vsearch --quiet --threads 1 --fastq_mergepairs $i.${FWD_LIB}.$FEE.fastq --reverse $j.${RVS_LIB}.$REE.fastq --fastq_ascii $ASCII --fastq_minovlen $MIN_OV --fastq_maxdiffpct $PCTTRESH --fastq_allowmergestagger --fastqout - | vsearch --quiet --fastq_filter - --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastq_maxlen $MAXLEN --fastaout - | seqkit grep -srv -p "\"A{$MAXHOMOP,}\",\"C{$MAXHOMOP,}\"" | grep -c "^>" > ../quality_check/$i.$j.$LIB_NAME.pairend.eestat
+			else
+				for k in $(seq $MINEE $EESTEP $MAXEE)
 				do
-					TMP_MERGE=$(mktemp)
-					if [ $PALG == "vsearch" ]
-					then
-						vsearch --quiet --threads 1 --fastq_mergepairs $i.${FWD_LIB}.$k.fastq --reverse $j.${RVS_LIB}.$l.fastq --fastq_ascii $ASCII --fastq_minovlen $MIN_OV --fastq_maxdiffpct $PCTTRESH --fastq_allowmergestagger --fastqout $TMP_MERGE 2> fastq/log.pairend.$i.$LIB_NAME.txt
-					elif [ $PALG == "ngmerge" ]
-					then
-						NGmerge -1 $i.${FWD_LIB}.$k.fastq -2 $j.${RVS_LIB}.$l.fastq -m $MIN_OV -p $(echo 1 - $PTRESH | bc) -y -o - > $TMP_MERGE
-					else
-						pandaseq -f $i.${FWD_LIB}.$k.fastq -r $j.${RVS_LIB}.$l.fastq -F -A $PALG -o $MIN_OV -O $((MAXLEN+MIN_OV-MINLEN)) -t $PTRESH -T 1 2> /dev/null > $TMP_MERGE
-					fi
-					vsearch --quiet --fastq_filter $TMP_MERGE --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastq_maxlen $MAXLEN --fastqout - | seqkit grep -srv -p "\"A{$MAXHOMOP,}\",\"C{$MAXHOMOP,}\"" | seqkit stats | sed '1d;s/^-/'$k' '$l'/'
-					rm $TMP_MERGE
-				done
-			done | sed 's/  */ /g;s/,//g' | cut -d " " -f 1-2,5,7-9 > ../quality_check/$i.$j.$LIB_NAME.pairend.eestat
+					for l in $(seq $MINEE $EESTEP $MAXEE)
+					do
+						TMP_MERGE=$(mktemp)
+						if [ $PALG == "vsearch" ]
+						then
+							vsearch --quiet --threads 1 --fastq_mergepairs $i.${FWD_LIB}.$k.fastq --reverse $j.${RVS_LIB}.$l.fastq --fastq_ascii $ASCII --fastq_minovlen $MIN_OV --fastq_maxdiffpct $PCTTRESH --fastq_allowmergestagger --fastqout $TMP_MERGE 2> fastq/log.pairend.$i.$LIB_NAME.txt
+						elif [ $PALG == "ngmerge" ]
+						then
+							NGmerge -1 $i.${FWD_LIB}.$k.fastq -2 $j.${RVS_LIB}.$l.fastq -m $MIN_OV -p $(echo 1 - $PTRESH | bc) -y -o - > $TMP_MERGE
+						else
+							pandaseq -f $i.${FWD_LIB}.$k.fastq -r $j.${RVS_LIB}.$l.fastq -F -A $PALG -o $MIN_OV -O $((MAXLEN+MIN_OV-MINLEN)) -t $PTRESH -T 1 2> /dev/null > $TMP_MERGE
+						fi
+						vsearch --quiet --fastq_filter $TMP_MERGE --fastq_maxns $MAXAMBIG --fastq_minlen $MINLEN --fastq_maxlen $MAXLEN --fastqout - | seqkit grep -srv -p "\"A{$MAXHOMOP,}\",\"C{$MAXHOMOP,}\"" | seqkit stats | sed '1d;s/^-/'$k' '$l'/'
+						rm $TMP_MERGE
+					done
+				done | sed 's/  */ /g;s/,//g' | cut -d " " -f 1-2,5,7-9 > ../quality_check/$i.$j.$LIB_NAME.pairend.eestat
+			fi
 			for k in $(seq $MINEE $EESTEP $MAXEE); do rm $i.${FWD_LIB}.$k.fastq $j.${RVS_LIB}.$k.fastq ; done
 		fi
 	fi

@@ -213,7 +213,16 @@ if [ $TRUNCBE == "no" ]
 then
 	if [ $SKIP_TRESH -eq 100 ]
 	then
-		if [ $QFILT == "average" ] ; then echo $MINQUAL > optimized.quality.txt ; else echo $MAXEE > optimized.quality.txt ; fi
+		if [ $QFILT == "average" ]
+		then
+			echo $MINQUAL > optimized.quality.txt
+		elif [ $FILT == "maxee" ]
+		then
+			echo $MAXEE > optimized.quality.txt
+		fi
+	elif [ $PREVQ != "no" ]
+	then
+		cp $PREVQ/quality_check/optimized.quality.txt ./
 	elif (( $(echo "${MINTRESH[$((${#MINTRESH[@]}-1))]} > 1" |bc -l) ))
 	then
 		# above integer threshold and more than 75% of raw reads
@@ -235,7 +244,7 @@ then
 	cut -f 1-4,$QUALPOS $SUBPROJECT.sample_counts.tsv > $SUBPROJECT.summary.stat.tsv
 	ln -s $PWD/$SUBPROJECT.summary.stat.tsv $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.read_counts.tsv
 else
-	if [ $TRUNCLEN != "no" ] && [ $UNPAIR == "no" ] && ( [ $MEANLEN == "auto" ] || ( [ $MEANLEN != "auto" ] && [ $CLIPPING == "both" ] ) )
+	if [ $TRUNCLEN != "no" ] && [ $UNPAIR == "no" ] && ( [ $MEANLEN == "auto" ] || ( [ $MEANLEN != "auto" ] && [ $CLIPPING == "both" ] ) ) && [ $PREVQ == "no" ]
 	then
 		MEANLEN=$(cat ../libraries/raw_stat/*pairend.length | awk '{m+=$1*$2;s+=$2}END{x=m/s; print int(x)+(x>int(x))}')
 		echo "Mean expected length of pair-end reads computed and fixed at $MEANLEN"
@@ -262,9 +271,10 @@ else
 		#
 		if [ $TRUNCLEN == "no" ] && [ ! -z "$(find ../libraries/fastq -name $i.$j.*.pairend.fastq.$EXT)" ]
 		then
-			if [ $SKIP_TRESH -eq 100 ]
+			if [ $PREVQ != "no" ]
 			then
-				echo $MAXEE > $i.fwd.optimized.quality.txt && echo $MAXEE > $j.rvs.optimized.quality.txt
+				cp $PREVQ/quality_check/$i.fwd.optimized.quality.txt ./ && cp $PREVQ/quality_check/$j.rvs.optimized.quality.txt ./
+				for file in $i.$j.*.pairend.eestat ; do echo $file | cut -d "." -f 3 | paste - $file ; done | join -a 2 -o 1.2 -e 0 - libgood.list > $i.$j.trunc.nb
 			else
 				# keep pair of maxEE meeting threshold criteria and with highest number of paired reads
 				while read sam fwd rvs
@@ -277,13 +287,18 @@ else
 					raw=$(if [ $PALG == "vsearch" ] ; then awk '$2=="Pairs"{print $1;exit}' ../libraries/fastq/log.pairend.$i.$lib.txt ; elif [ $PALG == "ngmerge" ] ; then sed -n '/analyzed:/s/.*: //p' ../libraries/fastq/log.pairend.$i.$lib.txt ; else tac ../libraries/fastq/log.pairend.$i.$lib.txt | grep -m 1 -P "STAT\tREADS" | cut -f 4 ; fi)
 					cut -f 3 -d " " $i.$j.$lib.pairend.eestat | cat <(echo $raw) - | transpose
 				done < libgood.list | transpose > $i.$j.eestat
-				awk -v M=${MINTRESH[$((${#MINTRESH[@]}-1))]} -v S=$SKIP_SAMP '{if(NR==1){L=NF;for(i=2;i<=L;i++){R[i]=$i*M}} else {split($1,a,"-");T=0;C=0;for(i=2;i<=L;i++){T+=$i;if($i>=R[i]){C+=1}};if(C>=L-1-S){print a[1],a[2],a[1]+a[2],C"/"L-1,int(T/10^(length(T)-3))}}}' $i.$j.eestat | sort -k 5,5nr -k 3,3n -k 1,1n | awk -v I=$i -v J=$j 'NR==1{print $1 > I".fwd.optimized.quality.txt" ; print $2 > J".rvs.optimized.quality.txt"}'
-				if [ ! -s $i.fwd.optimized.quality.txt ] || [ ! -s $j.rvs.optimized.quality.txt ]
+				if [ $SKIP_TRESH -eq 100 ]
 				then
-					echo "No combination of maxEE ranging from $MINEE to $MAXEE used to truncate reads before pair-end asssembly allows to keep at least ${MINTRESH[$((${#MINTRESH[@]}-1))]} x the number of raw reads with primers in at least $(($(sed -n '$=' libgood.list)-SKIP_SAMP)) samples after pair-end assembly."
-					echo "Aborting"
-					(. $BIN/list_step_files.sh)
-					exit 100
+					echo $MAXEE > $i.fwd.optimized.quality.txt && echo $MAXEE > $j.rvs.optimized.quality.txt
+				else
+					awk -v M=${MINTRESH[$((${#MINTRESH[@]}-1))]} -v S=$SKIP_SAMP '{if(NR==1){L=NF;for(i=2;i<=L;i++){R[i]=$i*M}} else {split($1,a,"-");T=0;C=0;for(i=2;i<=L;i++){T+=$i;if($i>=R[i]){C+=1}};if(C>=L-1-S){print a[1],a[2],a[1]+a[2],C"/"L-1,int(T/10^(length(T)-3))}}}' $i.$j.eestat | sort -k 5,5nr -k 3,3n -k 1,1n | awk -v I=$i -v J=$j 'NR==1{print $1 > I".fwd.optimized.quality.txt" ; print $2 > J".rvs.optimized.quality.txt"}'
+					if [ ! -s $i.fwd.optimized.quality.txt ] || [ ! -s $j.rvs.optimized.quality.txt ]
+					then
+						echo "No combination of maxEE ranging from $MINEE to $MAXEE used to truncate reads before pair-end asssembly allows to keep at least ${MINTRESH[$((${#MINTRESH[@]}-1))]} x the number of raw reads with primers in at least $(($(sed -n '$=' libgood.list)-SKIP_SAMP)) samples after pair-end assembly."
+						echo "Aborting"
+						(. $BIN/list_step_files.sh)
+						exit 100
+					fi
 				fi
 				awk -v E=$(paste -d"-" $i.fwd.optimized.quality.txt $j.rvs.optimized.quality.txt) '$1==E{print $0}' $i.$j.eestat | transpose | sed '1d' > $i.$j.trunc.nb
 				rm $i.$j.eestat
@@ -292,7 +307,11 @@ else
 		then
 			MAXLF=$(while read lib ; do awk 'END{print $1}' ../libraries/raw_stat/$i.$lib.fwd.length ; done < <(cut -f 2-3 libgood.list | sed 's/\(.*\)[^\t]*\t\1.*$/\1/') | sort -n | awk -v l=$LENSTEP 'NR==1{print int($1/l)*l}')
 			MAXLR=$(while read lib ; do awk 'END{print $1}' ../libraries/raw_stat/$j.$lib.rvs.length ; done < <(cut -f 2-3 libgood.list | sed 's/\(.*\)[^\t]*\t\1.*$/\1/') | sort -n | awk -v l=$LENSTEP 'NR==1{print int($1/l)*l}')
-			if [ $SKIP_TRESH -eq 100 ]
+			if [ $PREVQ != "no" ]
+			then
+				cp $PREVQ/quality_check/$i.fwd.optimized.quality.txt ./ && cp $PREVQ/quality_check/$j.rvs.optimized.quality.txt ./
+				while read sam fwd rvs; do paste <( if [ -f $i.$fwd.eestat ] ; then cat $i.$fwd.eestat ; else echo 0 ; fi) <( if [ -f $j.$rvs.eestat ] ; then cat $j.$rvs.eestat ; else echo 0 ; fi) ; done < libgood.list | awk '{if($2>$3){print $1,$3} else print $1,$2}'  > $i.$j.trunc.nb
+			elif [ $SKIP_TRESH -eq 100 ]
 			then
 				while read samp fwd rvs
 				do

@@ -349,6 +349,28 @@ then
 	then
 		error_doc "When the 'Avoid pair-end' option is turn to yes, the 'Taxonomic classifier' can only be set to 'vsearch'"
 	fi
+	if [ $PREVQ != "no" ]
+	then
+		if [ ! -d "$PREVQ" ]
+		then
+			error_doc "The directory provided to reuse previous subproject optimized quality parameters was not found"
+		elif [ "$(ls -1 $PREVQ/quality_check/*optimized.quality.txt 2> /dev/null | wc -l)" -eq 0 ]
+		then
+			error_doc "No optimized quality parameter files found in $PREVQ/quality_check/. Check log files of the Illumina_quality step."
+		fi
+		PREVFWD_NAME=$(sed -nr 's/^FWD_NAME (.*)$/\1/p' $PREVQ/config/env.txt)
+		PREVRVS_NAME=$(sed -nr 's/^RVS_NAME (.*)$/\1/p' $PREVQ/config/env.txt)
+		PREVTRUNCBE=$(sed -nr 's/^TRUNCBE (.*)$/\1/p' $PREVQ/config/env.txt)
+		PREVQFILT=$(sed -nr 's/^QFILT (.*)$/\1/p' $PREVQ/config/env.txt)
+		PREVTRUNCLEN=$(sed -nr 's/^TRUNCLEN (.*)$/\1/p' $PREVQ/config/env.txt)
+		if [ $PREVFWD_NAME != $FWD_NAME ] || [ $PREVRVS_NAME != $RVS_NAME ]
+		then
+			error_doc "The previous subproject provided to reuse optimized quality parameters have different primers (Forward primer name : $PREVFWD_NAME , Reverse primer name : $PREVRVS_NAME )"
+		elif [ $PREVTRUNCBE != $TRUNCBE ] || [ $PREVQFILT != $QFILT ] || [ "$PREVTRUNCLEN" != "$TRUNCLEN" ]
+		then
+			error_doc "The previous subproject provided to reuse optimized quality parameters have different quality filtration options (Type of quality filtering: $PREVQFILT , Truncation before pair-end : $PREVTRUNCBE , Minimum length truncation of unpaired reads : $PREVTRUNCLEN )"
+		fi
+	fi
 fi
 
 # Databases

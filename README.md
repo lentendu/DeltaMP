@@ -279,6 +279,8 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Expected mean length of amplified barcode gene__: *Illumina specific parameter*, "no" or a read length between __Minimum sequence length__ and __Maximum sequence length__ use to optimize truncation length and maxEE parameters, so that assembled pair-end reads reach at least this length
 
++ __Reuse previous subproject optimized quality parameters__: *Illumina specific parameter*, "no" or a path to a previous suproject execution directory. This will reuse the same optimize quality parameters for length and quality fitering truncation if the primers and the options __Type of quality filtering__, __Truncation before pair-end__ and __Minimum length truncation of unpaired reads__ are identical. The default is no.
+
 
 ### PIPELINE section
 
