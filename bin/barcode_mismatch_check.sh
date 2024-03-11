@@ -20,9 +20,8 @@
 
 if [ -z "$1" ]; then 
 	echo usage: $0 MOTHUR-oligo-file
-	echo "Determine the allowed amount of mismatches (only indels checked) to use for demultiplexing a 454 library (from 0 to 2)"
+	echo "Determine the allowed amount of mismatch(es) to use for demultiplexing (0 to 2)"
 	exit
-
 fi
 
 OLIGO=$1 ; shift
