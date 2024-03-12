@@ -403,7 +403,7 @@ then
 			DBCUT=$FWD_NAME.$RVS_NAME.$DB
 		fi
 	fi
-	if [ -f $DBFOLD/$DB.align ]
+	if [ -f $DBFOLD/$DB.align.fasta ]
 	then
 		DBALIGN=$DB.align
 		if [ $CUT_DB == "yes" ]
