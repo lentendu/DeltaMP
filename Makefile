@@ -28,13 +28,19 @@ vpath %.config src
 
 # main rule
 .PHONY: all clean
-all: dep $(deltamp) $(module) $(steps) $(batch_spec) $(test_config)
+all: $(deltamp) dep $(module) $(steps) $(batch_spec) $(test_config)
 
 # rule to build deltamp, pipeline_master, restart_from_step, delete_subproject and check_previous_step
 $(deltamp): bin/% : %.main | lib/$(batch)/option_variables
 	SEDMAIN=$$(sed 's/^/s\//;s/\t/\//;s/$$/\/g/' $| |  tr "\n" ";" | sed 's/^/sed "/;s/;$$/"/'); \
 	eval $$SEDMAIN $< | sed 's#^\(VERSION\[DELTAMP\]=\)$$#\1$(version)#;s#^\(DELTAMP_BUILD=\)$$#\1$(CURDIR)#;s#^\(DELTAMP_COMMIT=\)$$#\1$(commit)#' > $@ && chmod +x $@
 
+# rule to check dependencies once depending modules loaded
+dep:
+	@echo control dependencies
+	(module load $$(echo "$(module_load)" | sed 's/;/ /g') ;\
+	while read soft ver; do unset OUT; OUT=$$($$soft --version 2>&1 | sed -n "s/[Vv]ersion[:= ]*/v/;s/^$$soft \([0-9][0-9\.-]*\)/$$soft v\1/;/v[0-9\.-][0-9\.-]*/{s/.*\(v[0-9\.-][0-9\.-]*\).*/$$soft \1/p;q}"); if [ -z "$$OUT" ]; then OUT=$$($$soft -h 2>&1 | sed -n "s/[Vv]ersion[:= ]*/v/;s/^$$soft \([0-9][0-9\.-]*\)/$$soft v\1/;/v[0-9\.-][0-9\.-]*/{s/.*\(v[0-9\.-][0-9\.-]*\).*/$$soft \1/p;q}"); fi; if [ -z "$$OUT" ]; then echo $$soft not_found; else echo $$OUT | sed 's/ v/ /;s/\([0-9][0-9]*\.*[0-9]*\).*/\1/'; fi | awk -v v="$$ver" '{if($$2=="not_found"){print} else {if($$2<v){print $$0,"below requested "v} else {print $$0,"ok"}}}'; done < dependencies | column -t | awk '{print; if($$0~"not_found" || $$0~"below"){err=1}}END{if(err==1){print "\ndependency issue" ; exit err}}')
+	
 # rule to build the module file of the current version
 $(module): src/deltamp.module | $(modulefiles)
 	 awk -v M="$(module_load)" '{if($$1=="LOAD"){split(M,a,";");for(i in a){print "module\t\tload\t"a[i]}} else print $$0}' $< |\
@@ -109,11 +115,6 @@ $(batch_spec): bin/deltamp.% : lib/$(batch)/deltamp.%
 # rule to build test configuration file
 $(test_config): test/%.tsv : %.config
 	sed "s#USER#$$USER#;s#CURDIR#$(CURDIR)#" $< > $@
-
-# dependencies check
-dep:
-	@echo control dependencies
-	while read soft ver; do unset OUT; OUT=$$($$soft --version 2>&1 | sed -n "s/[Vv]ersion[:= ]*/v/;s/^$$soft \([0-9][0-9\.-]*\)/$$soft v\1/;/v[0-9\.-][0-9\.-]*/{s/.*\(v[0-9\.-][0-9\.-]*\).*/$$soft \1/p;q}"); if [ -z "$$OUT" ]; then OUT=$$($$soft -h 2>&1 | sed -n "s/[Vv]ersion[:= ]*/v/;s/^$$soft \([0-9][0-9\.-]*\)/$$soft v\1/;/v[0-9\.-][0-9\.-]*/{s/.*\(v[0-9\.-][0-9\.-]*\).*/$$soft \1/p;q}"); fi; if [ -z "$$OUT" ]; then echo $$soft not_found; else echo $$OUT | sed 's/ v/ /;s/\([0-9][0-9]*\.*[0-9]*\).*/\1/'; fi | awk -v v="$$ver" '{if($$2=="not_found"){print} else {if($$2<v){print $$0,"below requested "v} else {print $$0,"ok"}}}'; done < dependencies | column -t | awk '{print; if($$0~"not_found" || $$0~"below"){err=1}}END{if(err==1){print "\ndependency issue" ; exit err}}'
 
 # clean rule
 clean :
