@@ -349,7 +349,7 @@ else
 						sort -k 1,1 $j.$rvs.eestat | join -t $'\t' -a 2 - <(seq $TRUNCLEN $LENSTEP $MAXLR | sort) | sort -k 1,1n | awk -v L=$(seq $MINEE $EESTEP $MAXEE | wc -w)  'BEGIN{FS="\t"}{for(i=2;i<=L+1;i++){if(NF==1){print "0 0"}else{print $i}}}' | paste $j.rvs.stat - > $j.rvs.temp && mv $j.rvs.temp $j.rvs.stat
 					else
 						awk -v N=$(sed -n '$=' $i.fwd.stat) 'BEGIN{for(i=1;i<=N;i++){print 0,0.0}}' | paste $i.fwd.stat - > $i.fwd.temp && mv $i.fwd.temp $i.fwd.stat
-						awk -v N=$(sed -n '$=' $i.rvs.stat) 'BEGIN{for(i=1;i<=N;i++){print 0,0.0}}' | paste $i.rvs.stat - > $i.rvs.temp && mv $i.rvs.temp $i.rvs.stat
+						awk -v N=$(sed -n '$=' $j.rvs.stat) 'BEGIN{for(i=1;i<=N;i++){print 0,0.0}}' | paste $j.rvs.stat - > $j.rvs.temp && mv $j.rvs.temp $j.rvs.stat
 					fi
 				done < libgood.list
 				# initial count for this direction and total count for each sample
