@@ -1,7 +1,7 @@
 # object variables
 version := 0.6
 SHELL := /bin/bash
-commit := $(shell git log -1 --pretty=format:%h)
+commit := $(shell if [ -d .git ] ; then git log -1 --pretty=format:%h ; else echo $(version) ; fi)
 batch := $(shell grep BATCH_QUEUE config.txt | cut -f 2)
 modulefiles := $(shell grep MODULEFILES_DIR config.txt | cut -f 2)
 module := $(shell grep MODULE_NAME config.txt | cut -f 2)
