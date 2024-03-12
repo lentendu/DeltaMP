@@ -52,7 +52,14 @@ else
 fi
 
 # archiving
-tar czh $DATA -b 2048 | dd of="$ARCHIVE" obs=1M 2> /dev/null
+if  [[ $JOBNAME == *"$RAW_EXT"* ]]
+then
+	# only sample name vs fwd and rvs lib, demultiplexing info and log, oligo files and seqneg
+	cd $DATA
+	tar czh -b 2048 -T <(awk '{print $2"."$3"\n"$2"."$4}' $EXEC/config/barcodes.txt | sort | join - <(ls) | head | cat - <(ls | grep "demultiplex\|^oligo") <(find seqneg*/))  | dd of="$ARCHIVE" obs=1M 2> /dev/null
+else
+	tar czh $DATA -b 2048 | dd of="$ARCHIVE" obs=1M 2> /dev/null
+fi
 
 # check internal checksum
 dd if="$ARCHIVE" ibs=1M 2> /dev/null | archive-sum -d md5 - | tee "$ARCHIVE"-internal.md5 | parallel -j ${NCPUS:-1} --pipe -N 1 md5sum -c
@@ -64,7 +71,7 @@ then
 fi
 
 # archive checksum
-dd if="$ARCHIVE" ibs=1M 2> /dev/null | md5sum | sed "s#$(dirname $ARCHIVE)/##" > "$ARCHIVE".md5
+dd if="$ARCHIVE" ibs=1M 2> /dev/null | md5sum | sed "s#$(dirname $ARCHIVE)/##;s#\(  *\)-#\1$(basename $ARCHIVE)#" > "$ARCHIVE".md5
 
 # List files
 (. $BIN/list_step_files.sh)
