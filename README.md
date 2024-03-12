@@ -37,7 +37,7 @@ Last but not least, DeltaMP produces version controlled, reproducible and fully 
 
 ## Installation
 
-Source code of DeltaMP version 0.5 is available at <https://github.com/lentendu/DeltaMP/releases/tag/v0.5>
+Source code of DeltaMP version 0.6 is available at <https://github.com/lentendu/DeltaMP/releases/tag/v0.6>
 
 The repository could also be cloned using for example:
 ```
@@ -107,7 +107,7 @@ deltamp -h
 
 ```
 NAME
-	DeltaMP version 0.5 - a flexible, reproducible and resource efficient metabarcoding amplicon pipeline for HPC
+	DeltaMP version 0.6 - a flexible, reproducible and resource efficient metabarcoding amplicon pipeline for HPC
 
 SYNOPSIS
 	Usage: deltamp [-a account_or_project_name] [-cdfhnqtx] [-m max_running_tasks] [-p reference_subproject] [-r step] configuration_file

@@ -6,14 +6,14 @@
 
 2. retrieve DeltaMP
 	a. either by downloading the last release:
-		wget https://github.com/lentendu/DeltaMP/archive/v0.3.tar.gz && tar xzvf DeltaMP-0.5.tar.gz
+		wget https://github.com/lentendu/DeltaMP/archive/refs/tags/v0.6.tar.gz && tar xzvf DeltaMP-0.6.tar.gz
 	
 	b. alternatively, by cloning the development version:
-		git clone https://github.com/lentendu/DeltaMP.git DeltaMP-0.5
+		git clone https://github.com/lentendu/DeltaMP.git DeltaMP-0.6
 
 
 3. cd to the newly created directory:
-	cd DeltaMP-0.5 
+	cd DeltaMP-0.6
 
 
 4. edit the TAB-separated configuration file config.txt, by keeping the unmodified variable name on the first column and by modifying the second column values fitting your queueing system and HPC:

@@ -1,5 +1,5 @@
 # object variables
-version := 0.5
+version := 0.6
 SHELL := /bin/bash
 commit := $(shell git log -1 --pretty=format:%h)
 batch := $(shell grep BATCH_QUEUE config.txt | cut -f 2)
