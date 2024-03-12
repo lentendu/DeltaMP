@@ -149,7 +149,7 @@ then
 		do
 			PREV_TABLE[$i]=${PREV_SUB[$i]/%/.all_ASVs.tsv}
 			tar xzvf ${PREV_PATH[$i]}/${PREV_SUB[$i]}.outputs.tar.gz ${PREV_SUB[$i]}.outputs/${PREV_TABLE[$i]}
-			PREV_NBOTUS[$i]=$(tail -1 ${PREV_SUB[$i]}.outputs/${PREV_TABLE[$i]} | cut -f 1 | sed 's/ASV//')
+			PREV_NBOTUS[$i]=$(sed '1d;s/^ASV0*//' ${PREV_SUB[$i]}.outputs/${PREV_TABLE[$i]} | cut -f 1 | sort -n | tail -1)
 			PREV_REPSEQ[$i]=$(awk 'BEGIN{FS="\t"}NR==1{for(i=1;i<=NF;i++){if($i=="repseq"){print i}}}' ${PREV_SUB[$i]}.outputs/${PREV_TABLE[$i]})
 		done
 		MAXPREV_NBOTUS=$(echo ${PREV_NBOTUS[@]} | tr " " "\n" | awk '$1>M{M=$1}END{print M}')
