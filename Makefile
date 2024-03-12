@@ -28,7 +28,7 @@ vpath %.config src
 
 # main rule
 .PHONY: all clean
-all: $(deltamp) $(module) $(steps) $(batch_spec) $(test_config)
+all: dep $(deltamp) $(module) $(steps) $(batch_spec) $(test_config)
 
 # rule to build deltamp, pipeline_master, restart_from_step, delete_subproject and check_previous_step
 $(deltamp): bin/% : %.main | lib/$(batch)/option_variables
@@ -110,6 +110,11 @@ $(batch_spec): bin/deltamp.% : lib/$(batch)/deltamp.%
 $(test_config): test/%.tsv : %.config
 	sed "s#USER#$$USER#;s#CURDIR#$(CURDIR)#" $< > $@
 
+# dependencies check
+dep:
+	@echo control dependencies
+	while read soft ver; do unset OUT; OUT=$$($$soft --version 2>&1 | sed -n "s/[Vv]ersion[:= ]*/v/;s/^$$soft \([0-9][0-9\.-]*\)/$$soft v\1/;/v[0-9\.-][0-9\.-]*/{s/.*\(v[0-9\.-][0-9\.-]*\).*/$$soft \1/p;q}"); if [ -z "$$OUT" ]; then OUT=$$($$soft -h 2>&1 | sed -n "s/[Vv]ersion[:= ]*/v/;s/^$$soft \([0-9][0-9\.-]*\)/$$soft v\1/;/v[0-9\.-][0-9\.-]*/{s/.*\(v[0-9\.-][0-9\.-]*\).*/$$soft \1/p;q}"); fi; if [ -z "$$OUT" ]; then echo $$soft not_found; else echo $$OUT | sed 's/ v/ /;s/\([0-9][0-9]*\.*[0-9]*\).*/\1/'; fi | awk -v v="$$ver" '{if($$2=="not_found"){print} else {if($$2<v){print $$0,"below requested "v} else {print $$0,"ok"}}}'; done < dependencies | column -t | awk '{print; if($$0~"not_found" || $$0~"below"){err=1}}END{if(err==1){print "\ndependency issue" ; exit err}}'
+
 # clean rule
 clean :
-	rm -r $(deltamp) $(steps) $(heads) $(arrays) $(large_arrays) $(standard) $(highmems) $(batch_spec) $(test_config)
+	rm -rf $(deltamp) $(steps) $(heads) $(arrays) $(large_arrays) $(standard) $(highmems) $(batch_spec) $(test_config)

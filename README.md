@@ -65,15 +65,14 @@ DeltaMP is intend to be used on a HPC with a job scheduler (i.e. batch-queuing s
 
 + [vsearch v2](https://github.com/torognes/vsearch) (Rognes et al., 2016)
 + [MOTHUR v1.44+](http://www.mothur.org) (Schloss et al., 2009)
-+ [SeqKit v0.15.0+](https://github.com/shenwei356/seqkit)
++ [SeqKit v0.15+](https://github.com/shenwei356/seqkit)
 + [cutadapt v1.10+](https://cutadapt.readthedocs.io/en/stable/) (Martin, 2011)
 + [PANDAseq v2.10+](https://github.com/neufeld/pandaseq) (Masella et al., 2012)
-+ [biom-format](http://biom-format.org) (McDonald et al., 2012)
-+ [GNU parallel](http://savannah.gnu.org/projects/parallel)
-+ [R v3](https://cran.r-project.org/) with the plyr, tidyverse, cowplot, foreach, doParallel and seqinr packages
-+ [Ghostscript](https://www.ghostscript.com/)
-+ [WebLogo](https://github.com/WebLogo/weblogo)
-+ [archive-sum](https://github.com/idiv-biodiversity/archive-sum)
++ [biom-format v2+](http://biom-format.org) (McDonald et al., 2012)
++ [GNU parallel v3+](http://savannah.gnu.org/projects/parallel)
++ [R v3+](https://cran.r-project.org/) with the plyr, tidyverse, cowplot, foreach, doParallel and seqinr packages
++ [Ghostscript v2+](https://www.ghostscript.com/)
++ [archive-sum v1+](https://github.com/idiv-biodiversity/archive-sum)
 
 
 ### optional softwares:
@@ -88,6 +87,7 @@ DeltaMP is intend to be used on a HPC with a job scheduler (i.e. batch-queuing s
 + [CD-HIT & cd-hit-454](http://weizhongli-lab.org/cd-hit/) for (pre-)clustering (Fu et al., 2012)
 + [ITSx](http://microbiology.se/software/itsx/) (Bengtsson‐Palme Johan et al. 2013)
 + [IBM Aspera Connect](https://downloads.asperasoft.com/connect2/) for faster download of raw reads libraries from the ENA SRA public database
++ [WebLogo](https://github.com/WebLogo/weblogo)
 
 All this dependencies need to be available through the $PATH environmental variable or need to be loaded by the DeltaMP module file.
 
@@ -300,7 +300,7 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Subsampling__: “yes” or “no”. Activating subsampling will randomly select the same number of reads in all samples according to the read count in the sample with the lowest number of reads, after the trimming step. The default is “no”.
 
-+ __Clustering algorithm__: "cd-hit-est”, “vsearch”, “mcl”, “sumaclust”, “swarm” or “dada2“. The default is “mcl”.
++ __Clustering algorithm__: "cd-hit-est”, “vsearch”, “mcl”, “sumaclust”, “swarm” or “dada2“. The default is “vsearch”.
 
 + __Clustering similarity threshold__: a number between 80 and 100 (percent of similarity). Disregarded if the “swarm” or "dada2" clustering algorithms are used. The default is 97.
 

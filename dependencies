@@ -1,0 +1,10 @@
+vsearch 2
+mothur 1.44
+seqkit 0.15
+cutadapt 1.10
+pandaseq 2.10
+biom 2
+parallel 3
+R 3
+gs 2
+archive-sum 1
