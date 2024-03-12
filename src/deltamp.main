@@ -42,13 +42,13 @@ DESCRIPTION
 	-x	delete the subproject associated with the provided configuration file
 
 AUTHOR
-	Guillaume Lentendu, Christina Weißbecker, Anna Heintz-Buschart and Tesfaye Wubet
+	Guillaume Lentendu and Tesfaye Wubet
 
 REPORTING BUGS
 	Submit suggestions and bug-reports at <https://github.com/lentendu/issues>, send a pull request on <https://github.com/lentendu>, or compose an e-mail to Guillaume Lentendu <guillaume.lentendu@unine.ch>.
 	
 COPYRIGHT
-	Copyright (C) 2018 Guillaume Lentendu, Christina Weißbecker, Anna Heintz-Buschart and Tesfaye Wubet
+	Copyright (C) 2018 Guillaume Lentendu and Tesfaye Wubet
 
 	This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 	 

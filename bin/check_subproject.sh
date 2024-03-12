@@ -2,7 +2,7 @@
 
 # 
 # DeltaMP, a flexible, reproducible and resource efficient metabarcoding amplicon pipeline for HPC
-# Copyright (C) 2018 Guillaume Lentendu, Christina Weißbecker, Anna Heintz-Buschart, Tesfaye Wubet
+# Copyright (C) 2018 Guillaume Lentendu, Tesfaye Wubet
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
