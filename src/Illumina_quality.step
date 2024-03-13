@@ -415,7 +415,7 @@ fi
 ln -s $PWD/$SUBPROJECT.summary.stat.tsv $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.read_counts.tsv
 
 # check for no read
-QMISS=$(head -n -4 $SUBPROJECT.summary.stat.tsv | awk 'NR>1 && $(NF-1)>0 && ($NF==0 || $NF=="NA"){print $1}')
+QMISS=$(head -n -4 $SUBPROJECT.summary.stat.tsv | awk 'NR>1 && ($NF==0 || $NF=="NA"){print $1}' | sort | join -v 1 - <(cat $EXEC/config/*missing | sort))
 if [ ! -z "$QMISS" ]
 then
 	MY_TMP_NAME=`echo $JOBNAME | sed "s/$DELTAMP_VER\.//;s/\.$SUBPROJECT//"`
