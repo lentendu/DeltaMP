@@ -79,9 +79,9 @@ then
 	fi
 	DBFOLD=${OUT%/*}
 	TEMPLATE=$(basename $DBADD)_plus_$TEMPLATE
-	if [ $CLASSIF == "vsearch" ]
+	if [ $CLASSIF == "vsearch" ] && [ ! -f $DBFOLD/$TEMPLATE.udb ]
 	then
-		seqkit seq -w 0 $DBFOLD/$TEMPLATE.fasta | sed '$!N;/>/s/\n/ /;s/>//' | sort -k 1,1 | join - <(sort -k 1,1 $DBFOLD/$TEMPLATE.taxonomy) | sed 's/;$//;s/;/,/g' | awk '{print ">"$1";tax="$3";\n"$2}' > $DBFOLD/vsearch.$TEMPLATE.fasta
+		seqkit fx2tab -i $DBFOLD/$TEMPLATE.fasta | sed 's/\t$//g' | sort -k 1,1 -t $'\t' | join -t $'\t' - <(sort -k 1,1 -t $'\t' $DBFOLD/$TEMPLATE.taxonomy) | sed 's/;$//;s/;/,/g' | awk -F'\t' '{print ">"$1";tax="$3";\n"$2}' > $DBFOLD/vsearch.$TEMPLATE.fasta
 		vsearch --makeudb_usearch $DBFOLD/vsearch.$TEMPLATE.fasta --output $DBFOLD/$TEMPLATE.udb
 		rm $DBFOLD/vsearch.$TEMPLATE.fasta
 	fi
