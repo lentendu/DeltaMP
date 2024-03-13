@@ -108,7 +108,7 @@ else
 			done
 		done
 		# clean
-		find fastq/ -type f -name [FR]*${LIB_NAME}*.barcode.fastq -delete
+		find fastq/ -type f -name "[FR]*${LIB_NAME}*.barcode.fastq" -delete
 		rm ${FWD_NAME}.${FWD_LIB}.*fastq ${RVS_NAME}.${RVS_LIB}.*fastq ${RVS_NAME}.${FWD_LIB}.*fastq ${FWD_NAME}.${RVS_LIB}.*fastq unt.${FWD_LIB}.fastq unt.${RVS_LIB}.fastq
 	else
 		awk -v F=$FBDIFFS '{if($1~"^>"){print} else {match($1,"[ATCG][ATCG]*");if(F==0){print $1";o="RLENGTH";e=0"} else {print $1";o="RLENGTH";e="(int(F/RLENGTH*100)+1)/100}}}' fastq/oligos.F.$LIB_NAME > oligos.F.$LIB_NAME.param
@@ -116,9 +116,9 @@ else
 		cutadapt -j $NCPUS --no-indels -g file:oligos.F.$LIB_NAME.param -G file:oligos.R.$LIB_NAME.param -o fastq/{name1}-{name2}.${FWD_LIB}.fastq -p fastq/{name1}-{name2}.${RVS_LIB}.fastq ${FWD_LIB}.fastq ${RVS_LIB}.fastq > fastq/log_cutadapt.demultiplex.FR.${LIB_NAME}.txt
 		cat fastq/*unknown*.${FWD_LIB}.fastq > unt.${FWD_LIB}.fastq
 		cat fastq/*unknown*.${RVS_LIB}.fastq > unt.${RVS_LIB}.fastq
-		find fastq/ -type f -name "*unknown*.${FWD_LIB}.fastq" -delete && find fastq -type f -name "*unknown*.${RVS_LIB}.fastq" -delete
+		find fastq/ -type f -name "*unknown*.${FWD_LIB}.fastq" -delete && find fastq/ -type f -name "*unknown*.${RVS_LIB}.fastq" -delete
 		cutadapt -j $NCPUS --no-indels --trimmed-only -g file:oligos.R.$LIB_NAME.param -G file:oligos.F.$LIB_NAME.param -o fastq/{name1}-{name2}.${FWD_LIB}.fastq -p fastq/{name1}-{name2}.${RVS_LIB}.fastq unt.${FWD_LIB}.fastq unt.${RVS_LIB}.fastq > fastq/log_cutadapt.demultiplex.RF.${LIB_NAME}.txt
-		find fastq/ -type f -name "*unknown*.${FWD_LIB}.fastq" -delete && find fastq -type f -name "*unknown*.${RVS_LIB}.fastq" -delete
+		find fastq/ -type f -name "*unknown*.${FWD_LIB}.fastq" -delete && find fastq/ -type f -name "*unknown*.${RVS_LIB}.fastq" -delete
 		rm unt.${FWD_LIB}.fastq unt.${RVS_LIB}.fastq
 	fi
 	rm oligos.F.$LIB_NAME.param oligos.R.$LIB_NAME.param
@@ -144,7 +144,7 @@ else
 fi
 
 # remove empty fastq
-DEL=$(find fastq -type f \( -name *.${FWD_LIB}.fastq -o -name *.${RVS_LIB}.fastq \) -empty -print -delete)
+DEL=$(find fastq/ -type f \( -name "*.${FWD_LIB}.fastq" -o -name "*.${RVS_LIB}.fastq" \) -empty -print -delete)
 if [ ! -z "$DEL" ]
 then
 	echo "Deleted empty files:" | cat - <(echo $DEL | tr " " "\n")
