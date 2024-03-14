@@ -281,12 +281,12 @@ then
 			j=${PREV_SUB[$i]}
 			tar xzvf ${PREV_PATH[$i]}/$j.processing.files.tar.gz $j.processing/OTU_env.txt
 			while read var val; do unset $var ; declare $var="$val" ; done < <(grep "^[FNC][AO]" $j.processing/OTU_env.txt | sed 's/^/PREVIOUS_/')
-			tar xzvf ${PREV_PATH[$i]}/$j.processing.files.tar.gz $j.processing/${PREVIOUS_FASTA}.fasta $j.processing/${PREVIOUS_COUNT}.count_table $j.processing/${PREVIOUS_NAMES_OTUS}.names
-			sed 's/[; ]*size=\([0-9]*\).*$//' $j.processing/${PREVIOUS_FASTA}.fasta | seqkit grep -w 0 -f <(awk -F'\t' -v I="${PREV_DOM}" 'NR>1 && $2>=I{print $1}' $j.processing/${PREVIOUS_COUNT}.count_table) > tmp_prev.fasta
+			tar xzvf ${PREV_PATH[$i]}/$j.processing.files.tar.gz $j.processing/$PREVIOUS_FASTA.fasta $j.processing/$PREVIOUS_COUNT.count_table $j.processing/$PREVIOUS_NAMES_OTUS.names
+			sed 's/[; ]*size=\([0-9]*\).*$//' $j.processing/$PREVIOUS_FASTA.fasta | seqkit grep -w 0 -f <(awk -F'\t' -v I="$PREV_DOM" 'NR>1 && $2>=I{print $1}' $j.processing/$PREVIOUS_COUNT.count_table) > tmp_prev.fasta
 			
 			# find exact similar amplicons (not between singletons amplicons, allow internal matches) and the OTU they are belonging to
-			sed 's/[; ]*size=\([0-9]*\).*$//' $FASTA.fasta | seqkit grep -w 0 -f <(awk -F'\t' -v I="${PREV_DOM}" 'NR>1 && $2>=I{print $1}' $COUNT.count_table) | vsearch --usearch_global - --threads $NCPUS --db tmp_prev.fasta --id 1 --maxaccepts 0 --userfields query+target+id+ql+tl --userout - | awk -v P=${PREV_PERC} '($5>=$4 && $4>=$5*P/100) || ($4>=$5 && $5>=$4*P/100){print $1,$2}' > aa.tmp
-			awk '{n=split($2,a,",");for(i in a){print a[i],$1,NR,n}}' $NAMES_OTUS.names | sort --parallel=$NCPUS -k 1,1 | join - <(sort -k 1,1 aa.tmp) | sort -k 5,5 | join -1 5 - <(awk '{n=split($2,a,",");for(i in a){print a[i],$1,NR,n}}' $j.processing/${PREVIOUS_NAMES_OTUS}.names | sort --parallel=$NCPUS -k 1,1) | sort -k 3,3 -k 6,6 | awk '{if(NR==1){os=$3;op=$6;nos=$4;nop=$7;s=$2"|"$1;sos=$5;sop=$8} else {if($3==os && $6==op){s=s","$2"|"$1} else {print os,op,nos,nop,sos,sop,s;os=$3;op=$6;nos=$4;nop=$7;s=$2"|"$1;sos=$5;sop=$8}}}END{print os,op,nos,nop,sos,sop,s}' > otus.aa.tmp
+			sed 's/[; ]*size=\([0-9]*\).*$//' $FASTA.fasta | seqkit grep -w 0 -f <(awk -F'\t' -v I="$PREV_DOM" 'NR>1 && $2>=I{print $1}' $COUNT.count_table) | vsearch --usearch_global - --threads $NCPUS --db tmp_prev.fasta --id 1 --maxaccepts 0 --userfields query+target+id+ql+tl --userout - | awk -v P=$PREV_PERC '($5>=$4 && $4>=$5*P/100) || ($4>=$5 && $5>=$4*P/100){print $1,$2}' > aa.tmp
+			awk '{n=split($2,a,",");for(i in a){print a[i],$1,NR,n}}' $NAMES_OTUS.names | sort --parallel=$NCPUS -k 1,1 | join - <(sort -k 1,1 aa.tmp) | sort -k 5,5 | join -1 5 - <(awk '{n=split($2,a,",");for(i in a){print a[i],$1,NR,n}}' $j.processing/$PREVIOUS_NAMES_OTUS.names | sort --parallel=$NCPUS -k 1,1) | sort -k 3,3 -k 6,6 | awk '{if(NR==1){os=$3;op=$6;nos=$4;nop=$7;s=$2"|"$1;sos=$5;sop=$8} else {if($3==os && $6==op){s=s","$2"|"$1} else {print os,op,nos,nop,sos,sop,s;os=$3;op=$6;nos=$4;nop=$7;s=$2"|"$1;sos=$5;sop=$8}}}END{print os,op,nos,nop,sos,sop,s}' > otus.aa.tmp
 			
 			# report
 			echo "There is $(sed -n '$=' aa.tmp) amplicons from $(cut -d " " -f 1 otus.aa.tmp | sort -u | wc -l) OTUs of $SUBPROJECT found in $(cut -d " " -f 2 otus.aa.tmp | sort -u | wc -l) OTUs of $j"

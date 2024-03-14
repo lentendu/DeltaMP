@@ -828,7 +828,7 @@ then
 			fi
 			# in which step script(s) of the new SUBPROJECT are the differing variable(s) found first
 			unset MATCH_STEP
-			MATCH_STEP=$(for j in $(sed 's/^.* //;s/)$//' $SUBPROJECT/config/steps); do TMP=$(for VAR in $(echo ${TMP_DIF[$i]} | tr "#" " "); do REG="\\\$$VAR\$\\|\\\$$VAR[^A-Z_]" ; grep -m 1 -o "$REG" $j ; done) ; if [ ! -z "$TMP" ]; then basename $j | sed 's/\.sh//' && break ; fi ; done)
+			MATCH_STEP=$(for j in $(sed 's/^.* //;s/)$//' $SUBPROJECT/config/steps | uniq); do TMP=$(for VAR in $(echo ${TMP_DIF[$i]} | tr "#" " "); do REG="\\\$$VAR\$\\|\\\$$VAR[^A-Z_]" ; grep -m 1 -o "$REG" $j ; done) ; if [ ! -z "$TMP" ]; then basename $j | sed 's/\.sh//' && break ; fi ; done)
 			if [ -z $MATCH_STEP ]
 			then
 				if [ ${TMP_DIF[$i]} == "QUAL_ONLY" ]
