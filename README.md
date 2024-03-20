@@ -316,6 +316,8 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Taxonomic classifier__: "bayesian" or "vsearch", to use the RDP naive bayesian classifier (Wang et al., 2007) as implemented in mothur or the usearch global alignment method (Edgard, 2010) as implemented in vsearch. The default is "bayesian".
 
++ __Minimum identity__: a rate between 0.0 and 1.0 defining the minimum pairwise identity between a query sequence and a reference sequence to assign taxonomy, only when using "vsearch" in __Taxonomic classifier__. The default is 0.8.
+
 + __Directory path to database__: the full path to the directory containing reference sequence database files. The default is /home/$USER .
 
 + __Database prefix name__: filename prefix identifying database files. A database have to be composed from a TAB-separated "prefix".txt file in which the second column describe the version, citation and reference of the database with the first column containing VERSION, CITATION and FULLCITATION, respectively (see e.g. <test/pr2_4.10.0.txt>) and either from a pair of "prefix".fasta and "prefix".taxonomy mothur's style database format for "bayesian" classifier, or from a "prefix".udb binary file produced by the command `vsearch --makeudb_usearch` for "vsearch" classifier. Optionnaly, a "prefix".align.fasta, containing an aligned version of the "prefix".fasta sequences, is needed for pre-clustering with "mothur". See the <test/> directory for example files in each format. You can use the "update_xxx.sh" scripts in <auxillary_scripts/> to automatically download the PR2, SILVA and UNITE databases and to format them into the previously described formats. The default is "pr2_4.10.0".

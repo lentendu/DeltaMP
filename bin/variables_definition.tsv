@@ -40,6 +40,7 @@ CLASSIF	bayesian	Taxonomic classifier	bayesian vsearch
 DBFOLD	/home/$USER	Directory path to database	^/.+(/.+)*$
 DB	pr2_4.10.0	Database prefix name	^.+$
 CUT_DB	no	Reduce database to amplified fragment	no yes
+MINID	0.8	Minimum identity	^[0-9]+(.[0-9]+)?$
 CONS	60	Consensus assignment threshold	^[0-9]+$
 ASSIGN_ALL	no	Assign all reads	no yes
 DBADD	no	Full path to additional database prefix name	^.+$

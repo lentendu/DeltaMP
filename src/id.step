@@ -119,11 +119,11 @@ elif [ $CLASSIF == "vsearch" ]
 then
 	if [ $ASSIGN_ALL == "yes" ]
 	then
-		vsearch --no_progress --usearch_global ${FASTA}$ADD.fasta --threads $NCPUS --db ${DBFOLD}/${TEMPLATE}.udb --dbmask none --qmask none --rowlen 0 --notrunclabels --userfields query+id${IDDEF}+target --maxaccepts 0 --maxrejects 32 --top_hits_only --output_no_hits --id 0.6 --iddef ${IDDEF}$QCOV --userout ${FASTA}.hits
+		vsearch --no_progress --usearch_global ${FASTA}$ADD.fasta --threads $NCPUS --db ${DBFOLD}/${TEMPLATE}.udb --dbmask none --qmask none --rowlen 0 --notrunclabels --userfields query+id${IDDEF}+target --maxaccepts 0 --maxrejects 32 --top_hits_only --output_no_hits --id $MINID --iddef ${IDDEF}$QCOV --userout ${FASTA}.hits
 		# Consensus among best matches
 		awk '{split($2,a,",");for(i in a){print a[i],$1}}' $NAMES_OTUS.names | sort --parallel=$NCPUS -k 1,1 | join -o 1.2,2.2,2.3 - <(sed 's/;\t/\t/;s/;$//;s/ size=[0-9]*//' ${FASTA}.hits | sort --parallel=$NCPUS -k 1,1) | sed 's/;tax=/\t/' | sort --parallel=$NCPUS -k 1,1 -k 2,2nr | awk '{if($1!=p){sim=$2};if($2>=sim-1){print;p=$1}}' | sort --parallel=$NCPUS -k 1,1 -k 4,4 -k 3,3 | awk '$1 != p{printf ">"}{p=$1}1' | parallel -j $NCPUS --recstart ">" --pipe -k lca > ${FASTA_OTUS}.taxonomy
 	else
-		vsearch --no_progress --usearch_global ${FASTA_OTUS}$ADD.fasta --threads $NCPUS --db ${DBFOLD}/${TEMPLATE}.udb --dbmask none --qmask none --rowlen 0 --notrunclabels --userfields query+id${IDDEF}+target --maxaccepts 0 --maxrejects 32 --top_hits_only --output_no_hits --id 0.6 --iddef ${IDDEF}$QCOV --userout ${FASTA_OTUS}.hits
+		vsearch --no_progress --usearch_global ${FASTA_OTUS}$ADD.fasta --threads $NCPUS --db ${DBFOLD}/${TEMPLATE}.udb --dbmask none --qmask none --rowlen 0 --notrunclabels --userfields query+id${IDDEF}+target --maxaccepts 0 --maxrejects 32 --top_hits_only --output_no_hits --id $MINID --iddef ${IDDEF}$QCOV --userout ${FASTA_OTUS}.hits
 		# Consensus among best matches
 		sed 's/;\t/\t/;s/;$//;s/;tax=/\t/' ${FASTA_OTUS}.hits | sort --parallel=$NCPUS -k 1,1 -k 4,4 | awk '$1 != p{printf ">"}{p=$1}1' | parallel -j $NCPUS --recstart ">" --pipe -k lca > ${FASTA_OTUS}.taxonomy
 	fi
