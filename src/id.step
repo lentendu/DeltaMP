@@ -74,7 +74,16 @@ then
 	# merge fasta and taxonomy
 	if [ ! -f ${OUT%/*}/$(basename $DBADD)_plus_$TEMPLATE.fasta ]
 	then
-		cat $DBADD.fasta $DBFOLD/$TEMPLATE.fasta > ${OUT%/*}/$(basename $DBADD)_plus_$TEMPLATE.fasta
+		if [ -z $DBCUT ]
+		then
+			cat $DBADD.fasta $DBFOLD/$TEMPLATE.fasta > ${OUT%/*}/$(basename $DBADD)_plus_$TEMPLATE.fasta
+		else
+			# cut with primers where possible
+			RVS_RC=$(echo -e ">a\n$RVS" | seqkit seq -prv -t dna | tail -1)
+			FWD_E=$(awk -v P=$PDIFFS -v F=${#FWD} 'BEGIN{printf "%.2f",P/F+0.005}')
+			RVS_E=$(awk -v P=$PDIFFS -v F=${#RVS} 'BEGIN{printf "%.2f",P/F+0.005}')
+			cutadapt -j $NCPUS -g "${FWD};e=${FWD_E};o=$((${#FWD}-2))...${RVS_RC};e=${RVS_E};o=$((${#RVS}-2))" --action trim --no-indels $DBADD.fasta 2> ${OUT%/*}/log.cutadapt.$(basename $DBADD).txt | cat - $DBFOLD/$TEMPLATE.fasta > ${OUT%/*}/$(basename $DBADD)_plus_$TEMPLATE.fasta
+		fi
 		cat $DBADD.taxonomy $DBFOLD/$TEMPLATE.taxonomy > ${OUT%/*}/$(basename $DBADD)_plus_$TEMPLATE.taxonomy
 	fi
 	DBFOLD=${OUT%/*}
