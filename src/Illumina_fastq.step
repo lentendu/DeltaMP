@@ -40,8 +40,8 @@ cd libraries
 # Primer clipping
 if [ $CLIPPING != "no" ]
 then
-	FWD_RC=$(echo -e ">fwd\n$FWD" | seqkit seq -p -t dna -v | tail -1)
-	RVS_RC=$(echo -e ">rvs\n$RVS" | seqkit seq -p -t dna -v | tail -1)
+	FWD_RC=$(echo -e ">fwd\n$FWD" | seqkit seq -vrp -t dna | tail -1)
+	RVS_RC=$(echo -e ">rvs\n$RVS" | seqkit seq -vrp -t dna | tail -1)
 	FDIFFS=$(awk -v P=$PDIFFS -v F=${#FWD} 'BEGIN{print (int(P/F*100)+1)/100}')
 	RDIFFS=$(awk -v P=$PDIFFS -v R=${#RVS} 'BEGIN{print (int(P/R*100)+1)/100}')
 	if [ $PRIM_ANCH == "yes" ] ; then PANCH="X" ; else PANCH="" ; fi
