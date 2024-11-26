@@ -88,6 +88,9 @@ DeltaMP is intend to be used on a HPC with a job scheduler (i.e. batch-queuing s
 + [ITSx](http://microbiology.se/software/itsx/) (Bengtsson‐Palme Johan et al. 2013)
 + [IBM Aspera Connect](https://downloads.asperasoft.com/connect2/) for faster download of raw reads libraries from the ENA SRA public database
 + [WebLogo](https://github.com/WebLogo/weblogo)
++ [RATTLE](https://github.com/comprna/RATTLE) for Nanopore reads processing (de la Rubia et al., 2022)
++ [racon](https://github.com/isovic/racon) for Nanopore reads processing (Vaser et al., 2017)
++ [medaka](https://github.com/nanoporetech/medaka) for Nanopore reads processing
 
 All this dependencies need to be available through the $PATH environmental variable or need to be loaded by the DeltaMP module file.
 
@@ -516,9 +519,12 @@ For unsolved issues, send an email to guillaume.lentendu@unine.ch, including the
 + Martin, M., 2011. Cutadapt removes adapter sequences from high-throughput sequencing reads. EMBnet.Journal 17, 10–12. doi:[10.14806/ej.17.1.200](http://doi.org/10.14806/ej.17.1.200)
 + Masella, A.P., Bartram, A.K., Truszkowski, J.M., Brown, D.G., Neufeld, J.D., 2012. PANDAseq: paired-end assembler for illumina sequences. BMC Bioinformatics 13, 31. doi:[10.1186/1471-2105-13-31](http://doi.org/10.1186/1471-2105-13-31)
 + McDonald, D., Clemente, J.C., Kuczynski, J., Rideout, J.R., Stombaugh, J., Wendel, D., Wilke, A., Huse, S., Hufnagle, J., Meyer, F., Knight, R., Caporaso, J.G., 2012. The Biological Observation Matrix (BIOM) format or: how I learned to stop worrying and love the ome-ome. GigaScience 1. doi:[10.1186/2047-217X-1-7](http://doi.org/10.1186/2047-217X-1-7)
++ medaka (2024). [Python]. Oxford Nanopore Technologies. https://github.com/nanoporetech/medaka (Original work published 2017)
 + Mercier, C., Boyer, F., Bonin, A., Coissac, É., 2013. SUMATRA and SUMACLUST: fast and exact comparison and clustering of sequences.
 + Nguyen, N.H., Song, Z., Bates, S.T., Branco, S., Tedersoo, L., Menke, J., Schilling, J.S., Kennedy, P.G., 2016. FUNGuild: An open annotation tool for parsing fungal community datasets by ecological guild. Fungal Ecology 20, 241–248. doi:[10.1016/j.funeco.2015.06.006](http://doi.org/10.1016/j.funeco.2015.06.006)
 + Rognes, T., Flouri, T., Nichols, B., Quince, C., Mahé, F., 2016. VSEARCH: a versatile open source tool for metagenomics. PeerJ. doi:[10.7717/peerj.2584](http://doi.org/10.7717/peerj.2584)
++ de la Rubia, I., Srivastava, A., Xue, W., Indi, J. A., Carbonell-Sala, S., Lagarde, J., Albà, M. M., & Eyras, E. (2022). RATTLE: Reference-free reconstruction and quantification of transcriptomes from Nanopore sequencing. Genome Biology, 23(1), 153. doi:[10.1186/s13059-022-02715-w](https://doi.org/10.1186/s13059-022-02715-w)
 + Shen, W., Le, S., Li, Y., Hu, F., 2016. SeqKit: A Cross-Platform and Ultrafast Toolkit for FASTA/Q File Manipulation. PLOS ONE 11, e0163962. [doi:10.1371/journal.pone.0163962](http://doi.org/10.1371/journal.pone.0163962)
 + Schloss, P.D., Westcott, S.L., Ryabin, T., Hall, J.R., Hartmann, M., Hollister, E.B., Lesniewski, R.A., Oakley, B.B., Parks, D.H., Robinson, C.J., Sahl, J.W., Stres, B., Thallinger, G.G., Van Horn, D.J., Weber, C.F., 2009. Introducing mothur: Open-Source, Platform-Independent, Community-Supported Software for Describing and Comparing Microbial Communities. Applied and Environmental Microbiology 75, 7537–7541. doi:[10.1128/AEM.01541-09](http://doi.org/10.1128/AEM.01541-09)
++ Vaser, R., Sović, I., Nagarajan, N., & Šikić, M. (2017). Fast and accurate de novo genome assembly from long uncorrected reads. Genome Research, 27(5), 737–746. doi: [10.1101/gr.214270.116](https://doi.org/10.1101/gr.214270.116)
 + Wang, Q., Garrity, G., Tiedje, J., Cole, J., 2007. Naive Bayesian classifier for rapid assignment of rRNA sequences into the new bacterial taxonomy. Applied and Environmental Microbiology 73, 5261–5267. doi:[10.1128/AEM.00062-07](http://doi.org/10.1128/AEM.00062-07)
