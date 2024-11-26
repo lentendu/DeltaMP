@@ -242,7 +242,6 @@ then
 		QUALPOS=$(printf %.0f $(echo "($MAXEE - $QUAL) * (1 / $EESTEP) + 5" | bc))
 	fi
 	cut -f 1-4,$QUALPOS $SUBPROJECT.sample_counts.tsv > $SUBPROJECT.summary.stat.tsv
-	ln -s $PWD/$SUBPROJECT.summary.stat.tsv $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.read_counts.tsv
 else
 	if [ $TRUNCLEN != "no" ] && [ $UNPAIR == "no" ] && ( [ $MEANLEN == "auto" ] || ( [ $MEANLEN != "auto" ] && [ $CLIPPING == "both" ] ) ) && [ $PREVQ == "no" ]
 	then
