@@ -279,6 +279,7 @@ if [ $TECH == "454" ]
 then
 	RAW_EXT=sff
 	ASV=no
+	UNPAIR=no
 	if [ $SEQ_DIR == "forward" ]
 	then
 		FLIP=false
@@ -371,6 +372,19 @@ then
 			error_doc "The previous subproject provided to reuse optimized quality parameters have different quality filtration options (Type of quality filtering: $PREVQFILT , Truncation before pair-end : $PREVTRUNCBE , Minimum length truncation of unpaired reads : $PREVTRUNCLEN )"
 		fi
 	fi
+elif [ $TECH == "Nanopore" ]
+then
+	RAW_EXT=fastq
+	UNPAIR=no
+	VFQ="-fastq_qmin 1 -fastq_qmax 50 -fastq_ascii 33"
+	if [ $CLIPPING != "both" ]
+	then
+		error_doc "Searching for both primers is compulsory for Nanopore sequencing, so switch option 'Remove primers at reads ends' to 'both'"
+	elif [ $PRIM_ANCH == "yes" ]
+	then
+		error_doc "Primer anchoring is not allowed for Nanopore sequencing, switch option to 'no'"
+	fi
+	
 fi
 
 # Databases
@@ -628,11 +642,25 @@ fi
 
 # Store barcodes, libraries and sample lists into files
 sed '1,/^Barcode sequence/d;/^$/d;s/^\t/barcode\t/' config/$METADATA > config/barcodes.txt
-COMP_EXT=($(sed "s/.*${RAW_EXT}\([^ \t$]*\).*/\1/;s/\.//" config/barcodes.txt | sort -u))
+if [ $TECH == "Nanopore" ]
+then
+	while read bar sam raw
+	do
+		if [ -d "${LIB_DIR}/$raw" ]
+		then
+			ls ${LIB_DIR}/$raw/*${RAW_EXT}* | sed "s|.*/||;s|.*${RAW_EXT}\([^ \t$]*\).*|\1|;s|\.||"
+		else
+			error_doc "there is no directory ${LIB_DIR}/$raw for sample $sam, aborting."
+		fi
+	done < config/barcodes.txt > tmp.comp_ext
+	COMP_EXT=($(sort -u tmp.comp_ext))
+	rm tmp.comp_ext
+else
+	COMP_EXT=($(sed "s/.*${RAW_EXT}\([^ \t$]*\).*/\1/;s/\.//" config/barcodes.txt | sort -u))
+fi
 if [ ${#COMP_EXT[@]} -gt 1 ] || [ ${#COMP_EXT[@]} -eq 0 ] || [[ "gz bz2" != *${COMP_EXT[0]}* ]]
 then
 	EXT=gz
-
 else
 	EXT=${COMP_EXT[0]}
 fi
@@ -733,6 +761,19 @@ then
 			NBRUN=`cut -f 3 config/librun.list | sort -u | wc -l`
 		fi
 	fi
+elif [ $TECH == "Nanopore" ]
+then
+	# lib1 : original unique library directory name
+	cut -f 3 config/barcodes.txt | sort -u > config/lib1.list
+	# lib2 : same so far
+	cp config/lib1.list config/lib2.list
+	# lib3 : sample and library directory name
+	cut -f 2-3 config/barcodes.txt | sort -k 1,1 -t $'\t' > config/lib3.list
+	LIB3_SIZE=`sed -n '$=' config/lib3.list`
+	# lib4 : same so far
+	cp config/lib3.list config/lib4.list
+	MAXQUAL=20
+	ASV="no"
 fi
 LIB1_SIZE=`sed -n '$=' config/lib1.list`
 SAMP_SIZE=`sed -n '$=' config/lib4.list`

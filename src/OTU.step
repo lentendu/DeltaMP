@@ -204,6 +204,14 @@ then
 	export -f match_index
 	export FASTA_OTUS DECOMP EXT
 	parallel -j $NCPUS match_index ::: $SAMP_NAME | sort --parallel=$NCPUS -k 1,1 | awk '{if(NR==1){p=$1;print p"\t"$2} else {if($1==p){print ","$2} else {p=$1;print p"\t"$2}}}' | perl -0pe 's/\n,/,/g' > ${NAMES_OTUS}.names
+elif [ $CLUST == "none" ]
+then
+	ln -s $FASTA.fasta $FASTA.otu.fasta
+	ln -s $NAMES.names $NAMES.otu.names
+	ln -s $COUNT.count_table $COUNT.otu.count_table
+	FASTA_OTUS=$FASTA.otu
+	NAMES_OTUS=$NAMES.otu
+	COUNT_OTUS=$COUNT.otu
 fi
 
 # Remove singletons
@@ -247,9 +255,9 @@ then
 		awk '{print $1"\t"NR}' $COUNT_OTUS.nochim.accnos | sort -k 1,1 -t $'\t' | join -t $'\t' - <(sort -k 1,1 -t $'\t' $NAMES_OTUS.names) | sort -k 2,2n -t $'\t' | cut -f 1,3 > $NAMES_OTUS.nochim.names
 		rm $NAMES_OTUS.names
 		NAMES_OTUS=$NAMES_OTUS.nochim
-		cut -f 2 $NAMES_OTUS.names | tr "," "\n" > $NAMES_OTUS.accnos
-		seqkit grep -f $NAMES_OTUS.accnos $FASTA.fasta > $FASTA.nochim.fasta
-		sort $NAMES_OTUS.accnos | join -t $'\t' - <(sed '1d' $COUNT.count_table) | cat <(head -1 $COUNT.count_table) - > $COUNT.nochim.count_table
+		cut -f 2 $NAMES_OTUS.names | tr "," "\n" | sort -u > $NAMES_OTUS.accnos
+		seqkit grep -f $NAMES_OTUS.accnos $FASTA.fasta | seqkit seq -w0 > $FASTA.nochim.fasta
+		sort $NAMES_OTUS.accnos | join -t $'\t' - <(sed '1d' $COUNT.count_table) | sort -t $'\t' -k 2,2nr | cat <(head -1 $COUNT.count_table) - > $COUNT.nochim.count_table
 		sort -k 1,1 -t $'\t' $NAMES.names | join -t $'\t' - <(sort $NAMES_OTUS.accnos) > $NAMES.nochim.names
 		rm $FASTA.fasta $COUNT.count_table
 		sed -i '/^FASTA=/d;/^COUNT=/d;/^NAMES=/d' current_files.summary

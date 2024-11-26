@@ -1,0 +1,51 @@
+# 
+# DeltaMP, a flexible, reproducible and resource efficient metabarcoding amplicon pipeline for HPC
+# Copyright (C) 2018 Guillaume Lentendu, Tesfaye Wubet
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# 
+
+# load modules
+module load DeltaMP/DELTAMP_VERSION
+
+# Define Variables
+while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
+. $BIN/check_previous_step
+
+# Library to analyse
+read SAMP_NAME LIB_NAME <<<`sed -n ${ARRAY_TASK}'p' config/lib3.list`
+if [ ! -z "$(grep $SAMP_NAME config/*.missing 2> /dev/null)" ]
+then
+	echo -e "The sample $SAMP_NAME had no read at the end of the step $(grep -H $SAMP_NAME config/*.missing | sed 's@.*/@@;s@\.missing.*@@').\nSkip"
+	(. $BIN/list_step_files.sh)
+	echo END
+	exit 0
+fi
+
+cd libraries
+
+# sequence quality count, both direction separately
+for i in ${FWD_NAME} ${RVS_NAME}
+do
+	if [ $i == "$FWD_NAME" ] ; then j=${RVS_NAME} ; else j=${FWD_NAME} ; fi
+	for j in $(seq $MINQUAL $MAXQUAL)
+	do
+		awk -v J=$j '$3>=J{c+=$1}END{print c}' raw_stat/$i.${LIB_NAME}.ql
+	done > $EXEC/quality_check/$i.$LIB_NAME.stat
+done
+
+# list files and directories
+(. $BIN/list_step_files.sh)
+
+echo END

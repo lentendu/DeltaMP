@@ -1,0 +1,15 @@
+init
+get
+Nanopore_fastq
+Nanopore_opt
+Nanopore_quality
+cut_db
+trim
+asv
+OTU
+id
+end
+processing_archiver
+output_archiver
+fastq_archiver
+doc

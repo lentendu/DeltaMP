@@ -3,7 +3,7 @@
 
 DeltaMP is a command line tool for high performance computer taking advantage of queueing systems to parallelize and standardize bioinformatic processing of metabarcoding raw read libraries.
 
-DeltaMP is initially developed to process **16S, 18S, 28S, ITS, COI and rbcl** raw read libraries with the most up-to-date bioinformatic workflows, but can also handle any other barcoding targets (e.g. 23/28S, rbcL).
+DeltaMP is initially developed to process **16S, 18S, 28S, ITS, COI and rbcl** raw read libraries from 454, Illumina and Nanopore sequencung technologies, with the most up-to-date bioinformatic workflows.
 
 DeltaMP intend to be accessible for non-bioinformatician users with its fully tunable workflows based on a TAB-separated configuration file.
 
@@ -191,7 +191,7 @@ The default values for the optional parameters could be displayed by using the -
 
 ### LIBRARIES section
 
-+ __Sequencing technology__: “Illumina” or “454”. The default is Illumina.
++ __Sequencing technology__: “Illumina”, "Nanopore" or “454”. The default is Illumina.
 
 + __Directory path to archives or libraries OR BioProject accession__: full path of the directory where to find the sequence libraries or archives. If the raw sequences are publicly available at the European Nucleotide Archive (https://www.ebi.ac.uk/ena), only provide the BioProject accession number. The libraries will then automatically be retrieved from the provided URLs in the BARCODE section. The default is /home/$USER.
 
@@ -206,6 +206,8 @@ The default values for the optional parameters could be displayed by using the -
 + __Bind barcode to primer for demultiplexing__: *Illumina specific parameter*, "yes" or "no". For dual-indexing, control binding of barcodes with the forward/reverse primer to increase demultiplexing accuracy. The first barcode in a pair is only search associated with the forward primer at 5'-end and the second barcode is only search associated with the reverse primer at 5'-end, in both paired libraries. The default is “no”.
 
 + __Orientation threshold__: *Illumina specific parameter*, a percentage of raw demultiplexed reads above which to keep using reads in a certain orientation (forward primer in R1 and reverse primer in R2, and/or reverse primer in R1 and forward primer in R2). The default is 1.
+
++ __Barcoding kit__: *Nanopore specific parameter*, RBK for rapid barcoding kit or NBD for native barocding kit. The default is NBD.
 
 ### TARGET section
 
@@ -281,6 +283,12 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Reuse previous subproject optimized quality parameters__: *Illumina specific parameter*, "no" or a path to a previous suproject execution directory. This will reuse the same optimize quality parameters for length and quality fitering truncation if the primers and the options __Type of quality filtering__, __Truncation before pair-end__ and __Minimum length truncation of unpaired reads__ are identical. The default is no.
 
++ __Method for Nanopore read correction__: *Nanopore specific parameter*, either "racon" or "rattle". In both cases, clusters are computed with sumaclust, then either until five rounds of reads correction are run with racon (or until corrected reads are more than 98% similar between two correction iterations), or one round of correction is run with rattle. Corrected reads are then polished with medaka. The default is "racon".
+
++ __Minimum reads in cluster for consensus__: *Nanopore specific parameter*, minimum number of reads to consider a cluster of sequence for consensus read correction and polishing. The default is 5.
+
++ __Minimum similarity for consensus cluster__: *Nanopore specific parameter*, minimum similarity (a float number in the range 0.2-1.0) between two reads to be included in the same cluster for consensus read correction. The default is 0.9.
+
 
 ### PIPELINE section
 
@@ -342,6 +350,8 @@ The default values for the optional parameters could be displayed by using the -
 + __454 libraries__: the columns 1 to 3 have to be filled with barcode sequences, sample names and library filenames or URLs, respectively. If the same barcode was used to sequence in both forward and reverse directions, the library containing the reverse primer at its 5'-end have to be provided in the fourth column.
 
 + __Illumina libraries__: the columns 1 to 4 have to be filled with barcodes, sample names, the filename or URL of the forward libraries and the filename or URL of the reverse libraries, respectively. The column 1 can remain empty when libraries are already delmultiplexed. Dual index demultiplexing is turn on when a comma separated pair of barcodes is provided for every sample in column 1.
+
++ __Nanopore libraries__: the columns 2 and 3 have to be filled with the sample names and the library directory name containing raw reads of individual sample.
 
 Columns 3 and 4 accept libraies in fastq or sff format with most kinds of compression (.gz, .tar, .tar.gz, .tgz, .bz2, .tar.bz2, .tbz2, .zip).
 

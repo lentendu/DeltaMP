@@ -272,12 +272,86 @@ do
 				eval $COMP *.$i.*.filtered.fastq
 			fi
 		fi
+	elif [ $TECH == "Nanopore" ]
+	then
+		# Concatenate reads in both direction and filter
+		if [ -f $EXEC/libraries/fastq/$FWD_NAME.$i.fastq.$EXT ]
+		then
+			if [ -f $EXEC/libraries/fastq/$RVS_NAME.$i.fastq.$EXT ]
+			then
+				seqkit seq -vrp -t dna $EXEC/libraries/fastq/$RVS_NAME.$i.fastq.$EXT | cat <(eval $DECOMP $EXEC/libraries/fastq/$FWD_NAME.$i.fastq.$EXT) - | seqkit rename > $i.both.fastq
+			else
+				eval $DECOMP $EXEC/libraries/fastq/$FWD_NAME.$i.fastq.$EXT > $i.both.fastq
+			fi
+		elif [ -f $EXEC/libraries/fastq/$RVS_NAME.$i.fastq.$EXT ]
+		then
+			seqkit seq -vrp -t dna $EXEC/libraries/fastq/$RVS_NAME.$i.fastq.$EXT > $i.both.fastq
+		fi
+		# Quality filtering
+		QUAL=`cat $EXEC/quality_check/optimized.quality.txt`
+		seqkit seq -w0 -j $NCPUS -Q $QUAL -m $MINLEN -M $MAXLEN $i.both.fastq > $i.trim.fastq
+		rm $i.both.fastq
 	fi
 done
 
-
 # Process trimmed reads of all libraries of the sample together
-if [ $ASV == "no" ]
+if [ $TECH == "Nanopore" ]
+then
+	# concatenate fastq files
+	TRIMMED=(*.trim.fastq)
+	if [ ${#TRIMMED[@]} -gt 1 ]
+	then
+		cat *.trim.fastq > $SAMP.trim.fastq
+	else
+		ln -s $TRIMMED $SAMP.trim.fastq
+	fi
+	
+	# cluster and correct
+	seqkit fq2fa $SAMP.trim.fastq > $SAMP.trim.fasta
+	sumaclust -t $MINSIM -p $NCPUS -e $SAMP.trim.fasta | seqkit grep -nr -w 0 -p "cluster_center=True" | awk -v M=$MINREADS '{if($1~"^>"){flag=0; l=split($0,a,"; ");for(i=1;i<=l;i++){split(a[i],b,"=");if(b[1]=="cluster_weight" && b[2]>=M){print $1; flag=1}}} else {if(flag==1){print toupper($0)}}}' > $SAMP.rep.fasta
+	echo "initiate $NANOCLUS correction with $(grep -c '^>' $SAMP.rep.fasta) clusters"
+	if [ $NANOCLUS == "rattle" ]
+	then
+		# force rattle to use own clusters (much faster using sumaclust)
+		rattle cluster -i $SAMP.rep.fasta -t $NCPUS -s $MINSIM --iso-score-threshold 0.01 --iso-max-variance 50
+		rattle correct -i $SAMP.trim.fasta -t $NCPUS -c clusters.out -r 0
+		seqkit fq2fa consensi.fq > $SAMP.rep.polish.fasta
+		rm *.fq clusters.out
+	elif [ $NANOCLUS == "racon" ]
+	then
+		# until five loop of racon correction or until similarity between two run is higher than 98%
+		POLSIM=90
+		i=0
+		while [ $POLSIM -lt 98 ] && [ $i -lt 5 ]
+		do
+			i=$((i+1))
+			if [ -s $SAMP.rep.polish.fasta ]
+			then
+				mv $SAMP.rep.polish.fasta $SAMP.rep.fasta
+			elif [ -f $SAMP.rep.polish.fasta ]
+			then
+				echo "Warning: empty file $SAMP.rep.polish.fasta"
+				break
+			fi
+			minimap2 -ax map-ont -2 -t $NCPUS $SAMP.rep.fasta $SAMP.trim.fasta > $SAMP.rep_map.sam
+			racon -t $NCPUS $SAMP.trim.fasta $SAMP.rep_map.sam $SAMP.rep.fasta | sed "/^>/{s/>/>r${i};/;s/ .*//}" > $SAMP.rep.polish.fasta
+			POLSIM=$(for i in $(sed -n '/^>/s/>//p' $SAMP.rep.fasta) ; do seqkit grep -r -p $i $SAMP.rep.fasta | cat - <(seqkit grep -r -p $i $SAMP.rep.polish.fasta) | sumatra - 2> /dev/null ; done | awk '{sim+=$3}END{print int(sim/NR*100+0.5)}')
+			echo "similarity before / after polishing: $POLSIM"
+		done
+		echo "Stop racon polishing after $i iterations"
+		sed -i 's/^>\(r[0-9];\)*/>/' $SAMP.rep.polish.fasta
+		rm $SAMP.rep_map.sam
+	fi
+	# polish with medaka
+	echo "Use $(grep -c '^>' $SAMP.rep.polish.fasta) corrected reads for medaka polishing"
+	medaka_consensus -t $NCPUS -i $SAMP.trim.fastq -d $SAMP.rep.polish.fasta -m $MODEL
+	# sort and relabel
+	seqkit bam --idx-count medaka/calls_to_draft.bam 2>&1 | sed '1d' | sort -k 1,1 | join - <(seqkit fx2tab medaka/consensus.fasta | sort -k 1,1) | awk '{print ">"$1";size="$2"\n"$3}' | vsearch --quiet --sortbysize - --relabel_sha1 --sizeout --output - | vsearch --quiet --derep_fulllength - --sizein --sizeout --output - | seqkit seq -w0 | sed '/>/s/;size/ size/' | tee $SAMP.clean.fasta | sed -n "/>/{s/>//;s/ size=/\t/;p}" | cat <(echo -e "Representative_Sequence\ttotal") - > $SAMP.clean.count_table
+	rm -r medaka $SAMP.trim.fasta $SAMP.rep.fasta $SAMP.rep.polish.fasta*
+	FASTA=$SAMP.clean
+	COUNT=$FASTA
+	echo -e "fasta=$FASTA.fasta\ncount=$COUNT.count_table" > current_files.summary
+elif [ $ASV == "no" ]
 then
 	# concatenate fasta files
 	TRIMMED=(*.trim.fasta)
@@ -311,7 +385,10 @@ then
 		COUNT=$FASTA
 		echo -e "fasta=$FASTA.fasta\ncount=$COUNT.count_table" > current_files.summary
 	fi
-	
+fi
+
+if [ $ASV == "no" ]
+then
 	# Subsample
 	if [ $SUBSAMPLE == "yes" ]
 	then

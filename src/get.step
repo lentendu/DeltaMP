@@ -34,6 +34,9 @@ then
 elif [ $TECH == "Illumina" ]
 then
 	ARCH=(`awk '{print $1$2"\n"$1$3}' config/lib1.list`)
+elif [ $TECH == "Nanopore" ]
+then
+	ARCH=($(for i in $(cat config/lib1.list); do ls ${LIB_DIR}/$i/*${RAW_EXT}* | sed "s|${LIB_DIR}/||" ; done))
 fi
 
 # extract, symlink or download raw data
@@ -76,6 +79,10 @@ then
 		export RAW_EXT
 		parallel -j $NCPUS my_extract ::: ${LIB_DIR} ::: ${ARCHIVES[@]}
 	else
+		if [ $TECH == "Nanopore" ]
+		then
+			mkdir $(printf "%s\n" ${ARCH[@]%/*} | sort -u)
+		fi
 		parallel -j $NCPUS 'if [ -f {1}/{2} ]; then ln -s {1}/{2} {2} ; fi' ::: ${LIB_DIR[@]} ::: ${ARCH[@]}
 	fi
 else

@@ -2,7 +2,7 @@ PROJECT	#	Project name	.+
 OWNER	$USER	User name	.+
 OUT_PATH	/home/$USER	Path to output location	^/.+(/.+)*$
 EXEC_PATH	/work/$USER	Path to execution location	^/.+(/.+)*$
-TECH	Illumina	Sequencing technology	454 Illumina
+TECH	Illumina	Sequencing technology	454 Illumina Nanopore
 LIB_DIR	/home/$USER	Directory path to archives or libraries OR BioProject accession	^/.+(/.+)*$ [A-Za-z0-9]+
 ARCHIVES	no	Tab separated list of archives	no ^.+$
 DEMULTI	yes	Libraries already demultiplexed	no yes
@@ -23,13 +23,13 @@ MINLEN	50	Minimum sequence length	^[0-9]+$
 MAXLEN	600	Maximum sequence length	^[0-9]+$
 QFILT	average	Type of quality filtering	average maxee
 MINQUAL	20	Minimum average quality on the trimmed sequence length	^[0-9]+$
-MIN_DEPTH	2000	Minimum number of trimmed reads per sample	^[0-9]+(.[0-9]+)?$
+MIN_DEPTH	0.7	Minimum number of trimmed reads per sample	^[0-9]+(.[0-9]+)?$
 SKIP_TRESH	0	Samples percentage allowed below the read count threshold	^[0-9]+(.[0-9]+)?$
 ITSX	no	ITSx region to extract	no ^ITS[12]$
 SUBSAMPLE	no	Subsampling	no yes
 PRECLUST	no	Pre-clustering	no cdhit454 mothur
 CHIMERA	after	Chimera removal	before after both no
-CLUST	vsearch	Clustering algorithm	mcl sumaclust cd-hit-est vsearch swarm dada2
+CLUST	vsearch	Clustering algorithm	mcl sumaclust cd-hit-est vsearch swarm dada2 none
 TRESH	97	Clustering similarity threshold	^[0-9]+(.[0-9]+)?$
 ONERUN	no	Single run	no yes
 PREV_PATH	no	Cluster with previous subproject reference sequences	no ^/.+(/.+)*$
