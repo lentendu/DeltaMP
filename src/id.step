@@ -35,11 +35,11 @@ then
 	NCPUS=`awk -v N=$NCPUS 'BEGIN{printf "%.f",N/2}'`
 fi
 
-# LCA function
-lca() {
-	parallel --recstart ">" --remove-rec-sep --pipe -k -N1 awk -v cons=$CONS -f $BIN/lca_vsearch.awk
-}
-export -f lca
+## LCA function
+#lca() {
+	#parallel --recstart ">" --remove-rec-sep --pipe -k -N1 awk -v cons=$CONS -f $BIN/lca_vsearch.awk
+#}
+#export -f lca
 export CONS BIN
 
 # use full or primer/ITSx cut database
@@ -130,11 +130,13 @@ then
 	then
 		vsearch --no_progress --usearch_global ${FASTA}$ADD.fasta --threads $NCPUS --db ${DBFOLD}/${TEMPLATE}.udb --dbmask none --qmask none --rowlen 0 --notrunclabels --userfields query+id${IDDEF}+target --maxaccepts 0 --maxrejects 32 --top_hits_only --output_no_hits --id $MINID --iddef ${IDDEF}$QCOV --userout ${FASTA}.hits
 		# Consensus among best matches
-		awk '{split($2,a,",");for(i in a){print a[i],$1}}' $NAMES_OTUS.names | sort --parallel=$NCPUS -k 1,1 | join -o 1.2,2.2,2.3 - <(sed 's/;\t/\t/;s/;$//;s/ size=[0-9]*//' ${FASTA}.hits | sort --parallel=$NCPUS -k 1,1) | sed 's/;tax=/\t/' | sort --parallel=$NCPUS -k 1,1 -k 2,2nr | awk '{if($1!=p){sim=$2};if($2>=sim-1){print;p=$1}}' | sort --parallel=$NCPUS -k 1,1 -k 4,4 -k 3,3 | awk '$1 != p{printf ">"}{p=$1}1' | parallel -j $NCPUS --recstart ">" --pipe -k lca > ${FASTA_OTUS}.taxonomy
+		#awk '{split($2,a,",");for(i in a){print a[i],$1}}' $NAMES_OTUS.names | sort --parallel=$NCPUS -k 1,1 | join -o 1.2,2.2,2.3 - <(sed 's/;\t/\t/;s/;$//;s/ size=[0-9]*//' ${FASTA}.hits | sort --parallel=$NCPUS -k 1,1) | sed 's/;tax=/\t/' | sort --parallel=$NCPUS -k 1,1 -k 2,2nr | awk '{if($1!=p){sim=$2};if($2>=sim-1){print;p=$1}}' | sort --parallel=$NCPUS -k 1,1 -k 4,4 -k 3,3 | awk '$1 != p{printf ">"}{p=$1}1' | parallel -j $NCPUS --recstart ">" --pipe -k lca > ${FASTA_OTUS}.taxonomy
+		Rscript --vanilla $BIN/lca_vsearch.R ${FASTA_OTUS}.hits $CONS $NCPUS 0.1
 	else
 		vsearch --no_progress --usearch_global ${FASTA_OTUS}$ADD.fasta --threads $NCPUS --db ${DBFOLD}/${TEMPLATE}.udb --dbmask none --qmask none --rowlen 0 --notrunclabels --userfields query+id${IDDEF}+target --maxaccepts 32 --maxrejects 0 --output_no_hits --id $MINID --iddef ${IDDEF}$QCOV --userout ${FASTA_OTUS}.hits
 		# Consensus among best matches with increasing range of similarity (max 10% of ceiling(100-(best match similarity)), e.g., for best match at 99% range is between 99 and 98.9, for a best match at 90.5% range is between 90.5 and 89.5)
-		sed 's/;\t/\t/;s/;$//;s/;tax=/\t/' ${FASTA_OTUS}.hits | sort --parallel=$NCPUS -k 1,1 -k 2,2nr | awk '{if(NR==1){p=$1;s=$2;d=int(100-$2+0.9)/10;print $0} else {if($2==0){print $0} else {if($1==p){if($2>=s-d){print $0}} else {p=$1;s=$2;d=int(100-$2+0.9)/10;print $0}}}}' | sort --parallel=$NCPUS -k 1,1 -k 4,4  | awk '$1 != p{printf ">"}{p=$1}1' | parallel -j $NCPUS --recstart ">" --pipe -k lca > ${FASTA_OTUS}.taxonomy
+		#sed 's/;\t/\t/;s/;$//;s/;tax=/\t/' ${FASTA_OTUS}.hits | sort --parallel=$NCPUS -k 1,1 -k 2,2nr | awk '{if(NR==1){p=$1;s=$2;d=int(100-$2+0.9)/10;print $0} else {if($2==0){print $0} else {if($1==p){if($2>=s-d){print $0}} else {p=$1;s=$2;d=int(100-$2+0.9)/10;print $0}}}}' | sort --parallel=$NCPUS -k 1,1 -k 4,4  | awk '$1 != p{printf ">"}{p=$1}1' | parallel -j $NCPUS --recstart ">" --pipe -k lca > ${FASTA_OTUS}.taxonomy
+		Rscript --vanilla $BIN/lca_vsearch.R ${FASTA_OTUS}.hits $CONS $NCPUS 0.1
 	fi
 	CTAXO=${FASTA_OTUS}.cons
 	sort -k 1,1 ${FASTA_OTUS}.taxonomy | join -2 2 - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 2,2nr -k 1,1 | nl -n rz -w ${#NBOTUS} | sort -k 2,2) | sort -k 5,5n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy","similarity","references","repseq"} {print "Otu"$5,$6,$3,$2,$4,$1}' > $CTAXO.taxonomy
