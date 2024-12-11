@@ -91,7 +91,7 @@ DeltaMP is intend to be used on a HPC with a job scheduler (i.e. batch-queuing s
 + [RATTLE](https://github.com/comprna/RATTLE) for Nanopore reads processing (de la Rubia et al., 2022)
 + [racon](https://github.com/isovic/racon) for Nanopore reads processing (Vaser et al., 2017)
 + [medaka](https://github.com/nanoporetech/medaka) for Nanopore reads processing
-
++ [MeShClust3](https://github.com/BioinformaticsToolsmith/Identity) for Nanopore reads processing (Girgis, 2022)
 All this dependencies need to be available through the $PATH environmental variable or need to be loaded by the DeltaMP module file.
 
 
@@ -515,6 +515,7 @@ For unsolved issues, send an email to guillaume.lentendu@unine.ch, including the
 + Fu, L., Niu, B., Zhu, Z., Wu, S., Li, W., 2012. CD-HIT: accelerated for clustering the next-generation sequencing data. Bioinformatics 28, 3150–3152. doi:[10.1093/bioinformatics/bts565](http://doi.org/10.1093/bioinformatics/bts565)
 + Gaspar, J.M., 2018. NGmerge: merging paired-end reads via novel empirically-derived models of sequencing errors. BMC Bioinformatics 19, 536. doi:[10.1186/s12859-018-2579-2](http://doi.org/10.1186/s12859-018-2579-2)
 + Gaspar, J.M., Thomas, W.K., 2015. FlowClus: efficiently filtering and denoising pyrosequenced amplicons. BMC Bioinformatics 16. doi:[10.1186/s12859-015-0532-1](http://doi.org/10.1186/s12859-015-0532-1)
++ Girgis, H. Z. (2022). MeShClust v3.0: High-quality clustering of DNA sequences using the mean shift algorithm and alignment-free identity scores. BMC Genomics, 23(1), 423. doi:[10.1186/s12864-022-08619-0](https://doi.org/10.1186/s12864-022-08619-0)
 + Mahé, F., Rognes, T., Quince, C., de Vargas, C., Dunthorn, M., 2015. Swarm v2: highly-scalable and high-resolution amplicon clustering. PeerJ 3, e1420. doi:[10.7717/peerj.1420](http://doi.org/10.7717/peerj.1420)
 + Martin, M., 2011. Cutadapt removes adapter sequences from high-throughput sequencing reads. EMBnet.Journal 17, 10–12. doi:[10.14806/ej.17.1.200](http://doi.org/10.14806/ej.17.1.200)
 + Masella, A.P., Bartram, A.K., Truszkowski, J.M., Brown, D.G., Neufeld, J.D., 2012. PANDAseq: paired-end assembler for illumina sequences. BMC Bioinformatics 13, 31. doi:[10.1186/1471-2105-13-31](http://doi.org/10.1186/1471-2105-13-31)

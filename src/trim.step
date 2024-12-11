@@ -305,10 +305,12 @@ then
 	else
 		ln -s $TRIMMED $SAMP.trim.fastq
 	fi
-	
 	# cluster and correct
 	seqkit fq2fa $SAMP.trim.fastq > $SAMP.trim.fasta
-	sumaclust -t $MINSIM -p $NCPUS -e $SAMP.trim.fasta | seqkit grep -nr -w 0 -p "cluster_center=True" | awk -v M=$MINREADS '{if($1~"^>"){flag=0; l=split($0,a,"; ");for(i=1;i<=l;i++){split(a[i],b,"=");if(b[1]=="cluster_weight" && b[2]>=M){print $1; flag=1}}} else {if(flag==1){print toupper($0)}}}' > $SAMP.rep.fasta
+	meshclust -d $SAMP.trim.fasta -o $SAMP.trim.clust -t $MINSIM -c $NCPUS -v 10000 -b 5000 > log.meshclust
+	seqkit grep -f <(awk -v M=$MINREADS '{if(NR==1){p=$1;c=1} else {if($1==p){c+=1} else {if(c>=M){print r}; p=$1; c=1}}; if($4=="C"){r=$2}}' $SAMP.trim.clust | sed 's/>//') $SAMP.trim.fasta > $SAMP.rep.fasta
+	#clust-mst -t $NCPUS -m $MINLEN -d $(echo "1 - $MINSIM" | bc -l) -o $SAMP.trim.clust -i $SAMP.trim.fasta
+	#sumaclust -t $MINSIM -p $NCPUS -e $SAMP.trim.fasta | seqkit grep -nr -w 0 -p "cluster_center=True" | awk -v M=$MINREADS '{if($1~"^>"){flag=0; l=split($0,a,"; ");for(i=1;i<=l;i++){split(a[i],b,"=");if(b[1]=="cluster_weight" && b[2]>=M){print $1; flag=1}}} else {if(flag==1){print toupper($0)}}}' > $SAMP.rep.fasta
 	echo "initiate $NANOCLUS correction with $(grep -c '^>' $SAMP.rep.fasta) clusters"
 	if [ $NANOCLUS == "rattle" ]
 	then

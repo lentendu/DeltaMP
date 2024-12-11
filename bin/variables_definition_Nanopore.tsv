@@ -1,6 +1,6 @@
 NANO	NBD	Barcoding kit	NBD RBK
 MINQD	0.7	Minimum number of quality trimmed reads per sample	^[0-9]+(.[0-9]+)?$
 NANOCLUS	racon	Method for Nanopore read correction	racon rattle
-MINREADS	5	Minimum reads in cluster for consensus	^[0-9]+$
+MINREADS	2	Minimum reads in cluster for consensus	^[0-9]+$
 MINSIM	0.9	Minimum similarity for consensus cluster	^[0-9]+(.[0-9]+)?$
 MODEL	r1041_e82_400bps_hac_v4.2.0	Model of Nanopore for medaka	^.+$
