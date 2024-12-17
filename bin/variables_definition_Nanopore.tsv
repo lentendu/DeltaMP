@@ -1,4 +1,6 @@
 NANO	NBD	Barcoding kit	NBD RBK
+PRIMALG	hmmer	Primer clipping algorithm	hmmer cutadapt
+OLEN	0.6	Minimum overlap proportion of primer sequences	^[0-1](.[0-9]+)?$
 MINQD	0.7	Minimum number of quality trimmed reads per sample	^[0-9]+(.[0-9]+)?$
 NANOCLUS	racon	Method for Nanopore read correction	racon rattle
 MINREADS	2	Minimum reads in cluster for consensus	^[0-9]+$

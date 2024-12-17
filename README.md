@@ -92,6 +92,7 @@ DeltaMP is intend to be used on a HPC with a job scheduler (i.e. batch-queuing s
 + [racon](https://github.com/isovic/racon) for Nanopore reads processing (Vaser et al., 2017)
 + [medaka](https://github.com/nanoporetech/medaka) for Nanopore reads processing
 + [MeShClust3](https://github.com/BioinformaticsToolsmith/Identity) for Nanopore reads processing (Girgis, 2022)
++ [hmmer](hmmerg.org) for Nanopore reads processing (Eddy, 2011)
 All this dependencies need to be available through the $PATH environmental variable or need to be loaded by the DeltaMP module file.
 
 
@@ -255,6 +256,10 @@ The default values for the optional parameters could be displayed by using the -
 + __Number of mismatches allowed on the barcode sequence__: a number between 0 and 2, or 'a' for automatic detection of maximum allowed mismatch on a barcode to avoid mislabeling of sequence inside one library. This value is used for demultiplexing only. The default is 1.
 
 + __Number of mismatches allowed on the primer sequence__: a number between 0 and 10. For Illumina libraries, this number will only be used to calculate allowed dissimilarity (number of mismatch / primer length) for primer detection and removal by cutadapt. The default is 6.
+
++ __Primer clipping algorithm__: *Nanopore specific parameter*, either 'cutadapt' to match at most two sub-reads between the primers, one in each orientation, or 'hmmer' to match all possible sub-reads with first a strict primer match to create hmmer profile of 90% similarity clustered sub-reads of expected length, then sequence extraction by alignment against the profile (more reads recovered, independent from primers mismatches, but more computational intensive). The default is 'hmmer'
+
++ __Minimum overlap proportion of primer sequences__: *Nanopore specific parameter*, proportion of each primer to be matched for 'cutadapt' primer clipping. Default is 0.6
 
 + __Maximum number of ambiguities allowed in the sequence__: a number between 0 and ∞. The default is 0.
 
@@ -511,6 +516,7 @@ For unsolved issues, send an email to guillaume.lentendu@unine.ch, including the
 ## References
 + Bengtsson‐Palme, J., Ryberg, M., Hartmann, M., Branco, S., Wang, Z., Godhe, A., Wit, P., Sánchez‐García, M., Ebersberger, I., Sousa, F., Amend, A., Jumpponen, A., Unterseher, M., Kristiansson, E., Abarenkov, K., Bertrand, Y. J. K., Sanli, K., Eriksson, K. M., Vik, U., Veldre, V., Nilsson, R. H., Bunce, M., 2013. Improved software detection and extraction of ITS1 and ITS2 from ribosomal ITS sequences of fungi and other eukaryotes for analysis of environmental sequencing data. Methods in Ecology and Evolution 4, 914–919. doi:[10.1111/2041-210X.12073](http://doi.org/10.1111/2041-210X.12073)
 + Callahan, B.J., McMurdie, P.J., Rosen, M.J., Han, A.W., Johnson, A.J.A., Holmes, S.P., 2016. DADA2: High-resolution sample inference from Illumina amplicon data. Nature Methods 13, 581–583. doi:[10.1038/nmeth.3869](http://doi.org/10.1038/nmeth.3869)
++ Eddy, S. R. (2011). Accelerated Profile HMM Searches. PLOS Computational Biology, 7(10), e1002195. doi:[10.1371/journal.pcbi.1002195](https://doi.org/10.1371/journal.pcbi.1002195)
 + Edgar, R.C., 2010. Search and clustering orders of magnitude faster than BLAST. Bioinformatics 26, 2460–2461. doi:[10.1093/bioinformatics/btq461](http://doi.org/10.1093/bioinformatics/btq461)
 + Fu, L., Niu, B., Zhu, Z., Wu, S., Li, W., 2012. CD-HIT: accelerated for clustering the next-generation sequencing data. Bioinformatics 28, 3150–3152. doi:[10.1093/bioinformatics/bts565](http://doi.org/10.1093/bioinformatics/bts565)
 + Gaspar, J.M., 2018. NGmerge: merging paired-end reads via novel empirically-derived models of sequencing errors. BMC Bioinformatics 19, 536. doi:[10.1186/s12859-018-2579-2](http://doi.org/10.1186/s12859-018-2579-2)

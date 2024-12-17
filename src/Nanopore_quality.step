@@ -116,7 +116,7 @@ cut -f 1-3,$QUALPOS $SUBPROJECT.sample_counts.tsv > $SUBPROJECT.summary.stat.tsv
 ln -s $PWD/$SUBPROJECT.summary.stat.tsv $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.read_counts.tsv
 
 # check for no read
-QMISS=$(head -n -4 $SUBPROJECT.summary.stat.tsv | awk 'NR>1 && ($NF==0 || $NF=="NA"){print $1}' | sort | join -v 1 - <(cat $EXEC/config/*missing | sort))
+QMISS=$(head -n -4 $SUBPROJECT.summary.stat.tsv | awk 'NR>1 && ($NF==0 || $NF=="NA"){print $1}' | sort | join -v 1 - <(if [ $(ls -1 $EXEC/config/*missing 2> /dev/null | wc -l) -gt 0 ] ; then cat $EXEC/config/*missing | sort ; fi))
 if [ ! -z "$QMISS" ]
 then
 	MY_TMP_NAME=`echo $JOBNAME | sed "s/$DELTAMP_VER\.//;s/\.$SUBPROJECT//"`

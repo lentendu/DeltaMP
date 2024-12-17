@@ -39,13 +39,31 @@ cd libraries
 # Primer clipping
 FWD_RC=$(echo -e ">fwd\n$FWD" | seqkit seq -vrp -t dna | tail -1)
 RVS_RC=$(echo -e ">rvs\n$RVS" | seqkit seq -vrp -t dna | tail -1)
-FDIFFS=$(awk -v P=$PDIFFS -v F=${#FWD} 'BEGIN{print (int(P/F*100)+1)/100}')
-RDIFFS=$(awk -v P=$PDIFFS -v R=${#RVS} 'BEGIN{print (int(P/R*100)+1)/100}')
 
-# cutadapt: extract part of reads containing the biological amplified sequences
-eval $DECOMP ${RAWPATH}${LIB_NAME}/*.fastq.$EXT | cutadapt -m $MINLEN -M $MAXLEN -g "$FWD;e=$FDIFFS;o=$((${#FWD}-2))...$RVS_RC;e=$RDIFFS;o=$((${#RVS}-2))" --trimmed-only -o - - 2> fastq/log.cutadapt.${LIB_NAME}.fr.txt | seqkit seq -i | eval $COMP > fastq/${FWD_NAME}.${LIB_NAME}.fastq.$EXT
-eval $DECOMP ${RAWPATH}${LIB_NAME}/*.fastq.$EXT | cutadapt -m $MINLEN -M $MAXLEN -g "$RVS;e=$RDIFFS;o=$((${#RVS}-2))...$FWD_RC;e=$FDIFFS;o=$((${#FWD}-2))" --trimmed-only -o - - 2> fastq/log.cutadapt.${LIB_NAME}.rf.txt | seqkit seq -i | eval $COMP > fastq/${RVS_NAME}.${LIB_NAME}.fastq.$EXT
-
+if [ $PRIMALG == "cutadapt" ]
+then
+	# cutadapt: extract part of reads containing the biological amplified sequences
+	FDIFFS=$(awk -v P=$PDIFFS -v F=${#FWD} 'BEGIN{print (int(P/F*100)+1)/100}')
+	RDIFFS=$(awk -v P=$PDIFFS -v R=${#RVS} 'BEGIN{print (int(P/R*100)+1)/100}')
+	FO=$(echo "${#FWD} * $OLEN" | bc -l | sed 's/\..*//')
+	RO=$(echo "${#RVS} * $OLEN" | bc -l | sed 's/\..*//')
+	eval $DECOMP ${RAWPATH}${LIB_NAME}/*.fastq.$EXT | seqkit seq -i | cutadapt -m $MINLEN -M $MAXLEN -g "$FWD;e=$FDIFFS;o=$FO...$RVS_RC;e=$RDIFFS;o=$RO" --trimmed-only -o - - 2> fastq/log.cutadapt.${LIB_NAME}.fr.txt | eval $COMP > fastq/${FWD_NAME}.${LIB_NAME}.fastq.$EXT
+	eval $DECOMP ${RAWPATH}${LIB_NAME}/*.fastq.$EXT | seqkit seq -i | cutadapt -m $MINLEN -M $MAXLEN -g "$RVS;e=$RDIFFS;o=$RO...$FWD_RC;e=$FDIFFS;o=$FO" --trimmed-only -o - - 2> fastq/log.cutadapt.${LIB_NAME}.rf.txt | eval $COMP > fastq/${RVS_NAME}.${LIB_NAME}.fastq.$EXT
+elif [ $PRIMALG == "hmmer" ]
+then
+	# Alternative HMMER match
+	# strict match of high quality expected sequence(s) in forward direction only, clustered and aligned for hmm profil
+	eval $DECOMP ${RAWPATH}${LIB_NAME}/*.fastq.$EXT | seqkit seq -i | cutadapt -m $MINLEN -M $MAXLEN -g "$FWD;o=${#FWD}...$RVS_RC;o=${#RVS}" -e 0 --trimmed-only -o - - 2> fastq/log.cutadapt.${LIB_NAME}.fr.txt > fastq/ref.${LIB_NAME}.fastq
+	# cluster high quality sequence and create hmmer profiles
+	seqkit fq2fa fastq/ref.${LIB_NAME}.fastq| vsearch --quiet --derep_prefix - --sizeout --output - | vsearch --quiet --cluster_smallmem - --usersort --id 0.9 --iddef 1 --centroids - | mafft --quiet - | seqkit seq -w0 -u | hmmbuild --informat afa -n fwd -o fastq/log.${LIB_NAME}.hmm fastq/fwd.${LIB_NAME}.hmm -
+	# nhmmer to detect forward or reverse sequences
+	eval $DECOMP ${RAWPATH}${LIB_NAME}/*.fastq.$EXT | seqkit fq2fa --quiet | seqkit seq -g -i -m $MINLEN | nhmmer -E 1e-6 --w_length $MAXLEN -o /dev/null --tblout fastq/fwd.${LIB_NAME}.tbl fastq/fwd.${LIB_NAME}.hmm -
+	# extact matching region with bed format
+	eval $DECOMP ${RAWPATH}${LIB_NAME}/*.fastq.$EXT | seqkit seq -i | seqkit subseq --quiet --bed <(awk -v l=$MINLEN -v L=$MAXLEN '$1!~"^#" && $12=="+"{d=$8-$7; if(d>=l && d<=L){print $1"\t"$7"\t"$8}}' fastq/fwd.${LIB_NAME}.tbl) | sed '1~4s/:[\.-] *$//' | eval $COMP > fastq/${FWD_NAME}.${LIB_NAME}.fastq.$EXT
+	eval $DECOMP ${RAWPATH}${LIB_NAME}/*.fastq.$EXT | seqkit seq -i | seqkit subseq --quiet --bed <(awk -v l=$MINLEN -v L=$MAXLEN '$1!~"^#" && $12=="-"{d=$7-$8; if(d>=l && d<=L){print $1"\t"$8"\t"$7}}' fastq/fwd.${LIB_NAME}.tbl) | sed '1~4s/:[\.-] *$//' | eval $COMP > fastq/${RVS_NAME}.${LIB_NAME}.fastq.$EXT
+	# clean
+	rm fastq/ref.${LIB_NAME}.fastq fastq/fwd.${LIB_NAME}.tbl fastq/fwd.${LIB_NAME}.hmm
+fi
 
 # check for no read
 if [ -z "$(i=fastq/${FWD_NAME}.${LIB_NAME}.fastq.$EXT ; if [ -f $i ]; then eval $DECOMP $i | head -c1 ; fi)" ] && [ -z "$(i=fastq/${RVS_NAME}.${LIB_NAME}.fastq.$EXT ; if [ -f $i ]; then eval $DECOMP $i | head -c1 ; fi)" ]
