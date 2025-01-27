@@ -32,6 +32,7 @@ CHIMERA	after	Chimera removal	before after both no
 CLUST	vsearch	Clustering algorithm	mcl sumaclust cd-hit-est vsearch swarm dada2 none
 TRESH	97	Clustering similarity threshold	^[0-9]+(.[0-9]+)?$
 ONERUN	no	Single run	no yes
+POSTCLUST	no	Post-clustering	no yes
 PREV_PATH	no	Cluster with previous subproject reference sequences	no ^/.+(/.+)*$
 PREV_PERC	95	Cluster with previous subproject percent overlap	^[0-9]+$
 PREV_DOM	4	Minimum abundance of previous subproject amplicons to cluster with	^[0-9]+$

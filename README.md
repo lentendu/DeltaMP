@@ -93,6 +93,8 @@ DeltaMP is intend to be used on a HPC with a job scheduler (i.e. batch-queuing s
 + [medaka](https://github.com/nanoporetech/medaka) for Nanopore reads processing
 + [MeShClust3](https://github.com/BioinformaticsToolsmith/Identity) for Nanopore reads processing (Girgis, 2022)
 + [hmmer](hmmerg.org) for Nanopore reads processing (Eddy, 2011)
++ [mumu](https://github.com/frederic-mahe/mumu) for post-clustering (Frøslev et al., 2017)
+
 All this dependencies need to be available through the $PATH environmental variable or need to be loaded by the DeltaMP module file.
 
 
@@ -310,6 +312,8 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Pre-clustering__: "no", "cdhit454" or "mothur" to skip or to use [cd-hit-454](http://weizhong-lab.ucsd.edu/public/?q=softwares/cd-hit-454) or [mothur pre.cluster](https://mothur.org/wiki/pre.cluster/) algorithms to pre-cluster reads after trimming and before chimera removal. For the mothur based pre-clustering, and aligned version of a reference database is required (see below at __Database prefix name__). The default is "no".
 
++ __Single run__: "yes" or "no", consider all libraries coming from the same run in order to build a single error model for dada2. The default is "no".
+
 + __Chimera removal__: "before", "after" or "both", to check for chimera before OTU clustering only (in each sample separetedly), after OTU clustering only (among OTU representative sequences), or at both moments. *De-novo* chimera are detected with UCHIME and removed. For dada2 clustering, bimera are always removed using _removeBimera_. The default is "after".
 
 + __Remove bimera after ASV calling and joining__: *Illumina specific parameter*, "no" or "yes" to remove bimera when clustering with dada2. Independent from the __Chimera removal__ parameter. The default is "no".
@@ -320,7 +324,7 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Clustering similarity threshold__: a number between 80 and 100 (percent of similarity). Disregarded if the “swarm” or "dada2" clustering algorithms are used. The default is 97.
 
-+ __Single run__: "yes" or "no", consider all libraries coming from the same run in order to build a single error model for dada2. The default is "no".
++ __Post-clustering__: "yes" or "no", if "yes" use mumu (C++ implementation of lulu) to reduce the number of erroneous OTUs/ASVs by clustering based on co-occurrence and reference sequence similarity; The default is "no".
 
 + __Cluster with previous subproject reference sequences__: the accepted values are a full path or “no”. If the full path to a previous subproject output directory is provided, all amplicons of this previous subproject will be search for exact match with amplicons from the current subproject. If amplicons of one or multiple OTUs from the current subproject have match in a single OTUs of the previous subproject, these amplicons will be assign to the OTU index name used in the previous subproject. Remaining OTUs from the current subproject without match in the reference suproject have their OTU index names starting after the last OTU of the reference subproject. This option is experimental, use with caution. The default is “no”.
 
@@ -521,6 +525,7 @@ For unsolved issues, send an email to guillaume.lentendu@unine.ch, including the
 + Eddy, S. R. (2011). Accelerated Profile HMM Searches. PLOS Computational Biology, 7(10), e1002195. doi:[10.1371/journal.pcbi.1002195](https://doi.org/10.1371/journal.pcbi.1002195)
 + Edgar, R.C., 2010. Search and clustering orders of magnitude faster than BLAST. Bioinformatics 26, 2460–2461. doi:[10.1093/bioinformatics/btq461](http://doi.org/10.1093/bioinformatics/btq461)
 + Fu, L., Niu, B., Zhu, Z., Wu, S., Li, W., 2012. CD-HIT: accelerated for clustering the next-generation sequencing data. Bioinformatics 28, 3150–3152. doi:[10.1093/bioinformatics/bts565](http://doi.org/10.1093/bioinformatics/bts565)
++ Frøslev, T. G., Kjøller, R., Bruun, H. H., Ejrnæs, R., Brunbjerg, A. K., Pietroni, C., & Hansen, A. J. (2017). Algorithm for post-clustering curation of DNA amplicon data yields reliable biodiversity estimates. Nature Communications, 8(1), 1188. doi:[10.1038/s41467-017-01312-x](https://doi.org/10.1038/s41467-017-01312-x)
 + Gaspar, J.M., 2018. NGmerge: merging paired-end reads via novel empirically-derived models of sequencing errors. BMC Bioinformatics 19, 536. doi:[10.1186/s12859-018-2579-2](http://doi.org/10.1186/s12859-018-2579-2)
 + Gaspar, J.M., Thomas, W.K., 2015. FlowClus: efficiently filtering and denoising pyrosequenced amplicons. BMC Bioinformatics 16. doi:[10.1186/s12859-015-0532-1](http://doi.org/10.1186/s12859-015-0532-1)
 + Girgis, H. Z. (2022). MeShClust v3.0: High-quality clustering of DNA sequences using the mean shift algorithm and alignment-free identity scores. BMC Genomics, 23(1), 423. doi:[10.1186/s12864-022-08619-0](https://doi.org/10.1186/s12864-022-08619-0)
