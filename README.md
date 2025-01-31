@@ -310,7 +310,7 @@ The default values for the optional parameters could be displayed by using the -
 
 + __ITSx region to extract__: "no", “ITS1” or “ITS2” to skip or to extract either regions from fungal ITS reads using ITSx. The default is “no”.
 
-+ __Pre-clustering__: "no", "cdhit454" or "mothur" to skip or to use [cd-hit-454](http://weizhong-lab.ucsd.edu/public/?q=softwares/cd-hit-454) or [mothur pre.cluster](https://mothur.org/wiki/pre.cluster/) algorithms to pre-cluster reads after trimming and before chimera removal. For the mothur based pre-clustering, and aligned version of a reference database is required (see below at __Database prefix name__). The default is "no".
++ __Pre-clustering__: "no", "homopolymer", "cdhit454" or "mothur"; either skip ("no"), cluster sequences with collapsed bases repeats (recommended for sequencing technologies prone to homopolymer extension error like PacBio) and at max 1 base difference ("homopolymer"), use [cd-hit-454](http://weizhong-lab.ucsd.edu/public/?q=softwares/cd-hit-454) or [mothur pre.cluster](https://mothur.org/wiki/pre.cluster/) algorithms. Pre-clustering takes place after trimming and before chimera removal. For the mothur based pre-clustering, and aligned version of a reference database is required (see below at __Database prefix name__). The default is "no".
 
 + __Single run__: "yes" or "no", consider all libraries coming from the same run in order to build a single error model for dada2. The default is "no".
 

@@ -27,7 +27,7 @@ MIN_DEPTH	0.7	Minimum number of trimmed reads per sample	^[0-9]+(.[0-9]+)?$
 SKIP_TRESH	0	Samples percentage allowed below the read count threshold	^[0-9]+(.[0-9]+)?$
 ITSX	no	ITSx region to extract	no ^ITS[12]$
 SUBSAMPLE	no	Subsampling	no yes
-PRECLUST	no	Pre-clustering	no cdhit454 mothur
+PRECLUST	no	Pre-clustering	no homopolymer cdhit454 mothur
 CHIMERA	after	Chimera removal	before after both no
 CLUST	vsearch	Clustering algorithm	mcl sumaclust cd-hit-est vsearch swarm dada2 none
 TRESH	97	Clustering similarity threshold	^[0-9]+(.[0-9]+)?$

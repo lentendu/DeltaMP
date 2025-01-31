@@ -442,6 +442,17 @@ then
 		FASTA=$FASTA.precl
 		COUNT=$COUNT.precl
 		echo -e "fasta=$FASTA.fasta\ncount=$COUNT.count_table" > current_files.summary
+		
+	elif [ $PRECLUST == "homopolymer" ]
+	then
+		# cluster sequences after removing every nucleotide repeats
+		cat $FASTA.fasta | parallel -j $NCPUS --block 1M --pipe -k 'sed "/^>/s/;size=[^\t]*//;/^>/!s/\([ATCGN]\)\1\+/\1/g"' | seqkit fx2tab | sort -k 1,1 | join <(sed '1d' $COUNT.count_table | sort -k 1,1) - | awk '{print ">"$1";size="$2"\n"$3}' | vsearch --derep_prefix - --quiet --sizein --sizeout --output - | swarm -t $NCPUS -z -w $FASTA.seed - > /dev/null
+		# sed -n '/^>/{s/^>//;s/;size=/\t/;s/;$//;p}' $FASTA.seed | cat <(echo -e "Representative_Sequence\ttotal") - > $COUNT.precl.count_table  # witout size
+		sed '/^>/s/;size=.*//' $FASTA.fasta | seqkit fx2tab | sort -k 1,1 | join <(sed '1d' $COUNT.precl.count_table | sort -k 1,1) - | awk '{print ">"$1";size="$2"\n"$3}' > $FASTA.precl.fasta # with size
+		rm $FASTA.seed
+		FASTA=$FASTA.precl
+		COUNT=$COUNT.precl
+		echo -e "fasta=$FASTA.fasta\ncount=$COUNT.count_table" > current_files.summary
 	fi
 	
 	# ITSx or Chimera removal
@@ -476,7 +487,7 @@ then
 	# clean intermediate files and compress
 	eval $COMP $FASTA.fasta
 	eval $COMP $COUNT.count_table
-	rm $(ls *fasta | grep -v $FASTA.fasta)
+	rm $(ls *fasta | grep -v $FASTA.fasta) $(ls *.count_table | grep -v $COUNT.count_table)
 fi
 
 # list files and directories
