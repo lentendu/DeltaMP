@@ -371,6 +371,8 @@ Columns 3 and 4 accept libraies in fastq or sff format with most kinds of compre
 
 For ENA libraries, the column 2 have to match ENA "Submitter's sample name" field and column 3 to 4 have to match ENA full ftp or fasp (for aspera connect download) URLs of a run accession as listed in ENA fields “Submitted files (FTP)” or "FASTQ files (FTP)" or “Submitted files (Aspera)” or "FASTQ files (Aspera)".
 
+A convenience script is provided in auxillary_script/get_bioproject_metadata.sh to easily recover all samples and run's metadata associated with a Bioproject in the ENA database.
+
 Example configuration files 'configuration_xxx.tsv' are available in the test/ directory after installation with `make`.
 
 
