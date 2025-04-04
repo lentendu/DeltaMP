@@ -1,0 +1,78 @@
+# 
+# DeltaMP, a flexible, reproducible and resource efficient metabarcoding amplicon pipeline for HPC
+# Copyright (C) 2018 Guillaume Lentendu, Tesfaye Wubet
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# 
+
+# load modules
+module load DeltaMP/DELTAMP_VERSION
+
+# Define Variables
+while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
+. $BIN/check_previous_step
+
+# Library to analyse
+read SAMP_NAME LIB_NAME <<<`sed -n ${ARRAY_TASK}'p' config/lib3.list`
+if [ ! -z "$(grep $SAMP_NAME config/*.missing 2> /dev/null)" ]
+then
+	echo -e "The sample $SAMP_NAME had no read at the end of the step $(grep -H $SAMP_NAME config/*.missing | sed 's@.*/@@;s@\.missing.*@@').\nSkip"
+	(. $BIN/list_step_files.sh)
+	echo END
+	exit 0
+fi
+
+cd libraries
+# Primer clipping
+FWD_RC=$(echo -e ">fwd\n$FWD" | seqkit seq -vrp -t dna | tail -1)
+RVS_RC=$(echo -e ">rvs\n$RVS" | seqkit seq -vrp -t dna | tail -1)
+if [ "${PRIM_ANCH}" == "yes" ] ; then PANCH="X"; RIGHT="" ; else PANCH="" ; RIGHT=";rightmost" ; fi
+
+# cutadapt: extract part of reads containing the biological amplified sequences
+FDIFFS=$(awk -v P=$PDIFFS -v F=${#FWD} 'BEGIN{print (int(P/F*100)+1)/100}')
+RDIFFS=$(awk -v P=$PDIFFS -v R=${#RVS} 'BEGIN{print (int(P/R*100)+1)/100}')
+FO=$(echo "${#FWD} * $OLEN" | bc -l | sed 's/\..*//')
+RO=$(echo "${#RVS} * $OLEN" | bc -l | sed 's/\..*//')
+seqkit seq -i ${LIB_NAME}.fastq.$EXT | cutadapt -j $NCPUS -a "$PANCH$FWD;e=$FDIFFS;o=$FO;required$RIGHT...${RVS_RC};e=$RDIFFS;o=$RO;required" --untrimmed-output=fastq/${FWD_NAME}.${LIB_NAME}.unt.fastq.$EXT -o - - 2> fastq/log.cutadapt.${LIB_NAME}.fr.txt | seqkit seq -m $MINLEN -M $MAXLEN -o fastq/${FWD_NAME}.${LIB_NAME}.fastq.$EXT
+cutadapt -j $NCPUS -a "$PANCH$RVS;e=$RDIFFS;o=$RO;required;rightmost...${FWD_RC};e=$FDIFFS;o=$FO;required" --trimmed-only -o - fastq/${FWD_NAME}.${LIB_NAME}.unt.fastq.$EXT 2> fastq/log.cutadapt.${LIB_NAME}.rf.txt | seqkit seq -m $MINLEN -M $MAXLEN -o fastq/${RVS_NAME}.${LIB_NAME}.fastq.$EXT
+rm fastq/${FWD_NAME}.${LIB_NAME}.unt.fastq.$EXT
+
+# check for no read
+if [ -z "$(i=fastq/${FWD_NAME}.${LIB_NAME}.fastq.$EXT ; if [ -f $i ]; then eval $DECOMP $i | head -c1 ; fi)" ] && [ -z "$(i=fastq/${RVS_NAME}.${LIB_NAME}.fastq.$EXT ; if [ -f $i ]; then eval $DECOMP $i | head -c1 ; fi)" ]
+then
+	MY_TMP_NAME=`echo $JOBNAME | sed "s/$DELTAMP_VER\.//;s/\.$SUBPROJECT//"`
+	echo $SAMP_NAME > ${MY_TMP_NAME}.${SAMP_NAME}.missing
+else
+	# else do some basic stats (length of each read, average quality by position --> might not be necessry as variable length)
+	for j in ${FWD_NAME} ${RVS_NAME}
+	do
+		if [ $j == "$FWD_NAME" ] ; then l=${RVS_NAME} ; else l=${FWD_NAME} ; fi
+		LIB_COUNT=$(seqkit stat -T fastq/$j.${LIB_NAME}.fastq.$EXT 2> /dev/null | sed '1d' | cut -f 4)
+		# removal of empty files
+		if [ "${LIB_COUNT:-0}" -eq 0 ]
+		then
+			echo "There is no reads in the orientation $j.${LIB_NAME}"
+			rm -f fastq/$j.${LIB_NAME}.fastq.$EXT
+			continue
+		fi
+		seqkit fx2tab -ql fastq/$j.${LIB_NAME}.fastq.gz | cut -f 4-5 | awk '{print $1,int($2)}' | sort | uniq -c | sed 's/^ *//' > raw_stat/$j.${LIB_NAME}.ql
+	done
+fi
+
+# list files and directories
+(. $BIN/list_step_files.sh)
+
+echo END
+
+

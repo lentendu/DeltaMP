@@ -94,6 +94,7 @@ DeltaMP is intend to be used on a HPC with a job scheduler (i.e. batch-queuing s
 + [MeShClust3](https://github.com/BioinformaticsToolsmith/Identity) for Nanopore reads processing (Girgis, 2022)
 + [hmmer](hmmerg.org) for Nanopore reads processing (Eddy, 2011)
 + [mumu](https://github.com/frederic-mahe/mumu) for post-clustering (Frøslev et al., 2017)
++ [barrnap](https://github.com/tseemann/barrnap) for extraction of part of rRNA operon (Seemann, 2024)
 
 All this dependencies need to be available through the $PATH environmental variable or need to be loaded by the DeltaMP module file.
 
@@ -316,6 +317,8 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Chimera removal__: "before", "after" or "both", to check for chimera before OTU clustering only (in each sample separetedly), after OTU clustering only (among OTU representative sequences), or at both moments. *De-novo* chimera are detected with UCHIME and removed. For dada2 clustering, bimera are always removed using _removeBimera_. The default is "after".
 
++ __Remove singletons before first chimera check__: the accepted values are “yes” or “no”. This option allow to remove singleton reads from sub-sequent analyses in order to reduce computation time and memory footprints. This is apply on a per-sample basis, so this recommend to combine this option with a pre-clustering step to avoid removing too much potentially good but rare sequences from a single sample. The default is “no”.
+
 + __Remove bimera after ASV calling and joining__: *Illumina specific parameter*, "no" or "yes" to remove bimera when clustering with dada2. Independent from the __Chimera removal__ parameter. The default is "no".
 
 + __Subsampling__: “yes” or “no”. Activating subsampling will randomly select the same number of reads in all samples according to the read count in the sample with the lowest number of reads, after the trimming step. The default is “no”.
@@ -347,6 +350,8 @@ The default values for the optional parameters could be displayed by using the -
 + __Reduce database to amplified fragment__: "yes" or "no", to cut the database reference sequences using either the provided primers or ITSx with the provided 'ITSx region to extract' or do nothing, respectively. If set to "yes", this will use the cut database for taxonomic assignment, while if set to "no" this will use the full database sequences for taxonomic assignment. For SILVA and UNITE databases, if a unique cut read is produced from multiple accessions with different taxonomic path, the cut read will be annotated with the least common ancestor. For PR2 database, cut reads are only dereplicated for each taxonomic path separately. If set to "yes" and the cut database is already present in the "Directory path to database", the database cutting is skipped. The default is "no".
 
 + __Consensus assignment threshold__: a number between 50 and 100. Consensus threshold percent to assign a taxonomic rank among the matches. For "bayesian" taxonomic calssifier the matches are the 100 bootstrap matches, for "vsearch" the matches are the best match(es) plus the match(es) in a similarity range of 10% below the best match(es) dissimilarity. The default is 60.
+
++ __Extract part of rRNA operon for taxonomic identification__: for long rRNA sequences, either the "18S", "28S" or "ITS" regions could be extracted for the taxonomic identification using barrnap. The default is "no".
 
 + __Assign all reads__: the accepted values are “yes” or “no”. Activating this option will assign all dereplicated or pre-clustered reads to a taxonomy. A consensus assignment is then determined for each OTU at a threshold of 60 %. If set to “no”, only the most abundant read per OTU will be assigned to taxonomy. The default is “no”.
 
@@ -540,6 +545,7 @@ For unsolved issues, send an email to guillaume.lentendu@unine.ch, including the
 + Nguyen, N.H., Song, Z., Bates, S.T., Branco, S., Tedersoo, L., Menke, J., Schilling, J.S., Kennedy, P.G., 2016. FUNGuild: An open annotation tool for parsing fungal community datasets by ecological guild. Fungal Ecology 20, 241–248. doi:[10.1016/j.funeco.2015.06.006](http://doi.org/10.1016/j.funeco.2015.06.006)
 + Rognes, T., Flouri, T., Nichols, B., Quince, C., Mahé, F., 2016. VSEARCH: a versatile open source tool for metagenomics. PeerJ. doi:[10.7717/peerj.2584](http://doi.org/10.7717/peerj.2584)
 + de la Rubia, I., Srivastava, A., Xue, W., Indi, J. A., Carbonell-Sala, S., Lagarde, J., Albà, M. M., & Eyras, E. (2022). RATTLE: Reference-free reconstruction and quantification of transcriptomes from Nanopore sequencing. Genome Biology, 23(1), 153. doi:[10.1186/s13059-022-02715-w](https://doi.org/10.1186/s13059-022-02715-w)
++ Seemann, T. (2024). BAsic Rapid Ribosomal RNA Predictor [Perl] [barrnap](https://github.com/tseemann/barrnap) (Original work published 2013)
 + Shen, W., Le, S., Li, Y., Hu, F., 2016. SeqKit: A Cross-Platform and Ultrafast Toolkit for FASTA/Q File Manipulation. PLOS ONE 11, e0163962. [doi:10.1371/journal.pone.0163962](http://doi.org/10.1371/journal.pone.0163962)
 + Schloss, P.D., Westcott, S.L., Ryabin, T., Hall, J.R., Hartmann, M., Hollister, E.B., Lesniewski, R.A., Oakley, B.B., Parks, D.H., Robinson, C.J., Sahl, J.W., Stres, B., Thallinger, G.G., Van Horn, D.J., Weber, C.F., 2009. Introducing mothur: Open-Source, Platform-Independent, Community-Supported Software for Describing and Comparing Microbial Communities. Applied and Environmental Microbiology 75, 7537–7541. doi:[10.1128/AEM.01541-09](http://doi.org/10.1128/AEM.01541-09)
 + Vaser, R., Sović, I., Nagarajan, N., & Šikić, M. (2017). Fast and accurate de novo genome assembly from long uncorrected reads. Genome Research, 27(5), 737–746. doi: [10.1101/gr.214270.116](https://doi.org/10.1101/gr.214270.116)

@@ -51,14 +51,19 @@ then
 	fi
 	
 	# Dereplicate
-	vsearch --no_progress --derep_fulllength $SUBPROJECT.fasta --relabel_sha1 --output - --uc $SUBPROJECT.uc | seqkit seq -w0 > $SUBPROJECT.unique.fasta
+	if [ $TECH == "Pacbio" ]
+	then
+		vsearch --no_progress --derep_prefix $SUBPROJECT.fasta --relabel_sha1 --output - --uc $SUBPROJECT.uc | seqkit seq -w0 > $SUBPROJECT.unique.fasta
+	else
+		vsearch --no_progress --derep_fulllength $SUBPROJECT.fasta --relabel_sha1 --output - --uc $SUBPROJECT.uc | seqkit seq -w0 > $SUBPROJECT.unique.fasta
+	fi
 	sed -n '/>/s/>//p' $SUBPROJECT.unique.fasta | paste - <(grep '^[SH]' $SUBPROJECT.uc | awk '{if(NR==1){printf "%s",$9} else {if($10=="*"){printf "\n%s",$9} else {printf ",%s",$9}}}END{printf "\n"}') > $SUBPROJECT.names
 	FASTA=$SUBPROJECT.unique
 	NAMES=$SUBPROJECT
 	echo -e "FASTA=$FASTA\nNAMES=$NAMES" > current_files.summary
 	
 	# count table
-	tr "," " " < $NAMES.names | awk '{for(i=2;i<=NF;i++){print $i,$1}}' | sort --parallel=$NCPUS -k 1,1 | join -o 1.2,0,2.3,2.2 - <(sort --parallel=$NCPUS -k 1,1 $SUBPROJECT.groups) | sort --parallel=$NCPUS -k 1,1 -k 3,3 | awk '$1!=p{p=$1;sub("^",">",$1)} {print}' | parallel -j $NCPUS --recstart ">" --remove-rec-sep --pipe -k "awk -v S=$(echo $SAMP_NAME | sed 's/ /#/g') -f $BIN/make_count.awk" | cat <(echo Representative_Sequence total $SAMP_NAME | tr " " "\t") - > $FASTA.count_table
+	tr "," " " < $NAMES.names | awk '{for(i=2;i<=NF;i++){print $i,$1}}' | sort --parallel=$NCPUS -T /scratch -k 1,1 | join -o 1.2,0,2.3,2.2 - <(sort --parallel=$NCPUS -T /scratch -k 1,1 $SUBPROJECT.groups) | sort --parallel=$NCPUS -T /scratch -k 1,1 -k 3,3 | awk '$1!=p{p=$1;sub("^",">",$1)} {print}' | parallel -j $NCPUS --recstart ">" --remove-rec-sep --pipe -k "awk -v S=$(echo $SAMP_NAME | sed 's/ /#/g') -f $BIN/make_count.awk" | cat <(echo Representative_Sequence total $SAMP_NAME | tr " " "\t") - > $FASTA.count_table
 	eval $(echo COUNT=$FASTA | tee -a current_files.summary)
 	rm $SUBPROJECT.fasta $SUBPROJECT.groups $SUBPROJECT.uc
 else
@@ -76,7 +81,7 @@ else
 		done
 	fi
 fi
-
+    
 # Clustering
 SIM=`awk -v T=$TRESH 'BEGIN{print T/100}'`
 DISIM=`awk -v S=$SIM 'BEGIN{print 1-S}'`
@@ -147,14 +152,13 @@ then
 
 elif [ $CLUST == "vsearch" ]
 then
-	paste - - < $FASTA.fasta | sed 's/>//' | sort -k 1,1 | join - <(sed '1d' $COUNT.count_table | sort -k 1,1) | sort -k 3,3nr | awk '{print ">"$1";size="$3"\n"$2}' > $FASTA.sort.fasta
-	vsearch --quiet --threads $NCPUS --cluster_smallmem $FASTA.sort.fasta --usersort --id $SIM --centroids $FASTA.vsearch.fasta --xsize -uc $FASTA.uc
+	seqkit fx2tab -i $FASTA.fasta | sort -k 1,1 | join - <(sed '1d' $COUNT.count_table | sort -k 1,1 | cut -f 1,2) | sort -k 3,3nr | awk '{print ">"$1";size="$3"\n"$2}' | vsearch --quiet --threads $NCPUS --cluster_smallmem - --usersort --id $SIM --iddef 2 --centroids $FASTA.vsearch.fasta --xsize -uc $FASTA.uc
 	grep -P -v "^C\t" $FASTA.uc | cut -f 1,2,9 | sed 's/;size=.*//' | sort -k 2,2n -k 1,1r | awk '{if($1=="S"){print $3"\t"$3} else print","$3}' | sed -e :a -e '$!N;s/\n,/,/;ta' -e 'P;D' > $FASTA.vsearch.names
 	grep -P -v "^C\t" $FASTA.uc | cut -f 1,2,9 | sed 's/;size=.*//' | sort -k 3,3 | join -1 3 - <(sed '1d' $COUNT.count_table | sort -k 1,1) | sort -k 3,3n -k 2,2r | cut -d " " -f 1,3- | awk -f $BIN/sum_count.awk | cat <(head -1 $COUNT.count_table) - > $COUNT.vsearch.count_table
 	FASTA_OTUS=$FASTA.vsearch
 	NAMES_OTUS=$FASTA.vsearch
 	COUNT_OTUS=$COUNT.vsearch
-	rm $FASTA.uc $FASTA.sort.fasta
+	#rm $FASTA.uc
 
 elif [ $CLUST == "swarm" ]
 then
@@ -203,7 +207,7 @@ then
 	}
 	export -f match_index
 	export FASTA_OTUS DECOMP EXT
-	parallel -j $NCPUS match_index ::: $SAMP_NAME | sort --parallel=$NCPUS -k 1,1 | awk '{if(NR==1){p=$1;print p"\t"$2} else {if($1==p){print ","$2} else {p=$1;print p"\t"$2}}}' | perl -0pe 's/\n,/,/g' > ${NAMES_OTUS}.names
+	parallel -j $NCPUS match_index ::: $SAMP_NAME | sort --parallel=$NCPUS -T /scratch -k 1,1 | awk '{if(NR==1){p=$1;print p"\t"$2} else {if($1==p){print ","$2} else {p=$1;print p"\t"$2}}}' | perl -0pe 's/\n,/,/g' > ${NAMES_OTUS}.names
 elif [ $CLUST == "none" ]
 then
 	ln -s $FASTA.fasta $FASTA.otu.fasta
@@ -261,7 +265,7 @@ fi
 if [ $CHIMERA2 == "yes" ]
 then
 	awk '{print $1}' $FASTA_OTUS.fasta | twofasta | paste - - | sed 's/^>//' | nl | sort -k 2,2 | join -1 2 - <(sed '1d' $COUNT_OTUS.count_table | cut -f 1,2 | sort -k 1,1) | sort -k4,4nr -k2,2n | awk '{print ">"$1";size="$4"\n"$3}' > $FASTA_OTUS.sort.fasta
-	vsearch --no_progress --uchime_denovo $FASTA_OTUS.sort.fasta --xsize --qmask none --nonchimeras - | seqkit seq -w0 -u > $FASTA_OTUS.nochim.fasta
+	vsearch --no_progress --uchime3_denovo $FASTA_OTUS.sort.fasta --xsize --qmask none --nonchimeras - | seqkit seq -w0 -u > $FASTA_OTUS.nochim.fasta
 	sed -n '/^>/{s/>//;p}' $FASTA_OTUS.nochim.fasta | nl -s $'\t' -n ln | sort -k 2,2 -t $'\t' | join -t $'\t' -1 2 - <(sed '1d' $COUNT_OTUS.count_table | sort -k 1,1 -t $'\t') | sort -k 2,2n -t $'\t' | cut -f 1,3- | cat <(head -1 $COUNT_OTUS.count_table) - | tee $COUNT_OTUS.nochim.count_table | awk 'NR>1{print $1}' > $COUNT_OTUS.nochim.accnos
 	if [ $CLUST == "dada2" ]
 	then

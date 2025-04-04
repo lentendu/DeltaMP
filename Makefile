@@ -56,11 +56,11 @@ $(steps): bin/%.sh : | %.step
 	eval $$SEDSTEP $| | sed 's#DeltaMP/DELTAMP_VERSION#$(module)#' | cat $< - | sed 's/log\/NAME/log\/'$*'/' > $@
 
 # header (type of job) specific dependencies
-bin/init.sh bin/454_quality.sh bin/Illumina_quality.sh bin/Nanopore_quality.sh bin/doc.sh bin/archiver.sh : serial-std.head
-bin/Illumina_fastq.sh bin/Illumina_pair_end.sh bin/Illumina_opt.sh bin/Nanopore_opt.sh : serial-std_array.head
+bin/init.sh bin/454_quality.sh bin/Illumina_quality.sh bin/Nanopore_quality.sh bin/Pacbio_quality.sh bin/doc.sh bin/archiver.sh : serial-std.head
+bin/Illumina_fastq.sh bin/Illumina_pair_end.sh bin/Illumina_opt.sh bin/Nanopore_opt.sh bin/Pacbio_opt.sh : serial-std_array.head
 bin/end.sh : serial-highmem.head
 bin/get.sh bin/OTU.sh : mp-std.head
-bin/Illumina_demulti.sh bin/454_demulti.sh bin/454_sff.sh bin/454_opt.sh bin/Nanopore_fastq.sh bin/trim.sh : mp-std_array.head
+bin/Illumina_demulti.sh bin/454_demulti.sh bin/454_sff.sh bin/454_opt.sh bin/Nanopore_fastq.sh bin/Pacbio_fastq.sh bin/trim.sh : mp-std_array.head
 bin/cut_db.sh bin/id.sh : mp-highmem.head
 bin/asv.sh : mp-std_array_large.head
 

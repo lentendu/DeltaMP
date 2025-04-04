@@ -40,7 +40,7 @@ fi
 	#parallel --recstart ">" --remove-rec-sep --pipe -k -N1 awk -v cons=$CONS -f $BIN/lca_vsearch.awk
 #}
 #export -f lca
-export CONS BIN
+#export CONS BIN
 
 # use full or primer/ITSx cut database
 if [ -z $DBCUT ]
@@ -51,13 +51,45 @@ else
 	TEMPLATE=$DBCUT
 	IDDEF=1 # no end gap allowed
 fi
+
+# use all sequences or only OTU representative sequence
+if [ $ASSIGN_ALL == "yes" ]
+then
+	PREF=${FASTA}
+else
+	PREF=${FASTA_OTUS}
+fi
+
+# For unpaired reads, similarity only based on matching columns, ignoring all gaps (end and internal, due to missing pair-end)
 if [ $UNPAIR == "yes" ]
 then
-	IDDEF=0 # similarity only based on matching columns, ignoring all gaps (end and internal, due to missing pair-end)
-	if [ $ASSIGN_ALL == "yes" ] ; then PREF=${FASTA} ; else PREF=${FASTA_OTUS} ; fi
+	IDDEF=0
 	sed '/^>/!s/NNNNNN*//' $PREF.fasta > $PREF.noN.fasta
-	ADD=".noN"
+	PREF=$PREF.noN
 	MINCOV="0.9" # fix a high query coverage to avoid too much internal gaps and wrong identification
+fi
+
+# extract a part of rRNA operon with barrnap
+if [ ! -z "$EXTRACT" ]
+then
+	if [ "$TARG_ORG" == "Bacteria" ] ; then KING=bac ; elif [ "$TARG_ORG" == "Archaea" ] ; then KING=arc ; else KING=euk ; fi
+	barrnap --kingdom $KING --threads $NCPUS --outseq $PREF.rrna.fasta $PREF.fasta > log.barrnap 2>&1
+	if [ $EXTRACT == "18S" ] || [ $EXTRACT == "28S" ]
+	then
+		seqkit grep -w0 -r -p "${EXTRACT}_rRNA" $PREF.rrna.fasta | sed "s/>${EXTRACT}_rRNA::/>/;/^>/s/:[0-9]*-[0-9]*([+-])$//" > $PREF.$EXTRACT.fasta
+	elif [ $EXTRACT == "ITS" ]
+	then
+		grep ">18S" $PREF.rrna.fasta | sed 's/>//;s/::/ /;s/:/ /;s/(/ /;s/)//' | sort -k 2,2 | join -1 2 -2 2 - <(grep ">28S" $PREF.rrna.fasta | sed 's/>//;s/::/ /;s/:/ /;s/(/ /;s/)//' | sort -k 2,2) | awk '$4=="+" && $7=="+"{split($3,a,"-");split($6,b,"-"); if(b[1]-a[2]>=32){print $1"\t"a[2]+1"\t"b[1]-1}}' > $PREF.ITS.bed
+		seqkit subseq -w0 --bed $PREF.ITS.bed $PREF.fasta | sed '/^>/s/_[0-9]*-[0-9]*:[\. ]*$//' > $PREF.ITS.fasta
+		rm $PREF.ITS.bed
+	fi
+	# remove sequences with multiple fragments (potential chimeras)
+	sed -n '/^>/s/>//p' $PREF.$EXTRACT.fasta | sort | uniq -c | awk '$1>1{print $2}' > dup.$EXTRACT.rrna.accnos
+	if [ -s dup.$EXTRACT.rrna.accnos ]
+	then
+		seqkit grep -v -f dup.$EXTRACT.rrna.accnos $PREF.$EXTRACT.fasta > tmp.$EXTRACT.$PREF && mv tmp.$EXTRACT.$PREF $PREF.$EXTRACT.fasta
+	fi
+	rm dup.$EXTRACT.rrna.accnos ${PREF%.*}.rrna.fasta
 fi
 
 # incorporate additional sequences if provided
@@ -106,18 +138,18 @@ then
 	if [ $ASSIGN_ALL == "yes" ]
 	then
 		mothur "#set.dir(tempdefault=$DBFOLD);
-		classify.seqs(fasta=$FASTA.fasta, template=$TEMPLATE.fasta, taxonomy=$TEMPLATE.taxonomy, cutoff=$CONS, method=wang, processors=$NCPUS);
+		classify.seqs(fasta=$PREF.fasta, template=$TEMPLATE.fasta, taxonomy=$TEMPLATE.taxonomy, cutoff=$CONS, method=wang, processors=$NCPUS);
 		cluster(method=unique, name=$NAMES_OTUS.names);
 		classify.otu(taxonomy=current, list=current, count=$COUNT.count_table, cutoff=$CONS);
 		get.current()"
 		LIST=`sed -n '/^list=/{s/.*=//;s/\.list//;p}' current_files.summary`
 		CTAXO=`sed -n '/^constaxonomy=/{s/.*=//;s/\.cons.taxonomy//;p}' current_files.summary`
-		transpose_tab $LIST.list | awk 'NR>2{split($2,a,",");for(i in a){print $1"\t"a[i]}}' | sort -k 2,2 | join -1 2 - <(awk '$1~"^>"{sub(">","",$1);print $1}' ${FASTA_OTUS}.fasta | sort) | sort -k 2,2 | join -2 2 <(sed '1d' $CTAXO.taxonomy) - | tr " " "\t" | cat <(paste <(head -1 $CTAXO.taxonomy) <(echo "repseq")) - > ${FASTA_OTUS}.cons.taxonomy
+		transpose_tab $LIST.list | awk 'NR>2{split($2,a,",");for(i in a){print $1"\t"a[i]}}' | sort -k 2,2 | join -1 2 - <(awk '$1~"^>"{sub(">","",$1);print $1}' ${PREF}.fasta | sort) | sort -k 2,2 | join -2 2 <(sed '1d' $CTAXO.taxonomy) - | tr " " "\t" | cat <(paste <(head -1 $CTAXO.taxonomy) <(echo "repseq")) - > $PREF.cons.taxonomy
 		rm $CTAXO.taxonomy $LIST.list *.rabund *.sabund *.tax.summary
-		CTAXO=${FASTA_OTUS}.cons
+		CTAXO=$PREF.cons
 	else
 		mothur "#set.dir(tempdefault=$DBFOLD);
-		classify.seqs(fasta=${FASTA_OTUS}.fasta, template=$TEMPLATE.fasta, taxonomy=$TEMPLATE.taxonomy, cutoff=$CONS, method=wang, processors=$NCPUS);
+		classify.seqs(fasta=$PREF.fasta, template=$TEMPLATE.fasta, taxonomy=$TEMPLATE.taxonomy, cutoff=$CONS, method=wang, processors=$NCPUS);
 		get.current()"
 		TAXO=`sed -n '/^taxonomy=/{s/.*=//;s/\.taxonomy//;p}' current_files.summary`
 		CTAXO=$TAXO.cons
@@ -126,23 +158,26 @@ then
 	fi
 elif [ $CLASSIF == "vsearch" ]
 then
-	if [ $ASSIGN_ALL == "yes" ]
-	then
-		vsearch --no_progress --usearch_global ${FASTA}$ADD.fasta --threads $NCPUS --db ${DBFOLD}/${TEMPLATE}.udb --dbmask none --qmask none --rowlen 0 --notrunclabels --userfields query+id${IDDEF}+target --maxaccepts 0 --maxrejects 32 --top_hits_only --output_no_hits --id $MINID --iddef ${IDDEF} --query_cov $MINCOV --userout ${FASTA}.hits
-		# Consensus among best matches
-		#awk '{split($2,a,",");for(i in a){print a[i],$1}}' $NAMES_OTUS.names | sort --parallel=$NCPUS -k 1,1 | join -o 1.2,2.2,2.3 - <(sed 's/;\t/\t/;s/;$//;s/ size=[0-9]*//' ${FASTA}.hits | sort --parallel=$NCPUS -k 1,1) | sed 's/;tax=/\t/' | sort --parallel=$NCPUS -k 1,1 -k 2,2nr | awk '{if($1!=p){sim=$2};if($2>=sim-1){print;p=$1}}' | sort --parallel=$NCPUS -k 1,1 -k 4,4 -k 3,3 | awk '$1 != p{printf ">"}{p=$1}1' | parallel -j $NCPUS --recstart ">" --pipe -k lca > ${FASTA_OTUS}.taxonomy
-		Rscript --vanilla $BIN/lca_vsearch.R ${FASTA_OTUS}.hits $CONS $NCPUS 0.1
-	else
-		vsearch --no_progress --usearch_global ${FASTA_OTUS}$ADD.fasta --threads $NCPUS --db ${DBFOLD}/${TEMPLATE}.udb --dbmask none --qmask none --rowlen 0 --notrunclabels --userfields query+id${IDDEF}+target --maxaccepts 32 --maxrejects 0 --output_no_hits --id $MINID --iddef ${IDDEF} --query_cov $MINCOV --userout ${FASTA_OTUS}.hits
-		# Consensus among best matches with increasing range of similarity (max 10% of ceiling(100-(best match similarity)), e.g., for best match at 99% range is between 99 and 98.9, for a best match at 90.5% range is between 90.5 and 89.5)
-		#sed 's/;\t/\t/;s/;$//;s/;tax=/\t/' ${FASTA_OTUS}.hits | sort --parallel=$NCPUS -k 1,1 -k 2,2nr | awk '{if(NR==1){p=$1;s=$2;d=int(100-$2+0.9)/10;print $0} else {if($2==0){print $0} else {if($1==p){if($2>=s-d){print $0}} else {p=$1;s=$2;d=int(100-$2+0.9)/10;print $0}}}}' | sort --parallel=$NCPUS -k 1,1 -k 4,4  | awk '$1 != p{printf ">"}{p=$1}1' | parallel -j $NCPUS --recstart ">" --pipe -k lca > ${FASTA_OTUS}.taxonomy
-		Rscript --vanilla $BIN/lca_vsearch.R ${FASTA_OTUS}.hits $CONS $NCPUS 0.1
-	fi
-	CTAXO=${FASTA_OTUS}.cons
-	sort -k 1,1 ${FASTA_OTUS}.taxonomy | join -2 2 - <(sed '1d' ${COUNT_OTUS}.count_table | cut -f 1,2 | sort -k 2,2nr -k 1,1 | nl -n rz -w ${#NBOTUS} | sort -k 2,2) | sort -k 5,5n | awk 'BEGIN{OFS="\t";print "OTU","Size","Taxonomy","similarity","references","repseq"} {print "Otu"$5,$6,$3,$2,$4,$1}' > $CTAXO.taxonomy
-	rm ${FASTA_OTUS}*.hits ${FASTA_OTUS}.taxonomy
+	vsearch --no_progress --usearch_global $PREF.fasta --threads $NCPUS --db ${DBFOLD}/${TEMPLATE}.udb --dbmask none --qmask none --rowlen 0 --notrunclabels --userfields query+id${IDDEF}+target --maxaccepts 0 --maxrejects 32 --top_hits_only --output_no_hits --id $MINID --iddef ${IDDEF} --query_cov $MINCOV --userout $PREF.hits
+	# Consensus among best matches
+	Rscript --vanilla $BIN/lca_vsearch.R $PREF.hits $CONS $NCPUS 0.1 ${#NBOTUS} ${COUNT_OTUS}.count_table $ASSIGN_ALL ${NAMES_OTUS}.names "$EXTRACT"
+	CTAXO=${COUNT_OTUS}.cons
+	rm $PREF.hits
 fi
-if [ $UNPAIR == "yes" ]; then rm $PREF.noN.fasta ; fi
+
+# delete modified sequences
+if [ $UNPAIR == "yes" ]
+then
+	PREF=${PREF%.*}
+	if [ ! -z "$EXTRACT" ]
+	then
+		rm ${PREF%.*}.noN.$EXTRACT.fasta
+	fi
+	rm ${PREF%.*}.noN.fasta
+elif [ ! -z "$EXTRACT" ]
+then
+	rm ${PREF%.*}.$EXTRACT.fasta
+fi
 
 # ASV renaming
 if [ $CLUST == "dada2" ]

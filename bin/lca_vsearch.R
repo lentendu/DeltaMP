@@ -7,12 +7,33 @@ nhits<-commandArgs()[7]
 cons<-as.numeric(commandArgs()[8])
 ncores<-as.numeric(commandArgs()[9])
 srange<-as.numeric(commandArgs()[10])
+lotu<-as.numeric(commandArgs()[11])
+co<-commandArgs()[12]
+assall<-commandArgs()[13]
+na<-commandArgs()[14]
+pref<-commandArgs()[15]
 
-hits<-read.table(nhits,sep="\t",col.names=c("seqid","sim","tax")) %>%
-  separate(tax,c("ref","taxo"),sep=";tax=",fill="right") %>%
-  mutate(taxo=sub(";$","",taxo)) %>% 
-  arrange(seqid,desc(sim)) %>%
-  filter(sim >= max(sim)-((100-max(sim))*srange),.by=seqid)
+if ( assall == "no" ) {
+  hits<-read.table(nhits,sep="\t",col.names=c("seqid","sim","tax")) %>%
+    separate(tax,c("ref","taxo"),sep=";tax=",fill="right") %>%
+    mutate(taxo=sub(";$","",taxo)) %>% 
+    arrange(seqid,desc(sim)) %>%
+    filter(sim >= max(sim)-((100-max(sim))*srange),.by=seqid)
+} else {
+  ona<-read.table(na,sep="\t",col.names=c("repseq","allseq")) %>%
+    adply(1,function(x){
+      suppressWarnings(data.frame(repseq=x["repseq"],allseq=unlist(strsplit(as.character(x["allseq"]),","))))
+    })
+  hits<-read.table(nhits,sep="\t",col.names=c("seqid","sim","tax")) %>%
+    separate(tax,c("ref","taxo"),sep=";tax=",fill="right") %>%
+    mutate(taxo=sub(";$","",taxo)) %>% 
+    left_join(ona,by=c("seqid"="allseq")) %>%
+    select(-seqid) %>% 
+    rename(seqid=repseq) %>%
+    arrange(seqid,desc(sim)) %>%
+    filter(sim >= max(sim)-((100-max(sim))*srange),.by=seqid)
+}
+
 
 cl<-makeCluster(ncores)
 registerDoParallel(cl)
@@ -52,4 +73,18 @@ suppressWarnings(
 )
 stopCluster(cl)
 
-write.table(out,sub("hits$","taxonomy",nhits),sep="\t",row.names=F,col.names=F,quote=F)
+# create consensus taxonomy table
+taxo<-read.table(co,sep="\t",h=T,check.names=F) %>%
+  rename(repseq=Representative_Sequence) %>% 
+  select(repseq,total) %>% 
+  left_join(out,by=c("repseq"="seqid")) %>%
+  arrange(desc(total)) %>% 
+  mutate(OTU=paste0("Otu",stringr::str_pad(row_number(),width=lotu,pad="0"))) %>%
+  rename(similarity=sim,references=ref,Taxonomy=taxo,Size=total) %>%
+  select(OTU,Size,Taxonomy,similarity,references,repseq)
+
+if ( ! is.na(pref) ) {
+  taxo<-mutate(taxo,Taxonomy=replace_na(Taxonomy,paste("no",pref,"found",sep="_")))
+}
+
+write.table(taxo,sub("count_table$","cons.taxonomy",co),sep="\t",row.names=F,quote=F)

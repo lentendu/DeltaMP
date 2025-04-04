@@ -28,7 +28,7 @@ then
 fi
 
 # Set archives/libraries array
-if [ $TECH == "454" ]
+if [ $TECH == "454" ] || [ $TECH == "Pacbio" ]
 then
 	ARCH=(`cat config/lib1.list`)
 elif [ $TECH == "Illumina" ]

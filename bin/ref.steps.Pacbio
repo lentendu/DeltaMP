@@ -1,0 +1,15 @@
+init
+get
+Pacbio_fastq
+Pacbio_opt
+Pacbio_quality
+cut_db
+trim
+asv
+OTU
+id
+end
+processing_archiver
+output_archiver
+fastq_archiver
+doc

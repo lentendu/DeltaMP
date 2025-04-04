@@ -203,30 +203,33 @@ do
 done < $BIN/variables_definition.tsv
 
 # set plateform specific variables from configuration file
-while IFS=$'\t' read var std def acc
-do
-	unset $var
-	val=`grep "$def" $METAD | awk 'BEGIN{FS="\t"}{print $2}'`
-	if [ -z "$val" ]
-	then
-		declare $var="$std"
-	else
-		flag=0
-		for i in $acc
-		do
-			if [[ $val =~ $i ]]
-			then
-				flag=1
-			fi
-		done
-		if [ $flag -eq 1 ]
+if [ -f "$BIN/variables_definition_$TECH.tsv" ]
+then
+	while IFS=$'\t' read var std def acc
+	do
+		unset $var
+		val=`grep "$def" $METAD | awk 'BEGIN{FS="\t"}{print $2}'`
+		if [ -z "$val" ]
 		then
-			declare $var="$val"
+			declare $var="$std"
 		else
-			error_doc "in the configuration file, the value of parameter '$def' is not accepted (currently set to $val).\nThe accepted values $(if [[ $acc == *"^"* ]] ; then echo 'should match the regex(s)' ; else echo 'are' ; fi): $acc (default value is $std)."
+			flag=0
+			for i in $acc
+			do
+				if [[ $val =~ $i ]]
+				then
+					flag=1
+				fi
+			done
+			if [ $flag -eq 1 ]
+			then
+				declare $var="$val"
+			else
+				error_doc "in the configuration file, the value of parameter '$def' is not accepted (currently set to $val).\nThe accepted values $(if [[ $acc == *"^"* ]] ; then echo 'should match the regex(s)' ; else echo 'are' ; fi): $acc (default value is $std)."
+			fi
 		fi
-	fi
-done < $BIN/variables_definition_$TECH.tsv
+	done < $BIN/variables_definition_$TECH.tsv
+fi
 
 # check output and execution directories
 if [ ! -d $OUT_PATH ]
@@ -384,7 +387,14 @@ then
 	then
 		error_doc "Primer anchoring is not allowed for Nanopore sequencing, switch option to 'no'"
 	fi
-	
+elif [ $TECH == "Pacbio" ]
+then
+	RAW_EXT=fastq
+	UNPAIR=no
+	if [ $CLIPPING != "both" ]
+	then
+		error_doc "Searching for both primers is compulsory for Pacbio sequencing, so switch option 'Remove primers at reads ends' to 'both'"
+	fi
 fi
 
 # Databases
@@ -773,6 +783,19 @@ then
 	# lib4 : same so far
 	cp config/lib3.list config/lib4.list
 	MAXQUAL=20
+	ASV="no"
+elif [ $TECH == "Pacbio" ]
+then
+	# lib1 : original fastq file name
+	cut -f 3 config/barcodes.txt | sort -u > config/lib1.list
+	# lib2 : same so far
+	cp config/lib1.list config/lib2.list
+	# lib3 : sample and file name
+	cut -f 2-3 config/barcodes.txt | sort -k 1,1 -t $'\t' | sed "s/\.${RAW_EXT}.*//" > config/lib3.list
+	LIB3_SIZE=`sed -n '$=' config/lib3.list`
+	# lib4 : same so far
+	cp config/lib3.list config/lib4.list
+	MAXQUAL=30
 	ASV="no"
 fi
 LIB1_SIZE=`sed -n '$=' config/lib1.list`

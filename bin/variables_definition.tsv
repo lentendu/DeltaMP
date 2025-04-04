@@ -2,13 +2,13 @@ PROJECT	#	Project name	.+
 OWNER	$USER	User name	.+
 OUT_PATH	/home/$USER	Path to output location	^/.+(/.+)*$
 EXEC_PATH	/work/$USER	Path to execution location	^/.+(/.+)*$
-TECH	Illumina	Sequencing technology	454 Illumina Nanopore
+TECH	Illumina	Sequencing technology	454 Illumina Nanopore Pacbio
 LIB_DIR	/home/$USER	Directory path to archives or libraries OR BioProject accession	^/.+(/.+)*$ [A-Za-z0-9]+
 ARCHIVES	no	Tab separated list of archives	no ^.+$
 DEMULTI	yes	Libraries already demultiplexed	no yes
 BARC_ANCH	yes	Strict barcode anchoring	no yes
 TARG_ORG	protist	Target organisms	^.+$
-TARG	18S	Target region	16S 18S 28S ITS COI rbcl
+TARG	18S	Target region	16S 18S 28S ITS COI rbcl rRNA
 FWD_NAME	TAReuk454FWD1	Forward primer name	^.+$
 FWD	CCAGCASCYGCGGTAATTCC	Forward primer sequence (5' to 3')	^[GATCRYSWKMBDHVNgatcryswkmbdhvn]{10,30}$
 RVS_NAME	TAReukREV3	Reverse primer name	^.+$
@@ -29,6 +29,7 @@ ITSX	no	ITSx region to extract	no ^ITS[12]$
 SUBSAMPLE	no	Subsampling	no yes
 PRECLUST	no	Pre-clustering	no homopolymer cdhit454 mothur
 CHIMERA	after	Chimera removal	before after both no
+DEL_FIRSTSING	no	Remove singletons before first chimera check	no yes
 CLUST	vsearch	Clustering algorithm	mcl sumaclust cd-hit-est vsearch swarm dada2 none
 TRESH	97	Clustering similarity threshold	^[0-9]+(.[0-9]+)?$
 ONERUN	no	Single run	no yes
@@ -44,6 +45,7 @@ CUT_DB	no	Reduce database to amplified fragment	no yes
 MINID	0.8	Minimum identity	^[0-9]+(.[0-9]+)?$
 MINCOV	0.8	Minimum query coverage	^[0-9]+(.[0-9]+)?$
 CONS	60	Consensus assignment threshold	^[0-9]+$
+EXTRACT	no	Extract part of rRNA operon for taxonomic identification	no 18S 28S ITS
 ASSIGN_ALL	no	Assign all reads	no yes
 DBADD	no	Full path to additional database prefix name	^.+$
 ASSIGN_FUNCT	no	Assign putative function	no yes

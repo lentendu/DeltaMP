@@ -1,0 +1,131 @@
+# 
+# DeltaMP, a flexible, reproducible and resource efficient metabarcoding amplicon pipeline for HPC
+# Copyright (C) 2018 Guillaume Lentendu, Tesfaye Wubet
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# 
+
+# load modules
+module load DeltaMP/DELTAMP_VERSION
+
+# Define Variables
+while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
+. $BIN/check_previous_step
+
+# Raw, primer detected [, filter], pair-end [, trim] read counts per library
+TRIMSTEPS=(raw raw_with_primer trim)
+HEADER=($(echo "Sample Library Raw Primer_detected $(seq -s " " $MINQUAL $MAXQUAL | sed 's/\([0-9\.]*\)/Trimmed_at_\1_Phred_score/g')"))
+
+while read samp lib
+do
+	RAW_COUNT=$(sed -n '/^Total reads processed/{s/.* //;s/,//g;p}' libraries/fastq/log.cutadapt.$lib.fr.txt)
+	if [ -z "$RAW_COUNT" ]
+	then
+		seq -s $'\t' 1 $((${#HEADER[@]}-2)) | sed "s/\([^\t]*\)/0/g;s/^/$samp\t$lib\t/"
+	else
+		# sum accross orientation if multiple
+		for i in ${FWD_NAME} ${RVS_NAME}
+		do
+			PRIMER_COUNT=$(awk '{sum+=$1}END{print sum}' libraries/raw_stat/$i.$lib.ql)
+			tr "\n" "\t" < quality_check/$i.$lib.stat | paste <(echo -e "$PRIMER_COUNT") -
+		done | awk -v L=${#HEADER[@]} '{for(i=1;i<=NF;i++){s[i]+=$i;if(NF>m){m=NF}}}END{for(i=1;i<=m;i++){printf "\t%s", s[i]}; if(m<(L-3)){for(i=m+1;i<=(L-3);i++){printf "\t0"}}}' | sed "s/^/$samp\t$lib\t${RAW_COUNT}/;s/$/\n/"
+	fi
+done < config/lib3.list | cat <(echo ${HEADER[@]} | tr " " "\t") - > quality_check/$SUBPROJECT.lib_counts.tsv
+cd quality_check
+
+# per sample
+sed '1d' $SUBPROJECT.lib_counts.tsv | sort -k 1,1 -t $'\t' | awk 'BEGIN{FS="\t"}{if(NR==1){S=$1;L=NF;for(i=3;i<=L;i++){a[i]=$i}} else {if($1==S){if(NF>L){L=NF};for(i=3;i<=L;i++){a[i]+=$i}} else {printf "%s",S;for(i=3;i<=L;i++){printf "\t%s",a[i]};printf "\n";S=$1;L=NF;for(i=3;i<=L;i++){a[i]=$i}}}}END{printf "%s",S;for(i=3;i<=L;i++){printf "\t%s",a[i]};printf "\n"}' | mimato | cat <(head -1 $SUBPROJECT.lib_counts.tsv | sed 's/\tLibrary\t/\t/') - > $SUBPROJECT.sample_counts.tsv
+
+# Count check
+declare -a MINTRESH MIN_DEPTH_ECHO
+for i in $(seq 1 $((${#TRIMSTEPS[@]}-1)))
+do
+	if [ "${TRIMSTEPS[$i]}" == "trim" ] && [ ! -z "$MINQD" ]
+	then
+		MINTRESH[$i]=$MINQD
+	else
+		MINTRESH[$i]=$MIN_DEPTH
+	fi
+	if (( $(echo "${MINTRESH[$i]} > 1" |bc -l) ))
+	then
+		MIN_DEPTH_ECHO[$i]=${MINTRESH[$i]}
+	else
+		MIN_DEPTH_ECHO[$i]="${MINTRESH[$i]} times the amount of \${TRIMSTEPS[\$((i-1))]}"
+	fi
+	head -n -4 $SUBPROJECT.sample_counts.tsv | awk -v I=$((i+1)) -v M=${MINTRESH[$i]} 'BEGIN{OFS="\t"}NR>1{if(M<=1){if($(I+1)<M*$I) print $1,$(I+1),$(I+1)/$I} else if(M>1){if($(I+1)<M)print $1,$(I+1)}}' > min_depth.${TRIMSTEPS[$i]}.test
+done
+SKIP_SAMP=$(awk -v S=$(sed -n '$=' $SUBPROJECT.sample_counts.tsv) -v T=$SKIP_TRESH 'BEGIN{M=(S-5)*T/100; printf "%.0f", int(M) }')
+for i in $(seq 1 $((${#TRIMSTEPS[@]}-1)))
+do
+	if [ -s min_depth.${TRIMSTEPS[$i]}.test ]
+	then
+		echo "The following sample(s) do not have the requested minimum amount of ${TRIMSTEPS[$i]} reads fixed at "$(eval echo ${MIN_DEPTH_ECHO[$i]})" reads:"
+		cat <(echo -e "Sample\t${TRIMSTEPS[$((i-1))]} reads\tpercent") min_depth.${TRIMSTEPS[$i]}.test | column -t -s $'\t'
+		echo ""
+		# compare amount of samples to the skip threshod
+		if [ $(cat min_depth.${TRIMSTEPS[$i]}.test | wc -l) -le $SKIP_SAMP ]
+		then
+			echo "However, $SKIP_SAMP samples are allowed to have their read count below the minimum threshold, so the qualtiy check continues."
+			echo ""
+		else
+			if [ $SKIP_TRESH -gt 0 ]; then echo "This is more than the allowed amount of samples to be below the minimum threshold fixed at $SKIP_SAMP :"; fi
+			echo "Aborting"
+			awk -F'\t' -v L=${#TRIMSTEPS[@]} '{printf "%s",$1;for(i=2;i<=L+1;i++){printf "\t%s",$i};printf "\n"}' $SUBPROJECT.sample_counts.tsv > $SUBPROJECT.summary.stat.tsv
+			ln -s $PWD/$SUBPROJECT.summary.stat.tsv $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.read_counts.tsv
+			(. $BIN/list_step_files.sh)
+			exit 100
+		fi
+	else
+		eval echo "All samples have at least the minimum amount of ${TRIMSTEPS[$i]} reads fixed at ${MIN_DEPTH_ECHO[$i]} reads."
+		echo ""
+	fi
+done
+
+# Optimize quality
+# only with samples which have more than 10 reads
+head -n -4 $SUBPROJECT.sample_counts.tsv | awk -v T=${#TRIMSTEPS[@]} 'NR>1 && $(T+1)>10{print $1}' | join -t $'\t' - ../config/lib3.list > libgood.list
+if [ $SKIP_TRESH -eq 100 ]
+then
+	echo $MINQUAL > optimized.quality.txt
+elif [ $PREVQ != "no" ]
+then
+	cp $PREVQ/quality_check/optimized.quality.txt ./
+elif (( $(echo "${MINTRESH[$((${#MINTRESH[@]}-1))]} > 1" | bc -l) ))
+then
+	# above integer threshold and more than 75% of raw reads
+	head -n -4 $SUBPROJECT.sample_counts.tsv | transpose_tab | sed '1,3d;/^[ \t]*$/d' | tac | cat <(head -n -4 $SUBPROJECT.sample_counts.tsv | cut -f 3 | transpose_tab) - | awk -v M=${MINTRESH[${#MINTRESH[@]}]} -v S=$SKIP_SAMP 'BEGIN{FS="\t"} {if(NR==1){for(i=2;i<=NF;i++){ref[i]=$i}} ; C=0 ;for(i=2;i<=NF;i++){if($i<M || $i<ref[i]*0.75){C+=1}};if(C<=S){print $1;exit}}' | sed 's/Trimmed_at_//;s/_Phred_score//' > optimized.quality.txt
+else
+	# above ratio of raw reads with primers
+	head -n -4 $SUBPROJECT.sample_counts.tsv | cut -f 4- | paste - <(head -n -4 $SUBPROJECT.sample_counts.tsv | cut -f 3) | transpose_tab | tac | awk -v M=${MINTRESH[${#MINTRESH[@]}]} -v S=$SKIP_SAMP 'BEGIN{FS="\t"}{if(NR==1){for (i=2;i<=NF;i++){R[i]=$i}} else {C=0 ; for(i=2;i<=NF;i++){if($i<R[i]*M){C+=1}};if(C<=S){print $1;exit}}}' | sed 's/Trimmed_at_//;s/_Phred_score//' > optimized.quality.txt
+fi
+QUAL=`cat optimized.quality.txt`
+echo "Minimum average quality optimized to $QUAL"
+QUALPOS=$(($QUAL - $MINQUAL + 4))
+cut -f 1-3,$QUALPOS $SUBPROJECT.sample_counts.tsv > $SUBPROJECT.summary.stat.tsv
+ln -s $PWD/$SUBPROJECT.summary.stat.tsv $EXEC/archives/$SUBPROJECT.outputs/$SUBPROJECT.read_counts.tsv
+
+# check for no read
+QMISS=$(head -n -4 $SUBPROJECT.summary.stat.tsv | awk 'NR>1 && ($NF==0 || $NF=="NA"){print $1}' | sort | join -v 1 - <(if [ $(ls -1 $EXEC/config/*missing 2> /dev/null | wc -l) -gt 0 ] ; then cat $EXEC/config/*missing | sort ; fi))
+if [ ! -z "$QMISS" ]
+then
+	MY_TMP_NAME=`echo $JOBNAME | sed "s/$DELTAMP_VER\.//;s/\.$SUBPROJECT//"`
+	echo $QMISS | tr " " "\n" > $EXEC/config/${MY_TMP_NAME}.missing
+fi
+
+# list files and directories
+(. $BIN/list_step_files.sh)
+
+echo END
+
+

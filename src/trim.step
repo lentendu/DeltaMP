@@ -23,6 +23,10 @@ module load DeltaMP/DELTAMP_VERSION
 while read var val; do unset $var ; if [[ $val == "(["* ]]; then declare -A $var="`echo $val | sed 's/].\"/]=\"/g'`" ; else declare $var="$val" ; fi ; done < config/env.txt
 . $BIN/check_previous_step
 
+uc2na() {
+awk '{if($1=="S"){print $9,$9} else {if($1=="H"){print $9,$10}}}' "${@--}"
+}
+
 # Choose a sample
 LIB=(`sed -n "$ARRAY_TASK"'p' config/lib4.list`)
 SAMP=${LIB[0]}
@@ -272,7 +276,7 @@ do
 				eval $COMP *.$i.*.filtered.fastq
 			fi
 		fi
-	elif [ $TECH == "Nanopore" ]
+	elif [ $TECH == "Nanopore" ] || [ $TECH == "Pacbio" ]
 	then
 		# Concatenate reads in both direction and filter
 		if [ -f $EXEC/libraries/fastq/$FWD_NAME.$i.fastq.$EXT ]
@@ -356,6 +360,10 @@ then
 	echo -e "fasta=$FASTA.fasta\ncount=$COUNT.count_table" > current_files.summary
 elif [ $ASV == "no" ]
 then
+	if [ $TECH == "Pacbio" ]
+	then
+		for i in *.trim.fastq ; do seqkit fq2fa -w 0 $i > ${i%.*}.fasta ; rm $i ; done
+	fi
 	# concatenate fasta files
 	TRIMMED=(*.trim.fasta)
 	if [ ${#TRIMMED[@]} -gt 1 ]
@@ -383,10 +391,13 @@ then
 		FASTA=`sed -n '/^fasta=/{s/.*=//;s/\.fasta//;p}' current_files.summary`
 		COUNT=`sed -n '/^count=/{s/.*=//;s/\.count_table//;p}' current_files.summary`
 	else
-		vsearch --no_progress --derep_fulllength $FASTA.fasta --sizeout --output - | twofasta | sed '/>/s/;/ /' | tee $FASTA.unique.fasta | sed -n "/>/{s/>//;s/ size=/\t/;p}" | cat <(echo -e "Representative_Sequence\ttotal") - > $FASTA.unique.count_table
+		vsearch --no_progress --derep_fulllength $FASTA.fasta --sizeout --uc $FASTA.unique.uc --output - | twofasta | sed '/>/s/;/ /' | tee $FASTA.unique.fasta | sed -n "/>/{s/>//;s/ size=/\t/;p}" | cat <(echo -e "Representative_Sequence\ttotal") - > $FASTA.unique.count_table
+		awk '$1~"^[SH]$" {if(NR==1){printf "%s\t%s",$9,$9} else {if($1=="S"){printf "\n%s\t%s",$9,$9} else {printf ",%s",$9}}}END{printf "\n"}' $FASTA.unique.uc > $FASTA.unique.names
 		FASTA=$FASTA.unique
+		NAMES=$FASTA
 		COUNT=$FASTA
-		echo -e "fasta=$FASTA.fasta\ncount=$COUNT.count_table" > current_files.summary
+		echo -e "fasta=$FASTA.fasta\nnames=$NAMES.names\ncount=$COUNT.count_table" > current_files.summary
+		rm $NAMES.uc
 	fi
 fi
 
@@ -445,14 +456,39 @@ then
 		
 	elif [ $PRECLUST == "homopolymer" ]
 	then
-		# cluster sequences after removing every nucleotide repeats
-		cat $FASTA.fasta | parallel -j $NCPUS --block 1M --pipe -k 'sed "/^>/s/;size=[^\t]*//;/^>/!s/\([ATCGN]\)\1\+/\1/g"' | seqkit fx2tab | sort -k 1,1 | join <(sed '1d' $COUNT.count_table | sort -k 1,1) - | awk '{print ">"$1";size="$2"\n"$3}' | vsearch --derep_prefix - --quiet --sizein --sizeout --output - | swarm -t $NCPUS -z -w $FASTA.seed - > /dev/null
-		# sed -n '/^>/{s/^>//;s/;size=/\t/;s/;$//;p}' $FASTA.seed | cat <(echo -e "Representative_Sequence\ttotal") - > $COUNT.precl.count_table  # witout size
-		sed '/^>/s/;size=.*//' $FASTA.fasta | seqkit fx2tab | sort -k 1,1 | join <(sed '1d' $COUNT.precl.count_table | sort -k 1,1) - | awk '{print ">"$1";size="$2"\n"$3}' > $FASTA.precl.fasta # with size
-		rm $FASTA.seed
+		# cluster sequences with max 0.1% dissimilarity after removing every nucleotide repeats
+		# dereplicate and swarm homopolymer compressed reads
+		cat $FASTA.fasta | parallel -j $NCPUS --block 1M --pipe -k 'sed "/^>/s/[; ]size=.*//;/^>/!s/\([ATCGN]\)\1\+/\1/g"' | seqkit fx2tab -i | sort -k 1,1 | join <(sed '1d' $COUNT.count_table | sort -k 1,1) - | awk '{print ">"$1";size="$2"\n"$3}' | vsearch --derep_prefix - --quiet --sizein --sizeout --uc $NAMES.prefix.uc --output - | swarm -t $NCPUS -f -z -u $NAMES.homop.uc -w $FASTA.homop - > /dev/null
+		# unoise only on homopolymer compressed reads of more than one copy
+		vsearch --cluster_unoise $FASTA.homop --unoise_alpha 1.2 --iddef 3 --minsize 2 --threads $NCPUS --sizein --sizeout --uc $NAMES.seed.uc --centroids $FASTA.seed
+		# map singletons on compressed reads at 99% similarity, drop unmapped
+		seqkit grep -w0 -rv -f <(cut -f 9 $NAMES.seed.uc | sed 's/;size=.*//' | sort -u) $FASTA.homop | vsearch --usearch_global - --db $FASTA.seed --threads $NCPUS --top_hits_only --id 0.99 --iddef 3 --uc $FASTA.match
+		awk '$1=="H"{split($9,a,";size=");split($10,b,";size="); print b[1],gensub(";","","g",b[2]),gensub(";","","g",a[2])}' $FASTA.match | sort -k 1,1 | awk '{if(NR==1){p=$1;s=$2+$3} else {if($1==p){s+=$3} else {print p"\t"s;p=$1;s=$2+$3}}}END{print p"\t"s}' | sort -k 2,2nr -t $'\t' | cat <(echo -e "Representative_Sequence\ttotal") - > $COUNT.precl.count_table
+		# get back original sequence
+		sed '/^>/s/[; ]size=.*//' $FASTA.fasta | seqkit fx2tab -i | sort -k 1,1 | join <(sed '1d' $COUNT.precl.count_table | sort -k 1,1) - | awk '{print ">"$1" size="$2"\n"$3}' > $FASTA.precl.fasta
+		# climb back uc files for names file
+		awk -F'\t' '{l=split($2,a,","); if(l>1){for(i=1;i<=l;i++){print $1,a[i]}} else {print $1,$2}}' $NAMES.names | sort -k 1,1 | join -1 1 -2 1 <(uc2na $NAMES.prefix.uc | sed 's/;size=[0-9]*;*//g' | sort -k 1,1) - | sort -k 2,2 | join -1 1 -2 2 <(uc2na $NAMES.homop.uc | sed 's/;size=[0-9]*;*//g' | sort -k 1,1) - | sort -k 2,2 | join -1 1 -2 2 <(cat $NAMES.seed.uc $FASTA.match | uc2na | sed 's/;size=[0-9]*;*//g' | sort -k 1,1) - | cut -d " " -f 2,5 | sort -k 1,1 | awk '$1!=$2{print}' | awk '{if(NR==1){p=$1; printf "%s\t%s,%s",p,p,$2} else {if($1==p){printf ",%s",$2} else {p=$1; printf "\n%s\t%s,%s",p,p,$2}}}END{printf "\n"}' > $NAMES.precl.names		
+		rm $FASTA.seed $FASTA.homop $FASTA.match $NAMES.prefix.uc $NAMES.homop.uc $NAMES.seed.uc
 		FASTA=$FASTA.precl
 		COUNT=$COUNT.precl
+		NAMES=$NAMES.precl
+		echo -e "fasta=$FASTA.fasta\nnames=$NAMES.names\ncount=$COUNT.count_table" > current_files.summary
+	fi
+	
+	# Remove singletons
+	if [ ${DEL_FIRSTSING} == "yes" ]
+	then
+		awk 'NR==1 || $2>1{print}' $COUNT.count_table > $COUNT.pick.count_table
+		seqkit grep -w0 -f <(awk 'NR>1{print $1}' $COUNT.pick.count_table) $FASTA.fasta > $FASTA.pick.fasta
+		FASTA=$FASTA.pick
+		COUNT=$COUNT.pick
 		echo -e "fasta=$FASTA.fasta\ncount=$COUNT.count_table" > current_files.summary
+		if [ -z "$NAMES" ]
+		then
+			cut -f 1 $COUNT.count_table | sed '1d' | sort | join -t $'\t' - <(sort -k 1,1 $NAMES.names) > $NAMES.pick.names
+			NAMES=$NAMES.pick
+			echo -e "names=$NAMES.names" >> current_files.summary
+		fi
 	fi
 	
 	# ITSx or Chimera removal
@@ -466,11 +502,17 @@ then
 		unset FASTA COUNT
 		FASTA=`sed -n '/^fasta=/{s/.*=//;s/\.fasta//;p}' current_files.summary`
 		COUNT=`sed -n '/^count=/{s/.*=//;s/\.count_table//;p}' current_files.summary`
+		if [ -z "$NAMES" ]
+		then
+			cut -f 1 $COUNT.count_table | sed '1d' | sort | join -t $'\t' - <(sort -k 1,1 $NAMES.names) > $NAMES.itsx.names
+			NAMES=$NAMES.itsx
+			echo -e "names=$NAMES.names" >> current_files.summary
+		fi
 	elif [ $CHIMERA1 == "yes" ]
 	then
-		if [ $TECH == "454" ] || [ $(sed -n '$=' $COUNT.count_table) -lt 20000 ]
+		if [ $TECH == "454" ] || [ $(sed -n '$=' $COUNT.count_table) -lt 5000 ]
 		then
-			twofasta $FASTA.fasta | awk '{print $1}' | paste - - | sed 's/^>//' | sort -k 1,1 | join - <(sort -k 1,1 $COUNT.count_table) | awk '{print ">"$1";size="$3"\n"$2}' | vsearch --no_progress --uchime_denovo - --nonchimeras - --xsize --qmask none | twofasta > $FASTA.ok.fasta
+			seqkit fx2tab -i $FASTA.fasta | sort -k 1,1 | join - <(sort -k 1,1 $COUNT.count_table) | awk '{print ">"$1";size="$3"\n"$2}' | vsearch --no_progress --uchime3_denovo - --nonchimeras - --xsize --qmask none > $FASTA.ok.fasta
 		else
 			. $BIN/parallel_uchime.sh
 		fi
@@ -483,11 +525,27 @@ then
 		FASTA=$FASTA.ok
 		COUNT=$COUNT.ok
 		echo -e "fasta=$FASTA.fasta\ncount=$COUNT.count_table" > current_files.summary
+		if [ ! -z "$NAMES" ]
+		then
+			if [ -L $COUNT.count_table ]
+			then
+				ln -s $NAMES.names $NAMES.ok.names
+			else
+				cut -f 1 $COUNT.count_table | sed '1d' | sort | join -t $'\t' - <(sort -k 1,1 $NAMES.names) > $NAMES.ok.names
+			fi
+			NAMES=$NAMES.ok
+			echo -e "names=$NAMES.names" >> current_files.summary
+		fi
 	fi
+	
 	# clean intermediate files and compress
 	eval $COMP $FASTA.fasta
 	eval $COMP $COUNT.count_table
-	rm $(ls *fasta | grep -v $FASTA.fasta) $(ls *.count_table | grep -v $COUNT.count_table)
+	rm -f *fasta *.count_table
+	if [ ! -z "$NAMES" ]
+	then
+		eval $COMP $NAMES.names && rm -f *names
+	fi
 fi
 
 # list files and directories
