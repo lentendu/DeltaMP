@@ -70,7 +70,7 @@ then
 fi
 
 # extract a part of rRNA operon with barrnap
-if [ ! -z "$EXTRACT" ]
+if [ $EXTRACT != "no" ]
 then
 	if [ "$TARG_ORG" == "Bacteria" ] ; then KING=bac ; elif [ "$TARG_ORG" == "Archaea" ] ; then KING=arc ; else KING=euk ; fi
 	barrnap --kingdom $KING --threads $NCPUS --outseq $PREF.rrna.fasta $PREF.fasta > log.barrnap 2>&1
@@ -174,7 +174,7 @@ then
 		rm ${PREF%.*}.noN.$EXTRACT.fasta
 	fi
 	rm ${PREF%.*}.noN.fasta
-elif [ ! -z "$EXTRACT" ]
+elif [ $EXTRACT != "no" ]
 then
 	rm ${PREF%.*}.$EXTRACT.fasta
 fi
