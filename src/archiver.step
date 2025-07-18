@@ -56,7 +56,7 @@ if  [[ $JOBNAME == *"$RAW_EXT"* ]]
 then
 	# only sample name vs fwd and rvs lib, demultiplexing info and log, oligo files and seqneg
 	cd $DATA
-	tar czh -b 2048 -T <(awk '{print $2"."$3"\n"$2"."$4}' $EXEC/config/barcodes.txt | sort | join - <(ls) | head | cat - <(ls | grep "demultiplex\|^oligo") <(find seqneg*/))  | dd of="$ARCHIVE" obs=1M 2> /dev/null
+	tar czh -b 2048 -T <(awk '{print $2"."$3"\n"$2"."$4}' $EXEC/config/barcodes.txt | sort | join - <(ls) | cat - <(ls | grep "demultiplex\|^oligo") <(find seqneg*/))  | dd of="$ARCHIVE" obs=1M 2> /dev/null
 else
 	tar czh $DATA -b 2048 | dd of="$ARCHIVE" obs=1M 2> /dev/null
 fi
