@@ -40,7 +40,7 @@ do
 		then
 			TEST1=`for j in log/$step.[0-9]*.out; do if [ ! -z "$(grep "^\[ERROR\]" $j)" ] ; then echo $j | cut -d "." -f 2 ; fi ; done | sort -n | tr "\n" "," | sed 's/,$/\n/'`
 			TEST2=`for j in log/$step.[0-9]*.out; do if [ -z "$(tail -1 $j | grep "END")" ] ; then echo $j | cut -d "." -f 2 ; fi ; done | sort -n | tr "\n" "," | sed 's/,$/\n/'`
-			TEST3=`for j in log/$step.[0-9]*.err; do if [ ! -z "$(grep -v slurmstepd $j | grep -i error )" ] ; then echo $j | cut -d "." -f 2 ; fi ; done | sort -n | tr "\n" "," | sed 's/,$/\n/'`
+			TEST3=`for j in log/$step.[0-9]*.err; do if [ ! -z "$(grep -v slurmstepd $j | grep -v 'expected error' | grep -i error )" ] ; then echo $j | cut -d "." -f 2 ; fi ; done | sort -n | tr "\n" "," | sed 's/,$/\n/'`
 			if [ ! -z $TEST1 ]
 			then
 				echo "MOTHUR issued an ERROR in the previous step $i for the task(s) $TEST1."
@@ -73,7 +73,7 @@ do
 				echo "Check log at $EXEC/log/$step.out and job report with job name $DELTAMP_VER.$step.$SUBPROJECT ."
 				echo ""
 				WRONG=1
-			elif [ ! -z "$(grep -i "error" log/$step.err)" ]
+			elif [ ! -z "$(grep -i "error" log/$step.err | grep -v 'expected error')" ]
 			then
 				echo "The previous step $i issue an error."
 				echo "Check log at $EXEC/log/$step.err and job report with job name $DELTAMP_VER.$step.$SUBPROJECT ."
