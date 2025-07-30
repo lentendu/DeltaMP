@@ -91,8 +91,8 @@ do
 			if [ $UNPAIR == "yes" ]
 			then
 				# truncate just before the first N base, if any (reads with N's are removed after pair-end merging otherwise)
-				seqkit subseq -j 1 --bed <(seqkit locate -j 1 --bed -rP -p "^[ATCG][ATCG]*" fastq/$i.${FWD_LIB}.fastq.$EXT) fastq/$i.${FWD_LIB}.fastq.$EXT | sed '/^@/s/_1-[0-9][0-9]*:.*//' | eval $COMP > fastq/$i.${FWD_LIB}.noN.fastq.$EXT
-				seqkit subseq -j 1 --bed <(seqkit locate -j 1 --bed -rP -p "^[ATCG][ATCG]*" fastq/$j.${RVS_LIB}.fastq.$EXT) fastq/$j.${RVS_LIB}.fastq.$EXT | sed '/^@/s/_1-[0-9][0-9]*:.*//' | eval $COMP > fastq/$j.${RVS_LIB}.noN.fastq.$EXT
+				eval $DECOMP fastq/$i.${FWD_LIB}.fastq.$EXT | awk '{if((NR-2)%4 == 0){match($1,/^[ATCG]{20,}/,a); print a[0]} else if(NR%4 == 0){print substr($1,1,RLENGTH)} else print }' | eval $COMP > fastq/$i.${FWD_LIB}.noN.fastq.$EXT
+				eval $DECOMP fastq/$j.${RVS_LIB}.fastq.$EXT | awk '{if((NR-2)%4 == 0){match($1,/^[ATCG]{20,}/,a); print a[0]} else if(NR%4 == 0){print substr($1,1,RLENGTH)} else print }' | eval $COMP > fastq/$j.${RVS_LIB}.noN.fastq.$EXT
 				ADD=".noN"
 			fi
 			if [ $PREVQ != "no" ]
