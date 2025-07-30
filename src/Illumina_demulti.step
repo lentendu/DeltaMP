@@ -132,14 +132,15 @@ else
 		rvslib=$(grep "${bf}-${br}\.\|${br}-${bf}\." tmp.$RVS_LIB)
 		if [ ! -z "$fwdlib" ]
 		then
-			cat $fwdlib > fastq/$sam.${FWD_LIB}.fastq
-			cat $rvslib > fastq/$sam.${RVS_LIB}.fastq
+			cat $fwdlib >> fastq/$sam.${FWD_LIB}.fastq
+			cat $rvslib >> fastq/$sam.${RVS_LIB}.fastq
 			rm $fwdlib $rvslib
 		fi
 	}
 	export -f lib2sam
 	export FWD_LIB RVS_LIB
-	cat fastq/oligo_pairs.${LIB_NAME}.txt | parallel -j $NCPUS lib2sam
+	# process block of lines per samples to avoid concurrent write to same file (append mode allowed in lib2sam)
+	awk '$1 != p{printf ">"}{p=$1}1' fastq/oligo_pairs.${LIB_NAME}.txt | parallel -j $NCPUS --pipe -kN1 --regexp --recstart "^>" --rrs "parallel -k lib2sam"
 	rm tmp.$FWD_LIB tmp.$RVS_LIB
 fi
 
