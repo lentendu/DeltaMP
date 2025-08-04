@@ -127,20 +127,22 @@ else
 	ls fastq/*.${FWD_LIB}.fastq > tmp.$FWD_LIB
 	ls fastq/*.${RVS_LIB}.fastq > tmp.$RVS_LIB
 	lib2sam () {
-		read sam bf br <<< "$@"
-		fwdlib=$(grep "${bf}-${br}\.\|${br}-${bf}\." tmp.$FWD_LIB)
-		rvslib=$(grep "${bf}-${br}\.\|${br}-${bf}\." tmp.$RVS_LIB)
-		if [ ! -z "$fwdlib" ]
-		then
-			cat $fwdlib >> fastq/$sam.${FWD_LIB}.fastq
-			cat $rvslib >> fastq/$sam.${RVS_LIB}.fastq
-			rm $fwdlib $rvslib
-		fi
+		while read sam bf br
+		do
+			fwdlib=$(grep "${bf}-${br}\.\|${br}-${bf}\." tmp.$FWD_LIB)
+			rvslib=$(grep "${bf}-${br}\.\|${br}-${bf}\." tmp.$RVS_LIB)
+			if [ ! -z "$fwdlib" ]
+			then
+				cat $fwdlib >> fastq/$sam.${FWD_LIB}.fastq
+				cat $rvslib >> fastq/$sam.${RVS_LIB}.fastq
+				rm $fwdlib $rvslib
+			fi
+		done
 	}
 	export -f lib2sam
 	export FWD_LIB RVS_LIB
 	# process block of lines per samples to avoid concurrent write to same file (append mode allowed in lib2sam)
-	awk '$1 != p{printf ">"}{p=$1}1' fastq/oligo_pairs.${LIB_NAME}.txt | parallel -j $NCPUS --pipe -kN1 --regexp --recstart "^>" --rrs "parallel -k lib2sam"
+	awk '$1 != p{printf ">"}{p=$1}1' fastq/oligo_pairs.${LIB_NAME}.txt | parallel -j $NCPUS --pipe -kN1 --regexp --recstart "^>" --rrs lib2sam
 	rm tmp.$FWD_LIB tmp.$RVS_LIB
 fi
 
