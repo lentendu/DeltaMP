@@ -82,17 +82,17 @@ DeltaMP is intend to be used on a HPC with a job scheduler (i.e. batch-queuing s
 + [dada2](https://github.com/benjjneb/dada2) R package for error model based correction of Illumina reads (Callahan et al., 2016)
 + [NGmerge](https://github.com/harvardinformatics/NGmerge) for paired-end merging of Illumina reads via novel empirically-derived models of sequencing errors (Gaspar, 2018)
 + [swarm v2](https://github.com/torognes/swarm) (Mahé et al., 2015)
-+ [sumatra](https://git.metabarcoding.org/obitools/sumatra) and [sumaclust](https://git.metabarcoding.org/obitools/sumaclust) (Mercier et al., 2013)
++ [sumatra](https://forge.metabarcoding.org/obitools/sumatra) and [sumaclust](https://forge.metabarcoding.org/obitools/sumaclust) (Mercier et al., 2013)
 + [MCL](http://micans.org/mcl) (van Dongen, 2000)
-+ [CD-HIT & cd-hit-454](http://weizhongli-lab.org/cd-hit/) for (pre-)clustering (Fu et al., 2012)
++ [CD-HIT & cd-hit-454](https://github.com/weizhongli/cdhit) for (pre-)clustering (Fu et al., 2012)
 + [ITSx](http://microbiology.se/software/itsx/) (Bengtsson‐Palme Johan et al. 2013)
-+ [IBM Aspera Connect](https://downloads.asperasoft.com/connect2/) for faster download of raw reads libraries from the ENA SRA public database
++ [IBM Aspera Connect](https://www.ibm.com/products/aspera/downloads) for faster download of raw reads libraries from the ENA SRA public database
 + [WebLogo](https://github.com/WebLogo/weblogo)
 + [RATTLE](https://github.com/comprna/RATTLE) for Nanopore reads processing (de la Rubia et al., 2022)
 + [racon](https://github.com/isovic/racon) for Nanopore reads processing (Vaser et al., 2017)
 + [medaka](https://github.com/nanoporetech/medaka) for Nanopore reads processing
 + [MeShClust3](https://github.com/BioinformaticsToolsmith/Identity) for Nanopore reads processing (Girgis, 2022)
-+ [hmmer](hmmerg.org) for Nanopore reads processing (Eddy, 2011)
++ [hmmer](http://hmmer.org/) for Nanopore reads processing (Eddy, 2011)
 + [mumu](https://github.com/frederic-mahe/mumu) for post-clustering (Frøslev et al., 2017)
 + [barrnap](https://github.com/tseemann/barrnap) for extraction of part of rRNA operon (Seemann, 2024)
 
