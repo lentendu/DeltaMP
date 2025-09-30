@@ -70,13 +70,14 @@ else
 	if [ $PERRUN == "no" ]
 	then
 		# pool all prior ASVs and dereplicate them
+		export DECOMP NCPUS
 		for i in ${FWD_NAME} ${RVS_NAME}
 		do
 			if [ $i == "$FWD_NAME" ] ; then j=${RVS_NAME} ; else j=${FWD_NAME} ; fi
 			if [ ! -z "$(find ./ -name $i.*.fwd.filtered.derep)" ]
 			then
-				cat */$i.*.fwd.asv.fasta | vsearch --quiet --derep_fulllength - --relabel_sha1 --output - | twofasta > $i.fwd.fasta
-				cat */$j.*.rvs.asv.fasta | vsearch --quiet --derep_fulllength - --relabel_sha1 --output - | twofasta > $j.rvs.fasta
+				parallel -j $NCPUS -k eval $DECOMP ::: */$i.*.fwd.asv.fasta.$EXT | vsearch --quiet --derep_fulllength - --relabel_sha1 --output - | twofasta > $i.fwd.fasta
+				parallel -j $NCPUS -k eval $DECOMP ::: */$j.*.rvs.asv.fasta.$EXT | vsearch --quiet --derep_fulllength - --relabel_sha1 --output - | twofasta > $j.rvs.fasta
 			fi
 		done
 	fi
