@@ -148,9 +148,10 @@ map_track_sample<-ldply(map_track) %>%
 write(apply(final_asv,1,function(x) paste0(">",paste(x,collapse="\n"))),file=paste(subp,"dada2.fasta",sep="."),ncolumns=1)
 write.table(mat,paste0(subp,".dada2.count_table"),sep="\t",col.names=T,row.names=F,quote=F)
 write.table(map_track_sample,paste0(subp,".dada2.read_counts.tsv"),sep="\t",col.names=T,row.names=F,quote=F)
-it<-as.list(iapply(pairs,1))
-for(i in 1:length(it)) {
-  x<-it[[i]]
-  write.table(select(map_track[[paste(x$sample,x$library,x$comb,sep=".")]],libraries,seq) %>% filter(!is.na(seq)),
+cl<-makeCluster(ncores)
+registerDoParallel(cl)
+idout<-foreach(x=iapply(pairs,1), .packages=c('dplyr')) %dopar% {
+  write.table(filter(map_track[[paste(x$sample,x$library,x$comb,sep=".")]],!is.na(seq)) %>% rowwise() %>% mutate(sha1=digest::sha1(seq)) %>% select(libraries,sha1),
     file.path(x$sample,sub("\\.derep$",".asv.index",x$filename_fwd)),col.names=F,row.names=F,quote=F)
 }
+stopCluster(cl)

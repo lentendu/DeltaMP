@@ -203,7 +203,7 @@ then
 		i=$1
 		for j in $i/*fwd.filtered.derep
 		do
-			eval $DECOMP ${j%.*}.fastq | sed -n '1~4{s/^@//;s/ .*//;p}' | nl -n ln | sort -k 1,1 | join -o 2.2,1.2 - <(eval $DECOMP ${j%.*}.asv.index.$EXT | sort -k 2,2 | join -1 2 -o 1.1,0 - <(grep "^>" $FASTA_OTUS.fasta | sed 's/>//' | sort) | sort -k 1,1)
+			eval $DECOMP ${j%.*}.fastq.$EXT | sed -n '1~4{s/^@//;s/ .*//;p}' | nl -n ln | sort -k 1,1 | join -o 2.2,1.2 - <(eval $DECOMP ${j%.*}.asv.index.$EXT | sort -k 2,2 | join -1 2 -o 1.1,0 - <(grep "^>" $FASTA_OTUS.fasta | sed 's/>//' | sort) | sort -k 1,1)
 		done
 	}
 	export -f match_index
