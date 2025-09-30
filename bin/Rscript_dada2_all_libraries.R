@@ -1,4 +1,5 @@
 library(seqinr)
+library(digest)
 suppressMessages(library(plyr))
 suppressMessages(library(tidyverse))
 suppressMessages(library(foreach))
@@ -49,18 +50,18 @@ dada_pairs<-suppressWarnings(dlply(pairs,.(sample,library,comb),function(x) {
   tmp_err_rvs<-readRDS(file.path(x$sample,paste0(x$library,".rvs.err.rds")))
   tmp_derep_rvs<-readRDS(file.path(x$sample,x$filename_rvs))
   list(sample=x$sample,
-       fwd=dada(tmp_derep_fwd,tmp_err_fwd,priors=prior_seq$fwd),
+       fwd=dada2::dada(tmp_derep_fwd,tmp_err_fwd,priors=prior_seq$fwd),
        filename_fwd=x$filename_fwd,
-       rvs=dada(tmp_derep_rvs,tmp_err_rvs,priors=prior_seq$fwd),
+       rvs=dada2::dada(tmp_derep_rvs,tmp_err_rvs,priors=prior_seq$fwd),
        filename_rvs=x$filename_rvs)
-},.parallel=T,.paropts=list(.export='prior_seq',.packages='dada2')))
+},.parallel=T,.paropts=list(.export='prior_seq')))
 
 # merge pairs
 mergers_all<-suppressWarnings(llply(dada_pairs,function(x) {
   tmp_derep_fwd<-readRDS(file.path(x$sample,x$filename_fwd))
   tmp_derep_rvs<-readRDS(file.path(x$sample,x$filename_rvs))
-  mergePairs(x$fwd, tmp_derep_fwd, x$rvs, tmp_derep_rvs, minOverlap=minov, maxMismatch=maxmis, trimOverhang=T)
-},.parallel=T,.paropts=list(.export=c('minov','maxmis'),.packages='dada2')))
+  dada2::mergePairs(x$fwd, tmp_derep_fwd, x$rvs, tmp_derep_rvs, minOverlap=minov, maxMismatch=maxmis, trimOverhang=T)
+},.parallel=T,.paropts=list(.export=c('minov','maxmis'))))
 stopCluster(cl)
 
 # sequence table for each paired library in each sample, sum per sample, reverse-coomplement if RF direction
