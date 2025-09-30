@@ -63,7 +63,7 @@ then
 	echo -e "FASTA=$FASTA\nNAMES=$NAMES" > current_files.summary
 	
 	# count table
-	tr "," " " < $NAMES.names | awk '{for(i=2;i<=NF;i++){print $i,$1}}' | sort --parallel=$NCPUS -T /scratch -k 1,1 | join -o 1.2,0,2.3,2.2 - <(sort --parallel=$NCPUS -T /scratch -k 1,1 $SUBPROJECT.groups) | sort --parallel=$NCPUS -T /scratch -k 1,1 -k 3,3 | awk '$1!=p{p=$1;sub("^",">",$1)} {print}' | parallel -j $NCPUS --recstart ">" --remove-rec-sep --pipe -k "awk -v S=$(echo $SAMP_NAME | sed 's/ /#/g') -f $BIN/make_count.awk" | cat <(echo Representative_Sequence total $SAMP_NAME | tr " " "\t") - > $FASTA.count_table
+	tr "," " " < $NAMES.names | awk '{for(i=2;i<=NF;i++){print $i,$1}}' | sort --parallel=$NCPUS -T $TEMPD -k 1,1 | join -o 1.2,0,2.3,2.2 - <(sort --parallel=$NCPUS -T $TEMPD -k 1,1 $SUBPROJECT.groups) | sort --parallel=$NCPUS -T $TEMPD -k 1,1 -k 3,3 | awk '$1!=p{p=$1;sub("^",">",$1)} {print}' | parallel -j $NCPUS --recstart ">" --remove-rec-sep --pipe -k "awk -v S=$(echo $SAMP_NAME | sed 's/ /#/g') -f $BIN/make_count.awk" | cat <(echo Representative_Sequence total $SAMP_NAME | tr " " "\t") - > $FASTA.count_table
 	eval $(echo COUNT=$FASTA | tee -a current_files.summary)
 	rm $SUBPROJECT.fasta $SUBPROJECT.groups $SUBPROJECT.uc
 else
@@ -208,7 +208,7 @@ then
 	}
 	export -f match_index
 	export FASTA_OTUS DECOMP EXT
-	parallel -j $NCPUS match_index ::: $SAMP_NAME | sort --parallel=$NCPUS -T /scratch -k 1,1 | awk '{if(NR==1){p=$1;print p"\t"$2} else {if($1==p){print ","$2} else {p=$1;print p"\t"$2}}}' | perl -0pe 's/\n,/,/g' > ${NAMES_OTUS}.names
+	parallel -j $NCPUS match_index ::: $SAMP_NAME | sort --parallel=$NCPUS -T $TEMPD -k 1,1 | awk '{if(NR==1){p=$1;print p"\t"$2} else {if($1==p){print ","$2} else {p=$1;print p"\t"$2}}}' | perl -0pe 's/\n,/,/g' > ${NAMES_OTUS}.names
 elif [ $CLUST == "none" ]
 then
 	ln -s $FASTA.fasta $FASTA.otu.fasta

@@ -18,6 +18,7 @@ large_arrays := $(patsubst %.options,%_array_large.options,lib/$(batch)/mp-std.o
 options := $(arrays) $(large_arrays) $(standard) $(highmems)
 heads := $(patsubst %.options,%.head,$(options))
 test_config := $(patsubst src/%,test/%,$(patsubst %.config,%.tsv,$(wildcard $(addsuffix *.config,src/))))
+tempdir := $(shell grep TEMPD config.txt | cut -f 2)
 
 # search paths
 vpath %.main src
@@ -53,7 +54,7 @@ $(modulefiles):
 # rule to build step scripts
 $(steps): bin/%.sh : | %.step
 	SEDSTEP=$$(sed 's/^/s@/;s/\t/@/;s/$$/@g/' lib/$(batch)/option_variables |  tr "\n" ";" | sed 's/^/sed "/;s/;$$/"/'); \
-	eval $$SEDSTEP $| | sed 's#DeltaMP/DELTAMP_VERSION#$(module)#' | cat $< - | sed 's/log\/NAME/log\/'$*'/' > $@
+	eval $$SEDSTEP $| | sed 's#DeltaMP/DELTAMP_VERSION#$(module)#;s#$$TEMPD#$(tempdir)#g' | cat $< - | sed 's/log\/NAME/log\/'$*'/' > $@
 
 # header (type of job) specific dependencies
 bin/init.sh bin/454_quality.sh bin/Illumina_quality.sh bin/Nanopore_quality.sh bin/Pacbio_quality.sh bin/doc.sh bin/archiver.sh : serial-std.head

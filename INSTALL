@@ -48,6 +48,8 @@
 	o. QUEUE_PARTITION_STANDARD: the name of the partition(s) or queue(s) to run standard jobs; comma separated list if more than one; this variable is optional
 	
 	p. QUEUE_PARTITION_HIGHMEM: the name of the partition(s) or queue(s) to run high-memory jobs; comma separated list if more than one; this variable is optional
+	
+	q. TEMPD: the path to local temporary directory of compute node, usually /scratch on most HPC, otherwise /tmp
 
 
 5. to build DeltaMP, a simple make is enough:
