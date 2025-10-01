@@ -620,10 +620,15 @@ then
 	FULLCITATION[CLUST]="Mahé F, Rognes T, Quince C, Vargas C de, Dunthorn M (2015) Swarm v2: highly-scalable and high-resolution amplicon clustering. PeerJ, 3, e1420."
 fi
 
-	# QIIME for demultiplexing
-CITATION[QIIME]="Caporaso et al., 2010"
-FULLCITATION[QIIME]="Caporaso JG, Kuczynski J, Stombaugh J et al. (2010) QIIME allows analysis of high-throughput community sequencing data. Nature Methods, 7, 335–336."
-VERSION[QIIME]=`pip show QIIME 2> /dev/null | grep Version | awk '{print $2}'`
+	# QIIME 1 for demultiplexing 454
+if [ ! -z "$(which make_per_library_sff)" ]
+then
+	CITATION[QIIME]="Caporaso et al., 2010"
+	FULLCITATION[QIIME]="Caporaso JG, Kuczynski J, Stombaugh J et al. (2010) QIIME allows analysis of high-throughput community sequencing data. Nature Methods, 7, 335–336."
+	VERSION[QIIME]=`pip show QIIME 2> /dev/null | grep Version | awk '{print $2}'`
+else
+	echo "QIIME 1 not installed"
+fi
 
 # [Create and] dive to output PROJECT directory
 if [ -d $OUT_PATH/$PROJECT ]
