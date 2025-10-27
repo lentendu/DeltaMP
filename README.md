@@ -315,6 +315,8 @@ The default values for the optional parameters could be displayed by using the -
 
 + __Single run__: "yes" or "no", consider all libraries coming from the same run in order to build a single error model for dada2. The default is "no".
 
++ __ASV pseudo-pooling__:" *Illumina specific parameter*, "yes" or "no", use sequences from all samples as prior information to detect low abundant ASVs in individual samples. For dada2 clustering only. The default is "yes".
+
 + __Chimera removal__: "before", "after" or "both", to check for chimera before OTU clustering only (in each sample separetedly), after OTU clustering only (among OTU representative sequences), or at both moments. *De-novo* chimera are detected with UCHIME and removed. For dada2 clustering, bimera are always removed using _removeBimera_. The default is "after".
 
 + __Remove singletons before first chimera check__: the accepted values are “yes” or “no”. This option allow to remove singleton reads from sub-sequent analyses in order to reduce computation time and memory footprints. This is apply on a per-sample basis, so this recommend to combine this option with a pre-clustering step to avoid removing too much potentially good but rare sequences from a single sample. The default is “no”.

@@ -267,8 +267,8 @@ do
 				# clean filtered
 				rm *.$i.*.filtered.fastq
 			else
-				Rscript --vanilla $BIN/Rscript_dada2_library.R $NCPUS $i $PERRUN
-				if [ $PERRUN == "no" ]
+				Rscript --vanilla $BIN/Rscript_dada2_library.R $NCPUS $i $PERRUN $PSEUDO
+				if [ $PERRUN == "no" ] && [ $PSEUDO == "yes" ]
 				then
 					eval $COMP *.$i.*.asv.fasta
 				fi

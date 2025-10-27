@@ -16,4 +16,5 @@ LENSTEP	5	Increment for length truncation optimization	^[0-9]+$
 MEANLEN	auto	Expected mean length of amplified barcode gene	auto ^[0-9]+$
 PREVQ	no	Reuse previous subproject optimized quality parameters	^/.+(/.+)*$
 MINPAIR	0.8	Minimum number of pair-end reads per sample	^[0-9]+(.[0-9]+)?$
+PSEUDO	yes	ASV pseudo-pooling	no yes
 BIMERA	no	Remove bimera after ASV calling and joining	no yes

@@ -67,7 +67,7 @@ then
 	eval $(echo COUNT=$FASTA | tee -a current_files.summary)
 	rm $SUBPROJECT.fasta $SUBPROJECT.groups $SUBPROJECT.uc
 else
-	if [ $PERRUN == "no" ]
+	if [ $PERRUN == "no" ] && [ $PSEUDO == "yes" ]
 	then
 		# pool all prior ASVs and dereplicate them
 		export DECOMP NCPUS
@@ -187,8 +187,8 @@ elif [ $CLUST == "dada2" ]
 then
 	if [ $PERRUN == "no" ]
 	then
-		# pseudo-pool approach
-		Rscript --vanilla $BIN/Rscript_dada2_all_libraries.R $NCPUS $SUBPROJECT $FWD_NAME $RVS_NAME $MIN_OV $PTRESH $MINLEN $BIMERA
+		# pseudo-pool or standard approach
+		Rscript --vanilla $BIN/Rscript_dada2_all_libraries.R $NCPUS $SUBPROJECT $FWD_NAME $RVS_NAME $MIN_OV $PTRESH $MINLEN $BIMERA $PSEUDO
 		find ./ -type f -name "*.index" | parallel eval $COMP
 	elif [ $PERRUN == "yes" ]
 	then

@@ -14,6 +14,7 @@ minov<-as.numeric(commandArgs()[11])
 maxmis<-minov*(1-as.numeric(commandArgs()[12]))
 minlen<-as.numeric(commandArgs()[13])
 bim<-commandArgs()[14]
+pseudo<-commandArgs()[15]
 
 # libraries and samples
 lib3<-read.table("../config/lib3.list",sep="\t",stringsAsFactors=F)
@@ -24,7 +25,7 @@ libraries<-foreach(i=samples,.combine=rbind) %do% {
       tmp<-list.files(path=i,pattern=paste(k,".*",j,"filtered.derep",sep="."))
       if (length(tmp)>0) {
         data.frame(sample=i,lib=j,dir=k,filename=tmp,stringsAsFactors=F) %>%
-          mutate(library=sub(paste0("^",k,"\\."),"",sub(paste0("\\.",j,"\\.filtered\\.derep$"),"",filename)))
+          mutate(library=sub(paste0("^",k,"\\."),"",sub(paste0("\\.",j,"\\.filtered\\.derep$"),"",filename))) 
       }
     }
   }
@@ -32,29 +33,40 @@ libraries<-foreach(i=samples,.combine=rbind) %do% {
 pairs<-mutate(libraries,comb=ifelse((lib=="fwd" & dir==fwdname) | (lib=="rvs" & dir==rvsname),"FR","RF")) %>%
   pivot_wider(names_from=lib,values_from=c(dir,filename))
 
-# priors ASV
-prior_asv<-data.frame(filename=list.files(pattern="*.[fr][wv][ds].fasta$"),stringsAsFactors=F) %>%
-  separate(filename,c("dir","lib","ext"),sep="\\.",remove=F)
-prior_seq<-dlply(prior_asv,.(lib),function(x) {
-  foreach(y=iapply(x,1),.combine=c) %do% {
-    unlist(read.fasta(y$filename,seqonly=T))
-  }
-})
-
-# dada pseudo-pooling stategy with prior ASV from all libraries and track sequence map
-cl<-makeCluster(ncores)
-registerDoParallel(cl)
-dada_pairs<-suppressWarnings(dlply(pairs,.(sample,library,comb),function(x) {
-  tmp_err_fwd<-readRDS(file.path(x$sample,paste0(x$library,".fwd.err.rds")))
-  tmp_derep_fwd<-readRDS(file.path(x$sample,x$filename_fwd))
-  tmp_err_rvs<-readRDS(file.path(x$sample,paste0(x$library,".rvs.err.rds")))
-  tmp_derep_rvs<-readRDS(file.path(x$sample,x$filename_rvs))
-  list(sample=x$sample,
-       fwd=dada2::dada(tmp_derep_fwd,tmp_err_fwd,priors=prior_seq$fwd),
-       filename_fwd=x$filename_fwd,
-       rvs=dada2::dada(tmp_derep_rvs,tmp_err_rvs,priors=prior_seq$fwd),
-       filename_rvs=x$filename_rvs)
-},.parallel=T,.paropts=list(.export='prior_seq')))
+if ( pseudo == "yes" ) {
+	# priors ASV
+	prior_asv<-data.frame(filename=list.files(pattern="*.[fr][wv][ds].fasta$"),stringsAsFactors=F) %>%
+	  separate(filename,c("dir","lib","ext"),sep="\\.",remove=F)
+	prior_seq<-dlply(prior_asv,.(lib),function(x) {
+	  foreach(y=iapply(x,1),.combine=c) %do% {
+	    unlist(read.fasta(y$filename,seqonly=T))
+	  }
+	})
+	
+	# dada pseudo-pooling stategy with prior ASV from all libraries and track sequence map
+	cl<-makeCluster(ncores)
+	registerDoParallel(cl)
+	dada_pairs<-suppressWarnings(dlply(pairs,.(sample,library,comb),function(x) {
+	  tmp_err_fwd<-readRDS(file.path(x$sample,paste0(x$library,".fwd.err.rds")))
+	  tmp_derep_fwd<-readRDS(file.path(x$sample,x$filename_fwd))
+	  tmp_err_rvs<-readRDS(file.path(x$sample,paste0(x$library,".rvs.err.rds")))
+	  tmp_derep_rvs<-readRDS(file.path(x$sample,x$filename_rvs))
+	  list(sample=x$sample,
+	       fwd=dada2::dada(tmp_derep_fwd,tmp_err_fwd,priors=prior_seq$fwd),
+	       filename_fwd=x$filename_fwd,
+	       rvs=dada2::dada(tmp_derep_rvs,tmp_err_rvs,priors=prior_seq$fwd),
+	       filename_rvs=x$filename_rvs)
+	},.parallel=T,.paropts=list(.export='prior_seq')))
+} else {
+  dada_pairs<-suppressWarnings(dlply(pairs,.(sample,library,comb),function(x) {
+    list(sample=x$sample,
+         fwd=readRDS(sub("filtered.derep","dada",x$filename_fwd)),
+         filename_fwd=x$filename_fwd,
+         rvs=readRDS(sub("filtered.derep","dada",x$filename_rvs)),
+         filename_rvs=x$filename_rvs)
+  }))
+}
+	
 
 # merge pairs
 mergers_all<-suppressWarnings(llply(dada_pairs,function(x) {

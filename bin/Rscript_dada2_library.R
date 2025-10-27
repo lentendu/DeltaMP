@@ -6,6 +6,7 @@ suppressMessages(library(dada2))
 ncores<-as.numeric(commandArgs()[7])
 lib<-commandArgs()[8]
 perrun<-commandArgs()[9]
+pseudo<-commandArgs()[10]
 
 # input libraries
 fwdin<-list.files(pattern=paste0(lib,".fwd.filtered.fastq"))
@@ -33,6 +34,7 @@ stopCluster(cl)
 
 # start pseudo-pooling routine if not per run
 if ( perrun == "no" ) {
+  
   # error model
   err<-dlply(frnames,.(lib),function(i) {
     set.seed(1)
@@ -43,14 +45,18 @@ if ( perrun == "no" ) {
   dada<-dlply(frnames, .(lib,dir),
               function(i) dada(derep[[paste(i$lib,i$dir,sep=".")]],err[[i$lib]],multithread=ncores))
   
-  # export error models and ASVs
+  # export error models and ASVs in fasta or dada2 object
   for (i in c("fwd","rvs")) {
     saveRDS(err[[i]],paste(lib,i,"err.rds",sep="."))
     for (j in unique(frnames$dir)) {
-      write(paste0(">",paste(j,lib,i,1:length(dada[[paste(i,j,sep=".")]]$sequence),sep="."),
-                   "\n",dada[[paste(i,j,sep=".")]]$sequence),
-            paste(j,lib,i,"asv.fasta",sep="."),
-            ncolumns=1) 
+      if ( pseudo =="yes" ) {
+        write(paste0(">",paste(j,lib,i,1:length(dada[[paste(i,j,sep=".")]]$sequence),sep="."),
+                     "\n",dada[[paste(i,j,sep=".")]]$sequence),
+              paste(j,lib,i,"asv.fasta",sep="."),
+              ncolumns=1) 
+      } else {
+        saveRDS(dada[[paste(i,j,sep=".")]], paste(j,lib,i,"dada",sep="."))
+      }
     }
   }
 }
