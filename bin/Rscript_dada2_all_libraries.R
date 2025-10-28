@@ -57,18 +57,21 @@ if ( pseudo == "yes" ) {
 	       rvs=dada2::dada(tmp_derep_rvs,tmp_err_rvs,priors=prior_seq$fwd),
 	       filename_rvs=x$filename_rvs)
 	},.parallel=T,.paropts=list(.export='prior_seq')))
+	stopCluster(cl)
 } else {
   dada_pairs<-suppressWarnings(dlply(pairs,.(sample,library,comb),function(x) {
     list(sample=x$sample,
-         fwd=readRDS(sub("filtered.derep","dada",x$filename_fwd)),
+         fwd=readRDS(file.path(x$sample,sub("filtered.derep","dada",x$filename_fwd))),
          filename_fwd=x$filename_fwd,
-         rvs=readRDS(sub("filtered.derep","dada",x$filename_rvs)),
+         rvs=readRDS(file.path(x$sample,sub("filtered.derep","dada",x$filename_rvs))),
          filename_rvs=x$filename_rvs)
   }))
 }
 	
 
 # merge pairs
+cl<-makeCluster(ncores)
+registerDoParallel(cl)
 mergers_all<-suppressWarnings(llply(dada_pairs,function(x) {
   tmp_derep_fwd<-readRDS(file.path(x$sample,x$filename_fwd))
   tmp_derep_rvs<-readRDS(file.path(x$sample,x$filename_rvs))
