@@ -75,9 +75,12 @@ mergers_all<-suppressWarnings(llply(dada_pairs,function(x) {
 },.parallel=T,.paropts=list(.export=c('minov','maxmis'))))
 stopCluster(cl)
 
+# list samples with sequences in each orientation (avoid processing orientations without sequences)
+sample_pairs<-dlply(attr(dada_pairs,"split_labels"),.(comb))
+
 # sequence table for each paired library in each sample, sum per sample, reverse-coomplement if RF direction
 seqtab_pairs<-llply(setNames(as.list(unique(pairs$comb)),unique(pairs$comb)),function(x) {
-  mergeSequenceTables(tables=llply(setNames(as.list(samples),samples),function(y) {
+  mergeSequenceTables(tables=llply(getElement(sample_pairs,x)$sample %>% as.list() %>% setNames(.,.),function(y) {
     tmp<-colSums(makeSequenceTable(mergers_all[grep(paste(y,".*",x,sep="\\."),names(mergers_all),value=T)]))
     if(x=="RF") {
       return(matrix(tmp,nrow=1,dimnames=list(paste(y,x,sep="_"),
