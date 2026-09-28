@@ -1,2 +1,3 @@
 OLEN	0.6	Minimum overlap proportion of primer sequences	^[0-1](.[0-9]+)?$
 MINQD	0.7	Minimum number of quality trimmed reads per sample	^[0-9]+(.[0-9]+)?$
+PREVQ	no	Reuse previous subproject optimized quality parameters	no yes

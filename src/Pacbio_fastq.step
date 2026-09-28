@@ -44,8 +44,8 @@ FDIFFS=$(awk -v P=$PDIFFS -v F=${#FWD} 'BEGIN{print (int(P/F*100)+1)/100}')
 RDIFFS=$(awk -v P=$PDIFFS -v R=${#RVS} 'BEGIN{print (int(P/R*100)+1)/100}')
 FO=$(echo "${#FWD} * $OLEN" | bc -l | sed 's/\..*//')
 RO=$(echo "${#RVS} * $OLEN" | bc -l | sed 's/\..*//')
-seqkit seq -i ${LIB_NAME}.fastq.$EXT | cutadapt -j $NCPUS -a "$PANCH$FWD;e=$FDIFFS;o=$FO;required$RIGHT...${RVS_RC};e=$RDIFFS;o=$RO;required" --untrimmed-output=fastq/${FWD_NAME}.${LIB_NAME}.unt.fastq.$EXT -o - - 2> fastq/log.cutadapt.${LIB_NAME}.fr.txt | seqkit seq -m $MINLEN -M $MAXLEN -o fastq/${FWD_NAME}.${LIB_NAME}.fastq.$EXT
-cutadapt -j $NCPUS -a "$PANCH$RVS;e=$RDIFFS;o=$RO;required;rightmost...${FWD_RC};e=$FDIFFS;o=$FO;required" --trimmed-only -o - fastq/${FWD_NAME}.${LIB_NAME}.unt.fastq.$EXT 2> fastq/log.cutadapt.${LIB_NAME}.rf.txt | seqkit seq -m $MINLEN -M $MAXLEN -o fastq/${RVS_NAME}.${LIB_NAME}.fastq.$EXT
+seqkit seq -i ${LIB_NAME}.fastq.$EXT | cutadapt -j $NCPUS -a "$PANCH$FWD;e=$FDIFFS;o=$FO;required${RIGHT}...${RVS_RC};e=$RDIFFS;o=$RO;required" --untrimmed-output=fastq/${FWD_NAME}.${LIB_NAME}.unt.fastq.$EXT -o - - 2> fastq/log.cutadapt.${LIB_NAME}.fr.txt | seqkit seq -m $MINLEN -M $MAXLEN -o fastq/${FWD_NAME}.${LIB_NAME}.fastq.$EXT
+cutadapt -j $NCPUS -a "$PANCH$RVS;e=$RDIFFS;o=$RO;required;${RIGHT}...${FWD_RC};e=$FDIFFS;o=$FO;required" --trimmed-only -o - fastq/${FWD_NAME}.${LIB_NAME}.unt.fastq.$EXT 2> fastq/log.cutadapt.${LIB_NAME}.rf.txt | seqkit seq -m $MINLEN -M $MAXLEN -o fastq/${RVS_NAME}.${LIB_NAME}.fastq.$EXT
 rm fastq/${FWD_NAME}.${LIB_NAME}.unt.fastq.$EXT
 
 # check for no read
