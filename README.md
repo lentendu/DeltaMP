@@ -377,7 +377,7 @@ The default values for the optional parameters could be displayed by using the -
 
 Columns 3 and 4 accept libraies in fastq or sff format with most kinds of compression (.gz, .tar, .tar.gz, .tgz, .bz2, .tar.bz2, .tbz2, .zip).
 
-For ENA libraries, the column 2 have to match ENA "Submitter's sample name" field and column 3 to 4 have to match ENA full ftp or fasp (for aspera connect download) URLs of a run accession as listed in ENA fields “Submitted files (FTP)” or "FASTQ files (FTP)" or “Submitted files (Aspera)” or "FASTQ files (Aspera)".
+For ENA libraries, the column 2 have to match ENA "Sample Alias" field and column 3 to 4 have to match ENA full ftp or fasp (for aspera connect download) URLs of a run accession as listed in ENA fields “Submitted files (FTP)” or "FASTQ files (FTP)" or “Submitted files (Aspera)” or "FASTQ files (Aspera)".
 
 A convenience script is provided in auxillary_script/get_bioproject_metadata.sh to easily recover all samples and run's metadata associated with a Bioproject in the ENA database.
 
