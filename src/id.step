@@ -73,15 +73,15 @@ fi
 if [ $EXTRACT != "no" ]
 then
 	if [ "$TARG_ORG" == "Bacteria" ] ; then KING=bac ; elif [ "$TARG_ORG" == "Archaea" ] ; then KING=arc ; else KING=euk ; fi
-	barrnap --kingdom $KING --threads $NCPUS --outseq $PREF.rrna.fasta $PREF.fasta > log.barrnap 2>&1
 	if [ $EXTRACT == "18S" ] || [ $EXTRACT == "28S" ]
 	then
+		barrnap --kingdom $KING --threads $NCPUS --reject 0.2 --outseq $PREF.rrna.fasta $PREF.fasta > log.barrnap 2>&1
 		seqkit grep -w0 -r -p "${EXTRACT}_rRNA" $PREF.rrna.fasta | sed "s/>${EXTRACT}_rRNA::/>/;/^>/s/:[0-9]*-[0-9]*([+-])$//" > $PREF.$EXTRACT.fasta
 	elif [ $EXTRACT == "ITS" ]
 	then
-		grep ">18S" $PREF.rrna.fasta | sed 's/>//;s/::/ /;s/:/ /;s/(/ /;s/)//' | sort -k 2,2 | join -1 2 -2 2 - <(grep ">28S" $PREF.rrna.fasta | sed 's/>//;s/::/ /;s/:/ /;s/(/ /;s/)//' | sort -k 2,2) | awk '$4=="+" && $7=="+"{split($3,a,"-");split($6,b,"-"); if(b[1]-a[2]>=32){print $1"\t"a[2]+1"\t"b[1]-1}}' > $PREF.ITS.bed
-		seqkit subseq -w0 --bed $PREF.ITS.bed $PREF.fasta | sed '/^>/s/_[0-9]*-[0-9]*:[\. ]*$//' > $PREF.ITS.fasta
-		rm $PREF.ITS.bed
+		ITSx --cpu $NCPUS -i $PREF.fasta --save_regions none --only_full T --preserve T --graphical F --positions T --not_found F -o $PREF.ITS
+		mv $PREF.ITS.full.fasta $PREF.ITS.fasta
+		rm -f $PREF.ITS.problematic.txt
 	fi
 	# remove sequences with multiple fragments (potential chimeras)
 	sed -n '/^>/s/>//p' $PREF.$EXTRACT.fasta | sort | uniq -c | awk '$1>1{print $2}' > dup.$EXTRACT.rrna.accnos
